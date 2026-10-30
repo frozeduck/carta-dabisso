@@ -351,10 +351,11 @@ public class Game {
     public boolean perkChoicePending = false;
 
     // Bottegaio Mastro Paguro
-    public float merchantX = 260f;
-    public float merchantY = 260f;
+    public float merchantX = 640f;
+    public float merchantY = 660f;
     public boolean merchantPresent = true;
     public boolean merchantShopOpen = false;
+    private float fullBagFloaterTimer = 0f;
 
     // Cooldowns
     public float attackCooldown = 0f;
@@ -672,6 +673,9 @@ public class Game {
         playerTargetY = playerY;
         playerMoving = false;
         beaconTimer = 0f;
+        merchantX = 640f;
+        merchantY = 660f;
+        merchantPresent = true;
 
         if (zone == 1) {
             zoneName = "Barriera Corallina";
@@ -811,6 +815,8 @@ public class Game {
             // Boundary clamping
             playerX = Math.max(60f, Math.min(MAP_W - 60f, playerX));
             playerY = Math.max(60f, Math.min(MAP_H - 60f, playerY));
+            playerTargetX = playerX;
+            playerTargetY = playerY;
             return;
         }
 
@@ -1308,31 +1314,49 @@ public class Game {
     }
 
     private void updateDrops(float dt) {
+        if (fullBagFloaterTimer > 0f) fullBagFloaterTimer -= dt;
         Iterator<Drop> it = drops.iterator();
         while (it.hasNext()) {
             Drop d = it.next();
-            d.bobPhase += dt * 3f;
+            d.bobPhase += dt * 3.5f;
             d.life -= dt;
             if (d.life <= 0f) {
                 it.remove();
                 continue;
             }
 
-            // Auto-pickup if player is close
             float dx = playerX - d.x;
             float dy = playerY - d.y;
-            if (dx * dx + dy * dy < 45f * 45f) {
+            float distSq = dx * dx + dy * dy;
+
+            // Magnet pull: attira gocce e oggetti verso il palombaro se entro 170px
+            if (distSq < 170f * 170f && distSq > 4f) {
+                float dist = (float) Math.sqrt(distSq);
+                float pullSpeed = Math.max(220f, (1f - dist / 170f) * 460f);
+                d.x += (dx / dist) * pullSpeed * dt;
+                d.y += (dy / dist) * pullSpeed * dt;
+            }
+
+            // Auto-pickup esteso a 75px
+            if (distSq < 75f * 75f) {
                 if (d.isShell()) {
                     shells += d.shellAmount;
                     floaters.add(new Floater(playerX, playerY - 40f, "+" + d.shellAmount + " CONCHIGLIE", 0xFFFBBF24, true, 1.1f));
                     if (soundListener != null) soundListener.onClick();
                     it.remove();
-                } else if (d.item != null && backpack.size() < 8) {
-                    backpack.add(d.item);
-                    floaters.add(new Floater(playerX, playerY - 40f, "+ " + d.item.name,
-                            getRarityColor(d.item.rarity), true, 1.2f));
-                    if (soundListener != null) soundListener.onLoot(d.item.rarity);
-                    it.remove();
+                } else if (d.item != null) {
+                    if (backpack.size() < 8) {
+                        backpack.add(d.item);
+                        floaters.add(new Floater(playerX, playerY - 40f, "+ " + d.item.name,
+                                getRarityColor(d.item.rarity), true, 1.2f));
+                        if (soundListener != null) soundListener.onLoot(d.item.rarity);
+                        it.remove();
+                    } else {
+                        if (fullBagFloaterTimer <= 0f) {
+                            floaters.add(new Floater(playerX, playerY - 45f, "ZAINO PIENO! (8/8)", 0xFFEF4444, true, 1.3f));
+                            fullBagFloaterTimer = 2.0f;
+                        }
+                    }
                 }
             }
         }
