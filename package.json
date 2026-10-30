@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "javac android/app/src/main/java/eu/sabotino/cartadabisso/Game.java android/app/src/main/java/eu/sabotino/cartadabisso/GameTest.java && java -ea -cp android/app/src/main/java eu.sabotino.cartadabisso.GameTest && rm -f android/app/src/main/java/eu/sabotino/cartadabisso/*.class",
-    "android:debug": "scripts/build-apk.sh"
+    "test": "scripts/build-apk.sh",
+    "build": "scripts/build-apk.sh",
+    "check": "python3 scripts/check-apk.py"
   }
 }

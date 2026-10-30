@@ -1,6 +1,0 @@
-@media (pointer:coarse) and (max-width:600px) {
-  .hotbar { right:12px; }
-  .skill { width:clamp(44px,13vw,54px); }
-  #joystick { left:18px;width:92px;height:92px; }
-  #joystick i { left:25px;top:25px; }
-}
