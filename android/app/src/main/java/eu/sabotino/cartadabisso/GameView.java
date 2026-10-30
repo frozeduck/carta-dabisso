@@ -51,6 +51,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private Bitmap bmpCoralGreen;
     private Bitmap bmpShell;
     private Bitmap bmpMerchant;
+    private Bitmap bmpEel;
+    private Bitmap bmpStarfish;
+    private Bitmap bmpAnemone;
 
     // Modals: Perk Selection Card Rects (3 cards)
     private final RectF[] perkCardRects = new RectF[]{
@@ -174,6 +177,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             bmpCoralGreen = BitmapFactory.decodeResource(context.getResources(), R.drawable.corallo_verde);
             bmpShell = BitmapFactory.decodeResource(context.getResources(), R.drawable.conchiglia);
             bmpMerchant = BitmapFactory.decodeResource(context.getResources(), R.drawable.paguro_bottegaio);
+            bmpEel = BitmapFactory.decodeResource(context.getResources(), R.drawable.murena);
+            bmpStarfish = BitmapFactory.decodeResource(context.getResources(), R.drawable.stella_marina);
+            bmpAnemone = BitmapFactory.decodeResource(context.getResources(), R.drawable.anemone);
         } catch (Exception ignored) {
         }
     }
@@ -440,44 +446,42 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawWorld(Canvas canvas) {
-        // Pop-Up Storybook Ocean Stage
+        // 1. Zone-Themed Watercolor Ocean Gradients
+        int colTop, colMid, colBot;
+        if (game.zone == 2) {
+            // Fossa Vulcanica (Abyssal indigo to volcanic crimson/orange twilight)
+            colTop = 0xFF1E1B4B;
+            colMid = 0xFF31103F;
+            colBot = 0xFF450A0A;
+        } else if (game.zone == 3) {
+            // Palazzo di Madreperla (Royal oceanic amethyst to luminous emerald deeps)
+            colTop = 0xFF1E1B4B;
+            colMid = 0xFF0F766E;
+            colBot = 0xFF042F2E;
+        } else {
+            // Barriera Corallina (Sunny Caribbean cyan/aquamarine to rich tropical teal)
+            colTop = 0xFF0284C7;
+            colMid = 0xFF0369A1;
+            colBot = 0xFF0E4A59;
+        }
+
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setShader(new LinearGradient(0, 0, 0, Game.MAP_H,
-                new int[]{0xFF0E4A59, 0xFF082D38, 0xFF031620},
-                new float[]{0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
+                new int[]{colTop, colMid, colBot},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
         canvas.drawRect(0f, 0f, Game.MAP_W, Game.MAP_H, paintFill);
         paintFill.setShader(null);
 
+        // 2. Parallax Animated Storybook Paper Waves
         drawStorybookWaves(canvas);
 
-        // Soft God Rays
-        for (int i = 0; i < 5; i++) {
-            float x = Game.MAP_W * (0.18f + i * 0.18f) + (float) Math.sin(animTime * 0.2f + i) * 30f;
-            tempPath.reset();
-            tempPath.moveTo(x - 20f, 0f);
-            tempPath.lineTo(x + 35f, 0f);
-            tempPath.lineTo(x + 220f, Game.MAP_H);
-            tempPath.lineTo(x - 45f, Game.MAP_H);
-            tempPath.close();
+        // 3. Golden Sun Rays / Geothermal Vents & Motes & Bubbles
+        drawSunRaysAndMotes(canvas);
 
-            paintFill.setShader(new LinearGradient(x, 0, x + 60f, Game.MAP_H,
-                    0x16A7F3D0, 0x00A7F3D0, Shader.TileMode.CLAMP));
-            canvas.drawPath(tempPath, paintFill);
-        }
-        paintFill.setShader(null);
+        // 4. Cardboard Sandy Seabed with Dunes, Starfish, Shells & Anemones
+        drawSandySeabedWithDunes(canvas);
 
-        // Cardboard Seabed Plateau
-        float[][] seabed = {
-                {50f, 50f}, {Game.MAP_W - 50f, 50f},
-                {Game.MAP_W - 50f, Game.MAP_H - 50f}, {50f, Game.MAP_H - 50f}
-        };
-        drawPaperCutout(canvas, seabed, 0xFF11323B, false);
-
-        paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(0x334ADE80);
-        paintStroke.setStrokeWidth(2.5f);
-        canvas.drawRect(65f, 65f, Game.MAP_W - 65f, Game.MAP_H - 65f, paintStroke);
-
+        // 5. Perimeter Corals & Theatrical Stagecraft Ruins
         drawPaperCoralsAndRuins(canvas);
 
         if (game.merchantPresent) {
@@ -535,34 +539,208 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawStorybookWaves(Canvas canvas) {
-        float waveOffset = (float) Math.sin(animTime * 0.8) * 20f;
-        paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0x221E40AF);
+        // Multi-tier animated wave currents with cream paper scallop foam ripples
+        for (int layer = 0; layer < 3; layer++) {
+            float speed = (layer == 0) ? 0.35f : (layer == 1 ? 0.6f : 0.85f);
+            float offset = (float) Math.sin(animTime * speed) * 35f;
+            float baseY = 160f + layer * 280f;
+            int waveColor = (layer == 0) ? 0x22FFFFFF : (layer == 1 ? 0x1A38BDF8 : 0x180284C7);
 
-        tempPath.reset();
-        tempPath.moveTo(0f, 180f);
-        for (float x = 0; x <= Game.MAP_W + 80f; x += 100f) {
-            float midX = x + 50f + waveOffset;
-            float endX = x + 100f + waveOffset;
-            tempPath.quadTo(midX, 150f, endX, 180f);
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(waveColor);
+
+            tempPath.reset();
+            tempPath.moveTo(0f, baseY + 60f);
+            for (float x = 0; x <= Game.MAP_W + 120f; x += 120f) {
+                float midX = x + 60f + offset;
+                float endX = x + 120f + offset;
+                float crest = baseY + (float) Math.sin(x * 0.02f + animTime * 1.2f) * 12f;
+                tempPath.quadTo(midX, crest - 18f, endX, baseY + 20f);
+            }
+            tempPath.lineTo(Game.MAP_W, baseY + 70f);
+            tempPath.lineTo(0f, baseY + 70f);
+            tempPath.close();
+            canvas.drawPath(tempPath, paintFill);
+
+            // Paper Scallop Foam Trim
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(0x44FFFFFF);
+            paintStroke.setStrokeWidth(2.5f);
+            canvas.drawPath(tempPath, paintStroke);
         }
-        tempPath.lineTo(Game.MAP_W, 0f);
-        tempPath.lineTo(0f, 0f);
+    }
+
+    private void drawSunRaysAndMotes(Canvas canvas) {
+        // Warm God Rays
+        for (int i = 0; i < 5; i++) {
+            float x = Game.MAP_W * (0.15f + i * 0.18f) + (float) Math.sin(animTime * 0.3f + i) * 25f;
+            tempPath.reset();
+            tempPath.moveTo(x - 20f, 0f);
+            tempPath.lineTo(x + 40f, 0f);
+            tempPath.lineTo(x + 220f, Game.MAP_H);
+            tempPath.lineTo(x - 45f, Game.MAP_H);
+            tempPath.close();
+
+            paintFill.setShader(new LinearGradient(x, 0, x + 80f, Game.MAP_H,
+                    0x26FDE047, 0x00FDE047, Shader.TileMode.CLAMP));
+            canvas.drawPath(tempPath, paintFill);
+        }
+        paintFill.setShader(null);
+
+        // Floating Golden Plankton / Sun Motes
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0x88FDE047);
+        for (int i = 0; i < 16; i++) {
+            float mx = (float) ((i * 113.7f + animTime * 14f) % Game.MAP_W);
+            float my = (float) ((i * 71.3f + Math.sin(animTime * 0.8f + i) * 30f) % (Game.MAP_H - 120f));
+            float sz = 2.5f + (float) Math.sin(animTime * 2.0f + i) * 1f;
+            canvas.drawCircle(mx, my, sz, paintFill);
+        }
+
+        // Rising Paper Air Bubbles with Glare Crescents
+        for (int i = 0; i < 10; i++) {
+            float bx = (float) ((i * 179.3f + Math.sin(animTime * 1.5f + i) * 20f) % Game.MAP_W);
+            float by = (float) (Game.MAP_H - ((animTime * 45f + i * 110f) % Game.MAP_H));
+            float br = 4f + (i % 4) * 2.5f;
+
+            paintFill.setColor(0x44FFFFFF);
+            canvas.drawCircle(bx, by, br, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(0xAAFFFFFF);
+            paintStroke.setStrokeWidth(1.4f);
+            canvas.drawCircle(bx, by, br, paintStroke);
+
+            // Glare arc
+            paintStroke.setColor(0xEEFFFFFF);
+            paintStroke.setStrokeWidth(1.2f);
+            canvas.drawArc(bx - br + 1.5f, by - br + 1.5f, bx + br - 1.5f, by + br - 1.5f, -120f, 60f, false, paintStroke);
+        }
+    }
+
+    private void drawSandySeabedWithDunes(Canvas canvas) {
+        float seabedTop = Game.MAP_H - 240f;
+
+        // Sand Base (warm golden sand: #FDE68A / #F59E0B)
+        // Dune layer 1 (Background Dune)
+        tempPath.reset();
+        tempPath.moveTo(0f, seabedTop + 70f);
+        for (float x = 0f; x <= Game.MAP_W + 200f; x += 200f) {
+            float waveH = (float) Math.sin(x * 0.008f) * 28f;
+            tempPath.quadTo(x + 100f, seabedTop + 45f + waveH, x + 200f, seabedTop + 70f + waveH);
+        }
+        tempPath.lineTo(Game.MAP_W, Game.MAP_H);
+        tempPath.lineTo(0f, Game.MAP_H);
         tempPath.close();
+
+        // Shadow under dune
+        shadowPath.reset();
+        shadowPath.addPath(tempPath, 0f, 6f);
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0x33000000);
+        canvas.drawPath(shadowPath, paintFill);
+
+        // Dune fill
+        paintFill.setShader(new LinearGradient(0, seabedTop + 40f, 0, Game.MAP_H,
+                new int[]{0xFFFDE68A, 0xFFFBBF24, 0xFFD97706},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
         canvas.drawPath(tempPath, paintFill);
+        paintFill.setShader(null);
+
+        // White Papercraft torn-edge trim on dune ridge
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(4.5f);
+        canvas.drawPath(tempPath, paintStroke);
+
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawPath(tempPath, paintStroke);
+
+        // Dashed sewing stitches along the dune edge (Paper Mario craftwork)
+        paintStroke.setColor(0x88B45309);
+        paintStroke.setStrokeWidth(2f);
+        for (float x = 20f; x < Game.MAP_W; x += 36f) {
+            float waveH = (float) Math.sin(x * 0.008f) * 28f;
+            float sy = seabedTop + 78f + waveH;
+            canvas.drawLine(x, sy, x + 18f, sy, paintStroke);
+        }
+
+        // Seabed Decorations: Starfish, Shells, Anemones
+        drawSeabedDecorations(canvas, seabedTop);
+    }
+
+    private void drawSeabedDecorations(Canvas canvas, float seabedTop) {
+        // Starfish scattered naturally across sandy dunes
+        if (bmpStarfish != null) {
+            float[][] starPositions = {
+                    {140f, seabedTop + 130f, 0.32f, 0.3f},
+                    {460f, seabedTop + 160f, 0.35f, 1.2f},
+                    {880f, seabedTop + 120f, 0.30f, 2.1f},
+                    {1240f, seabedTop + 170f, 0.36f, 0.8f},
+                    {1620f, seabedTop + 140f, 0.32f, 3.4f}
+            };
+            for (float[] sp : starPositions) {
+                canvas.save();
+                canvas.translate(sp[0], sp[1]);
+                canvas.rotate((float) Math.sin(animTime * 0.5 + sp[3]) * 6f);
+                canvas.scale(sp[2], sp[2]);
+                drawFloorShadow(canvas, 0f, 4f, 28f, 10f);
+                canvas.drawBitmap(bmpStarfish, -bmpStarfish.getWidth() / 2f, -bmpStarfish.getHeight() / 2f, null);
+                canvas.restore();
+            }
+        }
+
+        // Bioluminescent Swaying Anemones
+        if (bmpAnemone != null) {
+            float[][] anemPositions = {
+                    {280f, seabedTop + 85f, 0.34f, 0.5f},
+                    {690f, seabedTop + 110f, 0.38f, 1.7f},
+                    {1050f, seabedTop + 95f, 0.35f, 2.8f},
+                    {1480f, seabedTop + 105f, 0.38f, 0.2f}
+            };
+            for (float[] ap : anemPositions) {
+                canvas.save();
+                canvas.translate(ap[0], ap[1]);
+                float sway = (float) Math.sin(animTime * 1.8 + ap[3]) * 4f;
+                canvas.rotate(sway);
+                canvas.scale(ap[2], ap[2]);
+                drawFloorShadow(canvas, 0f, 4f, 24f, 8f);
+                canvas.drawBitmap(bmpAnemone, -bmpAnemone.getWidth() / 2f, -bmpAnemone.getHeight() + 15f, null);
+                canvas.restore();
+            }
+        }
+
+        // Spiral Seashells
+        if (bmpShell != null) {
+            float[][] shellPositions = {
+                    {360f, seabedTop + 145f, 0.22f, 25f},
+                    {790f, seabedTop + 155f, 0.20f, -15f},
+                    {1360f, seabedTop + 135f, 0.24f, 40f}
+            };
+            for (float[] shp : shellPositions) {
+                canvas.save();
+                canvas.translate(shp[0], shp[1]);
+                canvas.rotate(shp[3]);
+                canvas.scale(shp[2], shp[2]);
+                drawFloorShadow(canvas, 0f, 3f, 16f, 6f);
+                canvas.drawBitmap(bmpShell, -bmpShell.getWidth() / 2f, -bmpShell.getHeight() / 2f, null);
+                canvas.restore();
+            }
+        }
     }
 
     private void drawPaperCoralsAndRuins(Canvas canvas) {
-        // Decorative perimeter corals only — combat arena (x: 250..1350, y: 220..900) remains completely clear
-        drawCartoonCoral(canvas, 160f, 160f, 0, 0.30f, 0.5f);
-        drawCartoonCoral(canvas, 520f, 130f, 1, 0.28f, 1.2f);
-        drawCartoonCoral(canvas, 1080f, 130f, 0, 0.30f, 2.0f);
-        drawCartoonCoral(canvas, 1440f, 160f, 1, 0.28f, 3.1f);
-        drawCartoonCoral(canvas, 160f, 960f, 1, 0.30f, 4.4f);
-        drawCartoonCoral(canvas, 1440f, 960f, 0, 0.28f, 1.8f);
+        // Decorative perimeter corals only — framing stage wings and seabed
+        drawCartoonCoral(canvas, 140f, 160f, 0, 0.28f, 0.5f);
+        drawCartoonCoral(canvas, 1660f, 160f, 1, 0.28f, 2.0f);
+        drawCartoonCoral(canvas, 110f, 520f, 1, 0.32f, 3.1f);
+        drawCartoonCoral(canvas, 1690f, 520f, 0, 0.32f, 1.8f);
+        drawCartoonCoral(canvas, 180f, 920f, 0, 0.36f, 4.4f);
+        drawCartoonCoral(canvas, 1620f, 920f, 1, 0.36f, 1.2f);
 
-        drawStorybookColumn(canvas, 200f, 200f, 0.65f);
-        drawStorybookColumn(canvas, 1400f, 200f, 0.65f);
+        drawStorybookColumn(canvas, 180f, 240f, 0.55f);
+        drawStorybookColumn(canvas, 1620f, 240f, 0.55f);
     }
 
     private void drawCartoonCoral(Canvas canvas, float x, float y, int type, float scale, float phase) {
@@ -857,45 +1035,114 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawPaperCrab(canvas, e);
         }
 
-        // Clear Diablo-like Enemy Health Bar above head (Always visible so player tracks enemy HP)
+        // Paper Mario Heart Badge & HP Bar above enemy head
         if (!"boss".equals(e.type)) {
-            float barW = Math.max(38f, e.radius * 2.2f);
-            float barH = 7f;
+            float barW = Math.max(46f, e.radius * 2.3f);
+            float barH = 8f;
             float barY = -e.radius - 22f;
 
-            // White sticker border
+            // Soft shadow
             paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0x55000000);
+            canvas.drawRoundRect(-barW / 2f + 1f, barY - barH / 2f + 2f, barW / 2f + 1f, barY + barH / 2f + 2f, 4f, 4f, paintFill);
+
+            // White die-cut sticker contour
             paintFill.setColor(COL_STICKER);
-            canvas.drawRoundRect(-barW / 2f - 2f, barY - barH / 2f - 2f, barW / 2f + 2f, barY + barH / 2f + 2f, 4f, 4f, paintFill);
+            canvas.drawRoundRect(-barW / 2f - 2f, barY - barH / 2f - 2f, barW / 2f + 2f, barY + barH / 2f + 2f, 5f, 5f, paintFill);
 
-            // Dark slate background
-            paintFill.setColor(0xFF0F172A);
-            canvas.drawRoundRect(-barW / 2f, barY - barH / 2f, barW / 2f, barY + barH / 2f, 3f, 3f, paintFill);
+            // Dark ink background
+            paintFill.setColor(0xFF1E293B);
+            canvas.drawRoundRect(-barW / 2f, barY - barH / 2f, barW / 2f, barY + barH / 2f, 4f, 4f, paintFill);
 
-            // Red life bar fill
+            // Red life bar fill (amber if winding up an attack)
             float hpPct = Math.max(0f, Math.min(1.0f, (float) e.hp / e.maxHp));
             paintFill.setColor(e.isWindingUp ? 0xFFF59E0B : 0xFFEF4444);
-            canvas.drawRect(-barW / 2f, barY - barH / 2f, -barW / 2f + (barW * hpPct), barY + barH / 2f, paintFill);
+            canvas.drawRoundRect(-barW / 2f + 1f, barY - barH / 2f + 1f, -barW / 2f + 1f + ((barW - 2f) * hpPct), barY + barH / 2f - 1f, 3f, 3f, paintFill);
 
             // Inner ink border
             paintStroke.setStyle(Paint.Style.STROKE);
             paintStroke.setColor(COL_INK);
             paintStroke.setStrokeWidth(1.2f);
-            canvas.drawRoundRect(-barW / 2f, barY - barH / 2f, barW / 2f, barY + barH / 2f, 3f, 3f, paintStroke);
+            canvas.drawRoundRect(-barW / 2f, barY - barH / 2f, barW / 2f, barY + barH / 2f, 4f, 4f, paintStroke);
 
-            // Miniature HP text: e.g. "45 / 75"
+            // Paper Mario cute Heart badge at the left
+            drawHeart(canvas, -barW / 2f - 4f, barY, 4.5f, 0xFFEF4444);
+
+            // HP text: e.g. "45 / 75"
             paintText.setTextAlign(Paint.Align.CENTER);
             paintText.setTextSize(8f);
             paintText.setColor(COL_CREAM);
             paintText.setFakeBoldText(true);
-            canvas.drawText(e.hp + " / " + e.maxHp, 0f, barY + 3f, paintText);
+            canvas.drawText(e.hp + " / " + e.maxHp, 2f, barY + 3f, paintText);
+
+            // When hit, draw cartoon impact stars!
+            if (e.hitSquash > 0.05f) {
+                drawCartoonHitStars(canvas, 0f, barY - 10f, e.hitSquash);
+            }
         }
 
         canvas.restore();
     }
 
+    private void drawHeart(Canvas canvas, float cx, float cy, float r, int fillColor) {
+        tempPath.reset();
+        tempPath.moveTo(cx, cy + r * 0.7f);
+        tempPath.cubicTo(cx - r * 1.3f, cy - r * 0.3f, cx - r * 0.9f, cy - r * 1.2f, cx, cy - r * 0.3f);
+        tempPath.cubicTo(cx + r * 0.9f, cy - r * 1.2f, cx + r * 1.3f, cy - r * 0.3f, cx, cy + r * 0.7f);
+        tempPath.close();
+
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2.5f);
+        canvas.drawPath(tempPath, paintStroke);
+
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(1.2f);
+        canvas.drawPath(tempPath, paintStroke);
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(fillColor);
+        canvas.drawPath(tempPath, paintFill);
+    }
+
+    private void drawCartoonHitStars(Canvas canvas, float cx, float cy, float intensity) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_GOLD);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(1.2f);
+
+        for (int i = 0; i < 3; i++) {
+            float angle = (i * 1.3f) + animTime * 8f;
+            float dist = 14f + intensity * 12f;
+            float sx = cx + (float) Math.cos(angle) * dist;
+            float sy = cy + (float) Math.sin(angle) * dist * 0.6f;
+            float sz = 4f * intensity;
+
+            tempPath.reset();
+            tempPath.moveTo(sx, sy - sz);
+            tempPath.lineTo(sx + sz * 0.35f, sy - sz * 0.35f);
+            tempPath.lineTo(sx + sz, sy);
+            tempPath.lineTo(sx + sz * 0.35f, sy + sz * 0.35f);
+            tempPath.lineTo(sx, sy + sz);
+            tempPath.lineTo(sx - sz * 0.35f, sy + sz * 0.35f);
+            tempPath.lineTo(sx - sz, sy);
+            tempPath.lineTo(sx - sz * 0.35f, sy - sz * 0.35f);
+            tempPath.close();
+
+            canvas.drawPath(tempPath, paintFill);
+            canvas.drawPath(tempPath, paintStroke);
+        }
+    }
+
     private void drawPaperCrab(Canvas canvas, Game.Enemy e) {
         drawFloorShadow(canvas, 0f, 2f, 18f, 6f);
+
+        // Comical side-to-side wobble walking animation
+        float wobble = (float) Math.sin(animTime * 11.0 + e.animTimer) * 6f;
+        float scuttleY = Math.abs((float) Math.sin(animTime * 11.0 + e.animTimer)) * 3.5f;
+        canvas.translate(0f, -scuttleY);
+        canvas.rotate(wobble);
 
         if (bmpCrab != null) {
             float s = 0.18f;
@@ -914,6 +1161,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.save();
         canvas.translate(0f, -14f + bob);
 
+        // Pulsating accordion bell squash & stretch motion
+        float pulse = (float) Math.sin(animTime * 3.8 + e.animTimer);
+        float jSqX = 1f + pulse * 0.12f;
+        float jSqY = 1f - pulse * 0.12f;
+        canvas.scale(jSqX, jSqY);
+
         if (bmpJelly != null) {
             float s = 0.18f;
             canvas.scale(s, s);
@@ -928,33 +1181,50 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private void drawPaperAbyssalEel(Canvas canvas, Game.Enemy e) {
         drawFloorShadow(canvas, 0f, 4f, 24f, 7f);
 
-        paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(COL_STICKER);
-        paintStroke.setStrokeWidth(16f);
-        paintStroke.setStrokeCap(Paint.Cap.ROUND);
+        // Sinuous undulating eel movement
+        float undulate = (float) Math.sin(animTime * 5.5 + e.animTimer) * 5.5f;
+        float bob = (float) Math.sin(animTime * 2.0 + e.animTimer) * 3f;
 
-        tempPath.reset();
-        tempPath.moveTo(-e.radius * 1.3f, 0f);
-        float s1 = (float) Math.sin(animTime * 6.5 + e.animTimer) * 12f;
-        tempPath.quadTo(0f, s1, e.radius * 1.3f, 0f);
-        canvas.drawPath(tempPath, paintStroke);
+        canvas.save();
+        canvas.translate(0f, bob);
+        canvas.rotate(undulate);
 
-        paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(11f);
-        canvas.drawPath(tempPath, paintStroke);
+        if (bmpEel != null) {
+            float s = 0.22f;
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpEel, -bmpEel.getWidth() / 2f, -bmpEel.getHeight() / 2f - 10f, null);
+        } else {
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(16f);
+            paintStroke.setStrokeCap(Paint.Cap.ROUND);
 
-        paintStroke.setColor(COL_AQUA);
-        paintStroke.setStrokeWidth(7f);
-        canvas.drawPath(tempPath, paintStroke);
-        paintStroke.setStrokeCap(Paint.Cap.BUTT);
+            tempPath.reset();
+            tempPath.moveTo(-e.radius * 1.3f, 0f);
+            float s1 = (float) Math.sin(animTime * 6.5 + e.animTimer) * 12f;
+            tempPath.quadTo(0f, s1, e.radius * 1.3f, 0f);
+            canvas.drawPath(tempPath, paintStroke);
+
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(11f);
+            canvas.drawPath(tempPath, paintStroke);
+
+            paintStroke.setColor(COL_AQUA);
+            paintStroke.setStrokeWidth(7f);
+            canvas.drawPath(tempPath, paintStroke);
+            paintStroke.setStrokeCap(Paint.Cap.BUTT);
+        }
+        canvas.restore();
     }
 
     private void drawPaperBossLeviathan(Canvas canvas, Game.Enemy e) {
         float sway = (float) Math.sin(animTime * 1.8) * 5f;
+        float pulse = 1f + (float) Math.sin(animTime * 2.5) * 0.05f;
         drawFloorShadow(canvas, 0f, 6f, 65f, 18f);
 
         canvas.save();
         canvas.translate(0f, sway);
+        canvas.scale(pulse, pulse);
 
         if (bmpBoss != null) {
             float s = 0.40f;
@@ -1512,78 +1782,190 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     // =========================================================================
-    // INVENTORY MODAL & OVERLAYS
+    // UNIVERSAL STORYBOOK PARCHMENT & NAUTICAL CARD PRESENTATION
+    // =========================================================================
+    private void drawStorybookParchment(Canvas canvas, RectF r, String title, RectF closeBtn) {
+        // 1. Soft Cardboard Drop Shadow
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0x55000000);
+        canvas.drawRoundRect(r.left + 5f, r.top + 7f, r.right + 5f, r.bottom + 7f, 16f, 16f, paintFill);
+
+        // 2. Thick Die-Cut White Sticker Edge
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(8f);
+        canvas.drawRoundRect(r, 16f, 16f, paintStroke);
+
+        // 3. Comic Inking Contour
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(3.5f);
+        canvas.drawRoundRect(r, 16f, 16f, paintStroke);
+
+        // 4. Warm Antique Storybook Parchment Background
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setShader(new LinearGradient(r.left, r.top, r.right, r.bottom,
+                new int[]{0xFFFFFDF5, 0xFFFEF3C7, 0xFFFDE68A},
+                new float[]{0f, 0.7f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRoundRect(r, 15f, 15f, paintFill);
+        paintFill.setShader(null);
+
+        // 5. Paper Stitches / Dashed Border
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0x66B45309);
+        paintStroke.setStrokeWidth(1.8f);
+        for (float x = r.left + 24f; x < r.right - 24f; x += 16f) {
+            canvas.drawLine(x, r.top + 10f, x + 8f, r.top + 10f, paintStroke);
+            canvas.drawLine(x, r.bottom - 10f, x + 8f, r.bottom - 10f, paintStroke);
+        }
+        for (float y = r.top + 24f; y < r.bottom - 24f; y += 16f) {
+            canvas.drawLine(r.left + 10f, y, r.left + 10f, y + 8f, paintStroke);
+            canvas.drawLine(r.right - 10f, y, r.right - 10f, y + 8f, paintStroke);
+        }
+
+        // 6. Brass Corner Brackets & Rivets
+        drawBrassCorner(canvas, r.left + 10f, r.top + 10f, 0f);
+        drawBrassCorner(canvas, r.right - 10f, r.top + 10f, 90f);
+        drawBrassCorner(canvas, r.right - 10f, r.bottom - 10f, 180f);
+        drawBrassCorner(canvas, r.left + 10f, r.bottom - 10f, 270f);
+
+        // 7. Carved Driftwood Title Banner
+        if (title != null && !title.isEmpty()) {
+            float bannerW = Math.min(r.width() - 140f, paintText.measureText(title) + 50f);
+            float bx = r.left + 24f;
+            float by = r.top + 16f;
+            float bh = 34f;
+
+            paintFill.setColor(0x33000000);
+            canvas.drawRoundRect(bx + 2f, by + 3f, bx + bannerW + 2f, by + bh + 3f, 8f, 8f, paintFill);
+
+            paintFill.setShader(new LinearGradient(bx, by, bx, by + bh,
+                    new int[]{0xFF78350F, 0xFF451A03},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(bx, by, bx + bannerW, by + bh, 7f, 7f, paintFill);
+            paintFill.setShader(null);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(2.5f);
+            canvas.drawRoundRect(bx, by, bx + bannerW, by + bh, 7f, 7f, paintStroke);
+
+            paintStroke.setColor(COL_GOLD);
+            paintStroke.setStrokeWidth(1.2f);
+            canvas.drawRoundRect(bx + 2f, by + 2f, bx + bannerW - 2f, by + bh - 2f, 5f, 5f, paintStroke);
+
+            paintText.setTextAlign(Paint.Align.LEFT);
+            paintText.setColor(COL_GOLD);
+            paintText.setTextSize(15f);
+            paintText.setFakeBoldText(true);
+            canvas.drawText(title, bx + 16f, by + 22f, paintText);
+        }
+
+        // 8. Close Button (Wax Seal 'X')
+        if (closeBtn != null) {
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0x44000000);
+            canvas.drawCircle(closeBtn.centerX() + 2f, closeBtn.centerY() + 2f, closeBtn.width() / 2f, paintFill);
+
+            paintFill.setColor(0xFFDC2626);
+            canvas.drawCircle(closeBtn.centerX(), closeBtn.centerY(), closeBtn.width() / 2f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(3f);
+            canvas.drawCircle(closeBtn.centerX(), closeBtn.centerY(), closeBtn.width() / 2f, paintStroke);
+
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawCircle(closeBtn.centerX(), closeBtn.centerY(), closeBtn.width() / 2f, paintStroke);
+
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setColor(COL_STICKER);
+            paintText.setTextSize(16f);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("✕", closeBtn.centerX(), closeBtn.centerY() + 5.5f, paintText);
+        }
+    }
+
+    private void drawBrassCorner(Canvas canvas, float cx, float cy, float rotation) {
+        canvas.save();
+        canvas.translate(cx, cy);
+        canvas.rotate(rotation);
+
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_GOLD);
+        paintStroke.setStrokeWidth(3f);
+        canvas.drawLine(0f, 0f, 16f, 0f, paintStroke);
+        canvas.drawLine(0f, 0f, 0f, 16f, paintStroke);
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_INK);
+        canvas.drawCircle(4f, 4f, 2.5f, paintFill);
+        paintFill.setColor(COL_GOLD);
+        canvas.drawCircle(4f, 4f, 1.8f, paintFill);
+
+        canvas.restore();
+    }
+
+    // =========================================================================
+    // INVENTORY MODAL (OPENED EXPLORER CAPTAIN'S LOGBOOK)
     // =========================================================================
     private void drawInventoryModal(Canvas canvas) {
+        // Dim overlay
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xCC020617);
+        paintFill.setColor(0xB3020B14);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        float[][] box = {
-                {modalRect.left, modalRect.top}, {modalRect.right, modalRect.top},
-                {modalRect.right, modalRect.bottom}, {modalRect.left, modalRect.bottom}
-        };
-        drawPaperCutout(canvas, box, 0xFF0F172A, true);
-
-        paintText.setTextAlign(Paint.Align.LEFT);
-        paintText.setColor(COL_GOLD);
-        paintText.setTextSize(18f);
-        paintText.setFakeBoldText(true);
-        canvas.drawText("EQUIPAGGIAMENTO E REPERTI ABISSALI", modalRect.left + 24f, modalRect.top + 34f, paintText);
-
-        paintFill.setColor(0xFF334155);
-        canvas.drawRoundRect(btnCloseModal, 4f, 4f, paintFill);
-        paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(COL_CREAM);
-        paintText.setTextSize(16f);
-        canvas.drawText("X", btnCloseModal.centerX(), btnCloseModal.centerY() + 5f, paintText);
+        // Storybook Parchment Frame
+        drawStorybookParchment(canvas, modalRect, "DIARIO DI BORDO & REPERTI", btnCloseModal);
 
         Game.Item selItem = (selectedBackpackIndex >= 0 && selectedBackpackIndex < game.backpack.size()) ?
                 game.backpack.get(selectedBackpackIndex) : null;
         String targetedSlot = selItem != null ? selItem.slot : null;
 
+        // Left Page: Equipped Gear in Carved Driftwood Slots
         drawEquippedSlot(canvas, slotEquipWeapon, "ARMA", game.equippedWeapon, "weapon".equals(targetedSlot));
         drawEquippedSlot(canvas, slotEquipArmor, "CORAZZA", game.equippedArmor, "armor".equals(targetedSlot));
         drawEquippedSlot(canvas, slotEquipRelic, "RELIQUIA", game.equippedRelic, "relic".equals(targetedSlot));
 
-        // Active Set Bonuses info box on the left below equipment
+        // Active Set Bonuses scroll on warm parchment
         float setBoxY = 320f;
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFF1E293B);
-        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 6f, 6f, paintFill);
+        paintFill.setColor(0xFFFEF3C7);
+        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 8f, 8f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(0xFF475569);
+        paintStroke.setColor(0xFFD97706);
         paintStroke.setStrokeWidth(1.5f);
-        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 6f, 6f, paintStroke);
+        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 8f, 8f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(10f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(COL_GOLD);
+        paintText.setColor(0xFF78350F);
         canvas.drawText("BONUS SET (2+ PEZZI):", 140f, setBoxY + 18f, paintText);
 
         drawSetBonusLine(canvas, 140f, setBoxY + 38f, "Set Corallo", "+35 PV, +5 Dif", game.isSetBonusActive("Corallo"));
         drawSetBonusLine(canvas, 140f, setBoxY + 62f, "Set Marea", "+30 Marea, -20% Cd", game.isSetBonusActive("Marea"));
         drawSetBonusLine(canvas, 140f, setBoxY + 86f, "Set Abisso", "+22% Dmg, +12% Crit", game.isSetBonusActive("Abisso"));
 
-        // Backpack Grid Header
+        // Right Page: Backpack 8-Slot Grid Header
         paintText.setTextAlign(Paint.Align.LEFT);
-        paintText.setColor(0xFFCBD5E1);
-        paintText.setTextSize(13f);
+        paintText.setColor(0xFF78350F);
+        paintText.setTextSize(12.5f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("ZAINO (8 SLOT) - TOCCA PER CONFRONTARE", 350f, 100f, paintText);
+        canvas.drawText("ZAINO (8 SLOT) — TOCCA PER CONFRONTARE", 350f, 100f, paintText);
 
         for (int i = 0; i < 8; i++) {
             RectF slot = backpackSlots[i];
             boolean isSelected = (i == selectedBackpackIndex);
 
+            // Slot Background (warm oak plank)
             paintFill.setStyle(Paint.Style.FILL);
-            paintFill.setColor(isSelected ? 0xFF1E3A8A : 0xFF1E293B);
+            paintFill.setColor(isSelected ? 0xFFFEF08A : 0xFFFFFBEB);
             canvas.drawRoundRect(slot, 6f, 6f, paintFill);
 
             paintStroke.setStyle(Paint.Style.STROKE);
-            paintStroke.setColor(isSelected ? COL_GOLD : 0xFF475569);
-            paintStroke.setStrokeWidth(isSelected ? 2.5f : 1.5f);
+            paintStroke.setColor(isSelected ? 0xFFD97706 : 0xFFCBD5E1);
+            paintStroke.setStrokeWidth(isSelected ? 3f : 1.5f);
             canvas.drawRoundRect(slot, 6f, 6f, paintStroke);
 
             if (i < game.backpack.size()) {
@@ -1591,7 +1973,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 int rColor = game.getRarityColor(it.rarity);
 
                 // Slot category pill badge
-                int pillBg = "weapon".equals(it.slot) ? 0x4438BDF8 : ("armor".equals(it.slot) ? 0x444ADE80 : 0x44C084FC);
+                int pillBg = "weapon".equals(it.slot) ? 0x330284C7 : ("armor".equals(it.slot) ? 0x3316A34A : 0x339333EA);
                 paintFill.setColor(pillBg);
                 canvas.drawRoundRect(slot.left + 4f, slot.top + 4f, slot.right - 4f, slot.top + 18f, 3f, 3f, paintFill);
 
@@ -1602,27 +1984,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 canvas.drawText(it.getSlotTitle(), slot.centerX(), slot.top + 14f, paintText);
 
                 paintText.setTextSize(9f);
-                paintText.setColor(0xFFFFFFFF);
+                paintText.setColor(COL_INK);
                 paintText.setFakeBoldText(false);
                 String sn = it.name.length() > 14 ? it.name.substring(0, 13) + ".." : it.name;
                 canvas.drawText(sn, slot.centerX(), slot.centerY() + 8f, paintText);
 
                 if (it.setName != null) {
                     paintText.setTextSize(8f);
-                    paintText.setColor(COL_GOLD);
+                    paintText.setColor(0xFFB45309);
+                    paintText.setFakeBoldText(true);
                     canvas.drawText(it.setName, slot.centerX(), slot.bottom - 4f, paintText);
                 }
             }
         }
 
-        // Comparison & Detail Box (Diablo comparison card)
+        // Right Page Bottom: Comparison & Detail Scroll
         RectF compRect = new RectF(350f, 260f, 850f, 440f);
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFF131D2E);
+        paintFill.setColor(0xFFFEF3C7);
         canvas.drawRoundRect(compRect, 8f, 8f, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(selItem != null ? game.getRarityColor(selItem.rarity) : 0xFF334155);
+        paintStroke.setColor(selItem != null ? game.getRarityColor(selItem.rarity) : 0xFFD97706);
         paintStroke.setStrokeWidth(2f);
         canvas.drawRoundRect(compRect, 8f, 8f, paintStroke);
 
@@ -1638,25 +2021,25 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawText(selItem.name + " (" + selItem.getRarityName() + ")", compRect.left + 14f, compRect.top + 22f, paintText);
 
             paintText.setTextSize(11f);
-            paintText.setColor(0xFF38BDF8);
+            paintText.setColor(0xFF0284C7);
             paintText.setFakeBoldText(false);
             canvas.drawText("CATEGORIA: " + selItem.getCategoryName(), compRect.left + 14f, compRect.top + 38f, paintText);
 
-            paintText.setColor(selItem.setName != null ? COL_GOLD : 0xFF94A3B8);
+            paintText.setColor(selItem.setName != null ? 0xFFB45309 : 0xFF64748B);
             canvas.drawText("SET: " + (selItem.setName != null ? "Set " + selItem.setName : "Nessun Set"), compRect.left + 260f, compRect.top + 38f, paintText);
 
             // Divider line
-            paintStroke.setColor(0x44FFFFFF);
+            paintStroke.setColor(0x33000000);
             paintStroke.setStrokeWidth(1f);
             canvas.drawLine(compRect.left + 14f, compRect.top + 45f, compRect.right - 14f, compRect.top + 45f, paintStroke);
 
             // Comparison Header
             paintText.setTextSize(11f);
-            paintText.setColor(COL_GOLD);
+            paintText.setColor(0xFF78350F);
             paintText.setFakeBoldText(true);
             canvas.drawText("CONFRONTO CON: " + (eq != null ? eq.name + " (Equipaggiato)" : "Slot Vuoto"), compRect.left + 14f, compRect.top + 62f, paintText);
 
-            // Diablo Stat Comparison with Deltas
+            // Stat Comparison with Deltas
             float statY = compRect.top + 80f;
             paintText.setTextSize(11f);
             paintText.setFakeBoldText(false);
@@ -1689,29 +2072,40 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
             // Action Buttons
             paintFill.setStyle(Paint.Style.FILL);
-            paintFill.setColor(0xFF15803D);
+            paintFill.setColor(0xFF16A34A);
             canvas.drawRoundRect(btnEquipSelected, 6f, 6f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawRoundRect(btnEquipSelected, 6f, 6f, paintStroke);
+
             paintText.setTextAlign(Paint.Align.CENTER);
-            paintText.setColor(0xFFFFFFFF);
+            paintText.setColor(COL_STICKER);
             paintText.setTextSize(12f);
             paintText.setFakeBoldText(true);
             canvas.drawText("EQUIPAGGIA", btnEquipSelected.centerX(), btnEquipSelected.centerY() + 4f, paintText);
 
-            paintFill.setColor(0xFFB91C1C);
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFDC2626);
             canvas.drawRoundRect(btnDropSelected, 6f, 6f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawRoundRect(btnDropSelected, 6f, 6f, paintStroke);
+
             canvas.drawText("SCARTA", btnDropSelected.centerX(), btnDropSelected.centerY() + 4f, paintText);
         } else {
             paintText.setTextAlign(Paint.Align.CENTER);
             paintText.setTextSize(12f);
-            paintText.setColor(0xFF94A3B8);
+            paintText.setColor(0xFF78350F);
             paintText.setFakeBoldText(false);
             canvas.drawText("Tocca un oggetto nello zaino per esaminarne categoria e statistiche", compRect.centerX(), compRect.centerY() - 10f, paintText);
             canvas.drawText("e visualizzare il confronto automatico con l'equipaggiamento attivo.", compRect.centerX(), compRect.centerY() + 12f, paintText);
         }
 
-        // Overall stats bar
+        // Overall stats banner at bottom
         paintText.setTextAlign(Paint.Align.LEFT);
-        paintText.setColor(COL_GOLD);
+        paintText.setColor(0xFF78350F);
         paintText.setTextSize(13f);
         paintText.setFakeBoldText(true);
         String fullStats = "STATISTICHE:   DANNO: " + game.getAttackDamage() +
@@ -1722,46 +2116,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText(fullStats, modalRect.left + 30f, 470f, paintText);
     }
 
-    private void drawSetBonusLine(Canvas canvas, float x, float y, String name, String bonus, boolean active) {
-        paintText.setTextAlign(Paint.Align.LEFT);
-        paintText.setTextSize(10f);
-        paintText.setColor(active ? 0xFF4ADE80 : 0xFF64748B);
-        paintText.setFakeBoldText(active);
-        canvas.drawText(name + ": " + bonus + (active ? " [ATTIVO]" : " (2pz)"), x, y, paintText);
-    }
-
-    private void drawDiabloStatRow(Canvas canvas, float x, float y, String statName, String val, int delta) {
-        paintText.setTextAlign(Paint.Align.LEFT);
-        paintText.setColor(0xFFE2E8F0);
-        canvas.drawText(statName + " " + val, x, y, paintText);
-
-        float nameW = paintText.measureText(statName + " " + val);
-        if (delta > 0) {
-            paintText.setColor(0xFF4ADE80); // Green for improvement
-            canvas.drawText("  (+" + delta + " PIÙ FORTE)", x + nameW, y, paintText);
-        } else if (delta < 0) {
-            paintText.setColor(0xFFF87171); // Red for downgrade
-            canvas.drawText("  (" + delta + " PIÙ DEBOLE)", x + nameW, y, paintText);
-        } else {
-            paintText.setColor(0xFF94A3B8);
-            canvas.drawText("  (= IDENTICO)", x + nameW, y, paintText);
-        }
-    }
-
     private void drawEquippedSlot(Canvas canvas, RectF r, String slotTitle, Game.Item item, boolean isTargeted) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(isTargeted ? 0xFF1E3A8A : 0xFF1E293B);
+        paintFill.setColor(isTargeted ? 0xFFFEF08A : 0xFFFFFBEB);
         canvas.drawRoundRect(r, 6f, 6f, paintFill);
 
-        int rColor = item != null ? game.getRarityColor(item.rarity) : 0xFF475569;
+        int rColor = item != null ? game.getRarityColor(item.rarity) : 0xFF94A3B8;
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(isTargeted ? COL_GOLD : rColor);
+        paintStroke.setColor(isTargeted ? 0xFFD97706 : rColor);
         paintStroke.setStrokeWidth(isTargeted ? 3f : 2f);
         canvas.drawRoundRect(r, 6f, 6f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(10f);
-        paintText.setColor(isTargeted ? COL_GOLD : 0xFF94A3B8);
+        paintText.setColor(isTargeted ? 0xFFB45309 : 0xFF78350F);
         canvas.drawText(slotTitle + (isTargeted ? " (SOSTITUISCE)" : ""), r.left + 12f, r.top + 18f, paintText);
 
         if (item != null) {
@@ -1771,50 +2139,109 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawText(item.name, r.left + 12f, r.top + 36f, paintText);
             if (item.setName != null) {
                 paintText.setTextSize(9f);
-                paintText.setColor(COL_GOLD);
+                paintText.setColor(0xFFB45309);
                 canvas.drawText("[Set " + item.setName + "]", r.right - 70f, r.top + 18f, paintText);
             }
         } else {
             paintText.setTextSize(12f);
-            paintText.setColor(0xFF64748B);
+            paintText.setColor(0xFF94A3B8);
             canvas.drawText("VUOTO", r.left + 12f, r.top + 36f, paintText);
+        }
+    }
+
+    private void drawSetBonusLine(Canvas canvas, float x, float y, String name, String bonus, boolean active) {
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(10f);
+        paintText.setColor(active ? 0xFF16A34A : 0xFF94A3B8);
+        paintText.setFakeBoldText(active);
+        canvas.drawText(name + ": " + bonus + (active ? " [ATTIVO]" : " (2pz)"), x, y, paintText);
+    }
+
+    private void drawDiabloStatRow(Canvas canvas, float x, float y, String statName, String val, int delta) {
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(COL_INK);
+        canvas.drawText(statName + " " + val, x, y, paintText);
+
+        float nameW = paintText.measureText(statName + " " + val);
+        if (delta > 0) {
+            paintText.setColor(0xFF16A34A); // Green improvement
+            canvas.drawText("  (▲ MIGLIORE +" + delta + ")", x + nameW, y, paintText);
+        } else if (delta < 0) {
+            paintText.setColor(0xFFDC2626); // Red downgrade
+            canvas.drawText("  (▼ INFERIORE " + delta + ")", x + nameW, y, paintText);
+        } else {
+            paintText.setColor(0xFF64748B);
+            canvas.drawText("  (= IDENTICO)", x + nameW, y, paintText);
         }
     }
 
     private void drawGameOverOverlay(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xD9020617);
+        paintFill.setColor(0xCC020617);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(0xFFEF4444);
-        paintText.setTextSize(34f);
-        paintText.setFakeBoldText(true);
-        canvas.drawText("INGHIOTTITO DAGLI ABISSI", Game.SCREEN_W / 2f, 220f, paintText);
+        RectF goBox = new RectF(220f, 130f, 740f, 410f);
+        drawStorybookParchment(canvas, goBox, "SPEDIZIONE CONCLUSA", null);
 
-        paintFill.setColor(0xFF1E3A8A);
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(0xFFDC2626);
+        paintText.setTextSize(26f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("INGHIOTTITO DAGLI ABISSI", Game.SCREEN_W / 2f, 215f, paintText);
+
+        paintText.setColor(0xFF78350F);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("La pressione oceanica ha avuto la meglio sul tuo scafandro...", Game.SCREEN_W / 2f, 248f, paintText);
+        canvas.drawText("Le tue conchiglie e reliquie riposano sul fondale.", Game.SCREEN_W / 2f, 270f, paintText);
+
+        // Restart button in warm driftwood
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF16A34A);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintFill);
-        paintText.setColor(COL_CREAM);
-        paintText.setTextSize(17f);
-        canvas.drawText("RICOMINCIA SPEDIZIONE", btnRestart.centerX(), btnRestart.centerY() + 6f, paintText);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(btnRestart, 8f, 8f, paintStroke);
+
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(15f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("RITENTA L'IMMERSIONE", btnRestart.centerX(), btnRestart.centerY() + 5.5f, paintText);
     }
 
     private void drawVictoryOverlay(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xD9020617);
+        paintFill.setColor(0xCC020617);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(COL_GOLD);
-        paintText.setTextSize(34f);
-        paintText.setFakeBoldText(true);
-        canvas.drawText("TRIONFO NELL'ABISSO", Game.SCREEN_W / 2f, 220f, paintText);
+        RectF vicBox = new RectF(220f, 130f, 740f, 410f);
+        drawStorybookParchment(canvas, vicBox, "VITTORIA LEGGENDARIA", null);
 
-        paintFill.setColor(0xFF15803D);
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(0xFFD97706);
+        paintText.setTextSize(26f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("DOMINATORE DEGLI ABISSI!", Game.SCREEN_W / 2f, 215f, paintText);
+
+        paintText.setColor(0xFF78350F);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Hai sconfitto il Leviatano e conquistato i segreti del fondale!", Game.SCREEN_W / 2f, 248f, paintText);
+        canvas.drawText("La tua leggenda è incisa sulla Carta d'Abisso.", Game.SCREEN_W / 2f, 270f, paintText);
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFFD97706);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintFill);
-        paintText.setColor(COL_CREAM);
-        paintText.setTextSize(17f);
-        canvas.drawText("NUOVA SPEDIZIONE", btnRestart.centerX(), btnRestart.centerY() + 6f, paintText);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(btnRestart, 8f, 8f, paintStroke);
+
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(15f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("NUOVA SPEDIZIONE", btnRestart.centerX(), btnRestart.centerY() + 5.5f, paintText);
     }
 
     private void drawPaperMerchant(Canvas canvas) {
@@ -1857,45 +2284,32 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // =========================================================================
     private void drawSkillTreeModal(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xEE020B14);
+        paintFill.setColor(0xB3020B14);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        // Backdrop panel (pergamena / ardesia marina)
-        float[][] box = {
-                {modalSkillTreeRect.left, modalSkillTreeRect.top}, {modalSkillTreeRect.right, modalSkillTreeRect.top},
-                {modalSkillTreeRect.right, modalSkillTreeRect.bottom}, {modalSkillTreeRect.left, modalSkillTreeRect.bottom}
-        };
-        drawPaperCutout(canvas, box, 0xFF081325, true);
+        // Storybook Nautical Chart Parchment
+        drawStorybookParchment(canvas, modalSkillTreeRect, "MAPPA DELLE ABILITÀ & ARCHETIPI", btnCloseSkillTree);
 
-        // Header Class Tabs
+        // Header Class Tabs (Hunter, Juggernaut, Mystic)
         drawClassTab(canvas, tabHunter, "CACCIATORE", Game.CLASS_HUNTER.equals(game.playerClass), 0xFF0284C7);
         drawClassTab(canvas, tabJuggernaut, "CUSTODE", Game.CLASS_JUGGERNAUT.equals(game.playerClass), 0xFFD97706);
         drawClassTab(canvas, tabMystic, "MISTICO", Game.CLASS_MYSTIC.equals(game.playerClass), 0xFF7E22CE);
 
-        // Respec button
+        // Respec button (Wax seal style)
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFF7F1D1D);
+        paintFill.setColor(0xFFDC2626);
         canvas.drawRoundRect(btnRespec, 6f, 6f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(0xFFF87171);
-        paintStroke.setStrokeWidth(1.5f);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2f);
         canvas.drawRoundRect(btnRespec, 6f, 6f, paintStroke);
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(COL_GOLD);
+        paintText.setColor(COL_STICKER);
         paintText.setTextSize(11f);
         paintText.setFakeBoldText(true);
         canvas.drawText("RESET (RESPEC)", btnRespec.centerX(), btnRespec.centerY() + 4f, paintText);
 
-        // Close button
-        paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFF334155);
-        canvas.drawRoundRect(btnCloseSkillTree, 4f, 4f, paintFill);
-        paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(COL_CREAM);
-        paintText.setTextSize(16f);
-        canvas.drawText("X", btnCloseSkillTree.centerX(), btnCloseSkillTree.centerY() + 5.5f, paintText);
-
-        // Subheader: Branch Titles & Available Points Pill
+        // Subheader: Branch Titles
         String b1Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 1: BALISTICA PESANTE"
                 : (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? "RAMO 1: BASTIONE DI CORALLO" : "RAMO 1: SIGNORE DELLE TEMPESTE");
         String b2Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 2: AGILITÀ IDRODINAMICA"
@@ -1904,28 +2318,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setTextSize(11f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(0xFF38BDF8);
+        paintText.setColor(0xFF0284C7);
         canvas.drawText(b1Title, 220f, 66f, paintText);
-        paintText.setColor(0xFFFBBF24);
+        paintText.setColor(0xFFB45309);
         canvas.drawText(b2Title, 740f, 66f, paintText);
 
-        // Skill points pill at top center
+        // Skill points pill at top center (Golden wax seal badge)
         float spPillW = 150f;
         float spPillH = 22f;
         float spPillX = 480f - spPillW / 2f;
         float spPillY = 46f;
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(game.skillPoints > 0 ? 0xFF14532D : 0xFF1E293B);
+        paintFill.setColor(game.skillPoints > 0 ? 0xFF16A34A : 0xFF78350F);
         canvas.drawRoundRect(spPillX, spPillY, spPillX + spPillW, spPillY + spPillH, 6f, 6f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(game.skillPoints > 0 ? 0xFF4ADE80 : 0xFF475569);
+        paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(1.5f);
         canvas.drawRoundRect(spPillX, spPillY, spPillX + spPillW, spPillY + spPillH, 6f, 6f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setTextSize(10.5f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(game.skillPoints > 0 ? 0xFF86EFAC : COL_CREAM);
+        paintText.setColor(COL_STICKER);
         canvas.drawText("PUNTI ABILITÀ: " + game.skillPoints, 480f, spPillY + 15f, paintText);
 
         // Retrieve Skills
@@ -1980,15 +2394,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawTreeConduit(Canvas canvas, float x1, float y1, float x2, float y2, boolean active) {
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(0xFF1E293B);
+        paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(9f);
         canvas.drawLine(x1, y1, x2, y2, paintStroke);
 
-        paintStroke.setColor(COL_STICKER);
-        paintStroke.setStrokeWidth(6.5f);
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(6f);
         canvas.drawLine(x1, y1, x2, y2, paintStroke);
 
-        paintStroke.setColor(active ? COL_GOLD : 0xFF334155);
+        paintStroke.setColor(active ? 0xFFF59E0B : 0xFFCBD5E1);
         paintStroke.setStrokeWidth(active ? 3.5f : 2f);
         canvas.drawLine(x1, y1, x2, y2, paintStroke);
     }
@@ -1996,14 +2410,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private void drawTreeRootNode(Canvas canvas, float cx, float cy, float r) {
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
-        canvas.drawCircle(cx, cy, r + 2.5f, paintFill);
+        canvas.drawCircle(cx, cy, r + 3f, paintFill);
 
-        paintFill.setColor(0xFF0F172A);
+        paintFill.setColor(0xFF78350F);
         canvas.drawCircle(cx, cy, r, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(COL_GOLD);
-        paintStroke.setStrokeWidth(2.5f);
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(2f);
         canvas.drawCircle(cx, cy, r, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
@@ -2011,7 +2425,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextSize(9f);
         paintText.setFakeBoldText(true);
         canvas.drawText("RADICE", cx, cy - 2f, paintText);
-        paintText.setColor(COL_CREAM);
+        paintText.setColor(COL_STICKER);
         paintText.setTextSize(8f);
         paintText.setFakeBoldText(false);
         String clzTitle = Game.CLASS_HUNTER.equals(game.playerClass) ? "Cacciatore"
@@ -2027,40 +2441,40 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (isSelected) {
             float pulse = 0.85f + (float) Math.sin(animTime * 5.0) * 0.15f;
             paintStroke.setStyle(Paint.Style.STROKE);
-            paintStroke.setColor(0x88FDE047);
+            paintStroke.setColor(0x88F59E0B);
             paintStroke.setStrokeWidth(6f);
             canvas.drawCircle(cx, cy, (r + 7f) * pulse, paintStroke);
         }
 
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
-        canvas.drawCircle(cx, cy, r + 2.5f, paintFill);
+        canvas.drawCircle(cx, cy, r + 3f, paintFill);
 
-        int nodeBg = unlocked ? 0xFF064E3B : (canUnlock ? 0xFF1E3A8A : 0xFF0F172A);
+        int nodeBg = unlocked ? 0xFF16A34A : (canUnlock ? 0xFF0284C7 : 0xFFFFFBEB);
         paintFill.setColor(nodeBg);
         canvas.drawCircle(cx, cy, r, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(unlocked ? COL_GOLD : (canUnlock ? 0xFF38BDF8 : 0xFF475569));
+        paintStroke.setColor(COL_INK);
         paintStroke.setStrokeWidth(isSelected ? 3f : (unlocked ? 2.2f : 1.5f));
         canvas.drawCircle(cx, cy, r, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setTextSize(8.5f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(unlocked ? 0xFF86EFAC : (canUnlock ? 0xFF93C5FD : 0xFF94A3B8));
+        paintText.setColor(unlocked || canUnlock ? COL_STICKER : 0xFF78350F);
         canvas.drawText(s.badge, cx, cy + 3f, paintText);
 
         float tagX = cx < 480f ? cx - r - 12f : cx + r + 12f;
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(unlocked ? 0xFF14532D : 0xFF1E293B);
+        paintFill.setColor(unlocked ? 0xFF15803D : 0xFFFEF3C7);
         canvas.drawRoundRect(tagX - 10f, cy - 8f, tagX + 10f, cy + 8f, 3f, 3f, paintFill);
         paintText.setTextSize(7.5f);
-        paintText.setColor(unlocked ? 0xFF86EFAC : 0xFFCBD5E1);
+        paintText.setColor(unlocked ? COL_STICKER : 0xFF78350F);
         canvas.drawText("T" + s.tier, tagX, cy + 3f, paintText);
 
         paintText.setTextSize(8.5f);
-        paintText.setColor(unlocked ? 0xFF86EFAC : (canUnlock ? 0xFFFCD34D : 0xFF64748B));
+        paintText.setColor(unlocked ? 0xFF16A34A : (canUnlock ? 0xFF0284C7 : 0xFF94A3B8));
         String statusText = unlocked ? "ATTIVO" : (canUnlock ? "+ SBLOCCA" : "BLOCCATO");
         canvas.drawText(statusText, cx, cy + r + 12f, paintText);
     }
@@ -2070,26 +2484,27 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         boolean canUnlock = game.canUpgradeSkill(s.id);
 
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(COL_STICKER);
-        canvas.drawRoundRect(skillInspectRect.left - 2f, skillInspectRect.top - 2f, skillInspectRect.right + 2f, skillInspectRect.bottom + 2f, 10f, 10f, paintFill);
-
-        paintFill.setColor(0xFF0F172A);
+        paintFill.setColor(0xFFFEF3C7);
         canvas.drawRoundRect(skillInspectRect, 8f, 8f, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(unlocked ? COL_GOLD : (canUnlock ? 0xFF38BDF8 : 0xFF334155));
-        paintStroke.setStrokeWidth(2f);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(3f);
         canvas.drawRoundRect(skillInspectRect, 8f, 8f, paintStroke);
 
-        // Sinistra: Titolo e Grado
+        paintStroke.setColor(unlocked ? 0xFF16A34A : (canUnlock ? 0xFF0284C7 : 0xFFD97706));
+        paintStroke.setStrokeWidth(1.8f);
+        canvas.drawRoundRect(skillInspectRect, 8f, 8f, paintStroke);
+
+        // Titolo e Grado
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(14f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(COL_GOLD);
+        paintText.setColor(0xFF78350F);
         canvas.drawText(s.name, skillInspectRect.left + 16f, skillInspectRect.top + 26f, paintText);
 
         paintText.setTextSize(10f);
-        paintText.setColor(0xFF94A3B8);
+        paintText.setColor(0xFFB45309);
         paintText.setFakeBoldText(false);
         String subHeader = "Ramo " + s.branch + " • Tier " + s.tier + " • Grado: " + (unlocked ? "1/1" : "0/1");
         canvas.drawText(subHeader, skillInspectRect.left + 16f, skillInspectRect.top + 42f, paintText);
@@ -2099,7 +2514,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintFill.setColor(s.color);
         canvas.drawRoundRect(skillInspectRect.left + 16f, skillInspectRect.top + 52f, skillInspectRect.left + 16f + bPillW, skillInspectRect.top + 70f, 4f, 4f, paintFill);
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(COL_INK);
+        paintText.setColor(COL_STICKER);
         paintText.setTextSize(9.5f);
         paintText.setFakeBoldText(true);
         canvas.drawText(s.badge, skillInspectRect.left + 16f + bPillW / 2f, skillInspectRect.top + 65f, paintText);
@@ -2107,25 +2522,25 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // Centro: Descrizione
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(10.5f);
-        paintText.setColor(0xFFE2E8F0);
+        paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
         drawWrappedText(canvas, s.desc, skillInspectRect.left + 230f, skillInspectRect.top + 30f, 15f, 420f, paintText);
 
         if (s.requiredSkillId != null && !game.hasSkill(s.requiredSkillId)) {
             Game.Skill reqSkill = game.getSkillById(s.requiredSkillId);
             String reqName = reqSkill != null ? reqSkill.name : "Tier " + (s.tier - 1);
-            paintText.setColor(0xFFF87171);
+            paintText.setColor(0xFFDC2626);
             paintText.setTextSize(9.5f);
             canvas.drawText("⚠ Richiede prima: " + reqName, skillInspectRect.left + 230f, skillInspectRect.bottom - 16f, paintText);
         }
 
         // Destra: Tasto Azione Grande
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(unlocked ? 0xFF14532D : (canUnlock ? 0xFF0284C7 : 0xFF1E293B));
+        paintFill.setColor(unlocked ? 0xFF16A34A : (canUnlock ? 0xFF0284C7 : 0xFFE2E8F0));
         canvas.drawRoundRect(btnUpgradeSelectedSkill, 8f, 8f, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(unlocked ? 0xFF22C55E : (canUnlock ? COL_GOLD : 0xFF475569));
+        paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(2f);
         canvas.drawRoundRect(btnUpgradeSelectedSkill, 8f, 8f, paintStroke);
 
@@ -2133,10 +2548,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setFakeBoldText(true);
         if (unlocked) {
             paintText.setTextSize(12f);
-            paintText.setColor(0xFF86EFAC);
+            paintText.setColor(COL_STICKER);
             canvas.drawText("TALENTO ATTIVO ✓", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() - 2f, paintText);
             paintText.setTextSize(9f);
-            paintText.setColor(0xFFBBF7D0);
+            paintText.setColor(0xFFFEF3C7);
             paintText.setFakeBoldText(false);
             canvas.drawText("Già Acquisito", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() + 14f, paintText);
         } else if (canUnlock) {
@@ -2149,7 +2564,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawText("Costa 1 Punto Abilità", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() + 14f, paintText);
         } else {
             paintText.setTextSize(11f);
-            paintText.setColor(0xFF94A3B8);
+            paintText.setColor(0xFF64748B);
             canvas.drawText("BLOCCATO", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() - 3f, paintText);
             paintText.setTextSize(8.5f);
             paintText.setFakeBoldText(false);
@@ -2162,16 +2577,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawClassTab(Canvas canvas, RectF r, String title, boolean active, int accentCol) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(active ? accentCol : 0xFF1E293B);
+        paintFill.setColor(active ? accentCol : 0xFFFEF3C7);
         canvas.drawRoundRect(r, 6f, 6f, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(active ? COL_GOLD : 0xFF475569);
+        paintStroke.setColor(active ? COL_STICKER : 0xFFD97706);
         paintStroke.setStrokeWidth(active ? 2.5f : 1.2f);
         canvas.drawRoundRect(r, 6f, 6f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(active ? COL_STICKER : 0xFF94A3B8);
+        paintText.setColor(active ? COL_STICKER : 0xFF78350F);
         paintText.setTextSize(12f);
         paintText.setFakeBoldText(true);
         canvas.drawText(title, r.centerX(), r.centerY() + 4.5f, paintText);
@@ -2198,7 +2613,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawPerkSelectionModal(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xEE020B14);
+        paintFill.setColor(0xB3020B14);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
         paintText.setTextAlign(Paint.Align.CENTER);
@@ -2217,42 +2632,54 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             Game.Perk p = choices.get(i);
             RectF r = perkCardRects[i];
 
-            paintFill.setColor(COL_STICKER);
-            canvas.drawRoundRect(r.left - 4f, r.top - 4f, r.right + 4f, r.bottom + 4f, 14f, 14f, paintFill);
+            // Card Shadow
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0x44000000);
+            canvas.drawRoundRect(r.left + 4f, r.top + 6f, r.right + 4f, r.bottom + 6f, 14f, 14f, paintFill);
 
-            paintFill.setColor(0xFF0F1E2E);
-            canvas.drawRoundRect(r, 12f, 12f, paintFill);
-
+            // Card White Die-Cut Sticker
             paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(7f);
+            canvas.drawRoundRect(r, 14f, 14f, paintStroke);
+
             paintStroke.setColor(COL_INK);
             paintStroke.setStrokeWidth(3f);
-            canvas.drawRoundRect(r, 12f, 12f, paintStroke);
+            canvas.drawRoundRect(r, 14f, 14f, paintStroke);
 
-            paintFill.setStyle(Paint.Style.FILL);
+            // Card Warm Cream Paper Sheet
+            paintFill.setColor(0xFFFFFBEB);
+            canvas.drawRoundRect(r, 12f, 12f, paintFill);
+
+            // Top Badge Pill
             paintFill.setColor(p.color);
             canvas.drawRoundRect(r.left + 20f, r.top + 16f, r.right - 20f, r.top + 46f, 8f, 8f, paintFill);
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawRoundRect(r.left + 20f, r.top + 16f, r.right - 20f, r.top + 46f, 8f, 8f, paintStroke);
+
             paintText.setTextAlign(Paint.Align.CENTER);
-            paintText.setColor(COL_INK);
+            paintText.setColor(COL_STICKER);
             paintText.setTextSize(11f);
             paintText.setFakeBoldText(true);
             canvas.drawText(p.badge, r.centerX(), r.top + 35f, paintText);
 
-            paintText.setColor(COL_CREAM);
+            paintText.setColor(0xFF78350F);
             paintText.setTextSize(15f);
             canvas.drawText(p.title, r.centerX(), r.top + 78f, paintText);
 
-            paintStroke.setColor(0x44FFFFFF);
-            paintStroke.setStrokeWidth(1.5f);
+            paintStroke.setColor(0xFFD97706);
+            paintStroke.setStrokeWidth(1.2f);
             canvas.drawLine(r.left + 24f, r.top + 95f, r.right - 24f, r.top + 95f, paintStroke);
 
-            paintText.setColor(0xFFCBD5E1);
+            paintText.setColor(COL_INK);
             paintText.setTextSize(11f);
             paintText.setFakeBoldText(false);
             drawWrappedCardText(canvas, p.desc, r.centerX(), r.top + 130f, r.width() - 32f);
 
             float btnY = r.bottom - 50f;
             paintFill.setStyle(Paint.Style.FILL);
-            paintFill.setColor(p.color);
+            paintFill.setColor(0xFF16A34A);
             canvas.drawRoundRect(r.left + 25f, btnY, r.right - 25f, btnY + 34f, 8f, 8f, paintFill);
 
             paintStroke.setStyle(Paint.Style.STROKE);
@@ -2260,7 +2687,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             paintStroke.setStrokeWidth(2f);
             canvas.drawRoundRect(r.left + 25f, btnY, r.right - 25f, btnY + 34f, 8f, 8f, paintStroke);
 
-            paintText.setColor(COL_INK);
+            paintText.setColor(COL_STICKER);
             paintText.setTextSize(13f);
             paintText.setFakeBoldText(true);
             canvas.drawText("SCEGLI", r.centerX(), btnY + 22f, paintText);
@@ -2286,84 +2713,122 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
+    private void drawMerchantAwning(Canvas canvas, RectF r) {
+        float awningH = 36f;
+        float stripeW = 32f;
+        int stripeIndex = 0;
+
+        for (float x = r.left + 12f; x < r.right - 12f; x += stripeW) {
+            float sx2 = Math.min(x + stripeW, r.right - 12f);
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor((stripeIndex % 2 == 0) ? 0xFFEF4444 : 0xFFFFFBEB);
+
+            tempPath.reset();
+            tempPath.moveTo(x, r.top + 6f);
+            tempPath.lineTo(sx2, r.top + 6f);
+            tempPath.lineTo(sx2, r.top + 6f + awningH);
+            tempPath.quadTo((x + sx2) / 2f, r.top + 6f + awningH + 8f, x, r.top + 6f + awningH);
+            tempPath.close();
+            canvas.drawPath(tempPath, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(1.4f);
+            canvas.drawPath(tempPath, paintStroke);
+
+            stripeIndex++;
+        }
+    }
+
     private void drawMerchantShopModal(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xDD020B14);
+        paintFill.setColor(0xB3020B14);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        paintFill.setColor(COL_STICKER);
-        canvas.drawRoundRect(shopModalRect.left - 4f, shopModalRect.top - 4f, shopModalRect.right + 4f, shopModalRect.bottom + 4f, 16f, 16f, paintFill);
+        // Storybook Parchment Frame
+        drawStorybookParchment(canvas, shopModalRect, "BOTTEGA DI MASTRO PAGURO", btnCloseShop);
 
-        paintFill.setColor(0xFF0F1E2E);
-        canvas.drawRoundRect(shopModalRect, 14f, 14f, paintFill);
+        // Striped Nautical Awning Canopy
+        drawMerchantAwning(canvas, shopModalRect);
 
-        paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(3f);
-        canvas.drawRoundRect(shopModalRect, 14f, 14f, paintStroke);
-
-        paintText.setTextAlign(Paint.Align.LEFT);
-        paintText.setColor(COL_GOLD);
-        paintText.setTextSize(18f);
-        paintText.setFakeBoldText(true);
-        canvas.drawText("BOTTEGA DI MASTRO PAGURO", shopModalRect.left + 28f, shopModalRect.top + 38f, paintText);
-
+        // Conchiglie counter pill
         paintText.setTextAlign(Paint.Align.RIGHT);
-        paintText.setTextSize(14f);
-        canvas.drawText("Conchiglie: " + game.shells, shopModalRect.right - 80f, shopModalRect.top + 38f, paintText);
+        paintText.setTextSize(13f);
+        paintText.setColor(0xFF78350F);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("Conchiglie: " + game.shells, shopModalRect.right - 85f, shopModalRect.top + 34f, paintText);
         if (bmpShell != null) {
-            tempRect.set(shopModalRect.right - 72f, shopModalRect.top + 20f, shopModalRect.right - 46f, shopModalRect.top + 46f);
+            tempRect.set(shopModalRect.right - 78f, shopModalRect.top + 16f, shopModalRect.right - 50f, shopModalRect.top + 44f);
             canvas.drawBitmap(bmpShell, null, tempRect, null);
         }
 
-        paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFFEF4444);
-        canvas.drawRoundRect(btnCloseShop, 6f, 6f, paintFill);
-        paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(COL_STICKER);
-        paintText.setTextSize(16f);
-        canvas.drawText("X", btnCloseShop.centerX(), btnCloseShop.centerY() + 6f, paintText);
+        // Friendly Paguro Portrait & Greeting Bubble
+        if (bmpMerchant != null) {
+            float s = 0.22f;
+            canvas.save();
+            canvas.translate(shopModalRect.left + 50f, shopModalRect.top + 95f);
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpMerchant, -bmpMerchant.getWidth() / 2f, -bmpMerchant.getHeight() / 2f, null);
+            canvas.restore();
 
-        drawShopItem(canvas, shopSlotPotion, "Fiala di Cura Rinforzata", "+1 Pozione di cura istantanea (PV massimi ripristinati)", 15,
-                game.shells >= 15 && game.potions < game.maxPotions, 0xFF4ADE80);
+            // Speech bubble
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFFFFBEB);
+            canvas.drawRoundRect(shopModalRect.left + 95f, shopModalRect.top + 65f, shopModalRect.right - 30f, shopModalRect.top + 115f, 8f, 8f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(0xFFD97706);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawRoundRect(shopModalRect.left + 95f, shopModalRect.top + 65f, shopModalRect.right - 30f, shopModalRect.top + 115f, 8f, 8f, paintStroke);
+
+            paintText.setTextAlign(Paint.Align.LEFT);
+            paintText.setColor(0xFF78350F);
+            paintText.setTextSize(11f);
+            paintText.setFakeBoldText(false);
+            canvas.drawText("«Ehilà, coraggioso palombaro! Ho recuperato queste rarità dagli abissi più profondi...", shopModalRect.left + 105f, shopModalRect.top + 85f, paintText);
+            canvas.drawText("Usa le conchiglie raccolte per rinforzare la tua spedizione!»", shopModalRect.left + 105f, shopModalRect.top + 102f, paintText);
+        }
+
+        // Shop items (warm parchment cards with luggage price tags)
+        drawShopItem(canvas, shopSlotPotion, "Fiala di Cura Rinforzata", "+1 Pozione di cura istantanea (ripristina tutti i PV)", 15,
+                game.shells >= 15 && game.potions < game.maxPotions, 0xFF16A34A);
 
         drawShopItem(canvas, shopSlotBlessing, "Benedizione delle Maree", "Ripristina al 100% la Marea e guarisce +30 PV", 25,
-                game.shells >= 25, 0xFF38BDF8);
+                game.shells >= 25, 0xFF0284C7);
 
         drawShopItem(canvas, shopSlotCoffer, "Scrigno Misterioso dei Fondali", "Genera un equipaggiamento Raro o Abissale per lo zaino", 55,
-                game.shells >= 55 && game.backpack.size() < 8, 0xFFC084FC);
+                game.shells >= 55 && game.backpack.size() < 8, 0xFF9333EA);
     }
 
     private void drawShopItem(Canvas canvas, RectF r, String title, String desc, int cost, boolean canBuy, int accentCol) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFF1E293B);
+        paintFill.setColor(0xFFFEF3C7);
         canvas.drawRoundRect(r, 10f, 10f, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(canBuy ? accentCol : 0x4464748B);
+        paintStroke.setColor(canBuy ? accentCol : 0xFFCBD5E1);
         paintStroke.setStrokeWidth(2f);
         canvas.drawRoundRect(r, 10f, 10f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.LEFT);
-        paintText.setColor(canBuy ? COL_CREAM : 0xFF94A3B8);
-        paintText.setTextSize(15f);
+        paintText.setColor(canBuy ? 0xFF78350F : 0xFF94A3B8);
+        paintText.setTextSize(14f);
         paintText.setFakeBoldText(true);
         canvas.drawText(title, r.left + 20f, r.top + 32f, paintText);
 
         paintText.setTextSize(11f);
-        paintText.setColor(0xFF94A3B8);
+        paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
         canvas.drawText(desc, r.left + 20f, r.top + 58f, paintText);
 
-        float btnW = 130f;
+        float btnW = 140f;
         float btnH = 40f;
         float bx = r.right - btnW - 20f;
         float by = r.centerY() - btnH / 2f;
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(canBuy ? 0xFF10B981 : 0xFF334155);
+        paintFill.setColor(canBuy ? 0xFF16A34A : 0xFFCBD5E1);
         canvas.drawRoundRect(bx, by, bx + btnW, by + btnH, 8f, 8f, paintFill);
 
-        paintStroke.setColor(canBuy ? COL_STICKER : 0xFF475569);
+        paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(1.5f);
         canvas.drawRoundRect(bx, by, bx + btnW, by + btnH, 8f, 8f, paintStroke);
 
@@ -2410,14 +2875,37 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawPauseOverlay(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xAA020617);
+        paintFill.setColor(0xCC020617);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
+        RectF pBox = new RectF(260f, 150f, 700f, 390f);
+        drawStorybookParchment(canvas, pBox, "IMMERSIONE IN PAUSA", null);
+
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setColor(COL_GOLD);
-        paintText.setTextSize(32f);
+        paintText.setColor(0xFF78350F);
+        paintText.setTextSize(22f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("PAUSA", Game.SCREEN_W / 2f, 260f, paintText);
+        canvas.drawText("PAUSA DI BORDO", Game.SCREEN_W / 2f, 235f, paintText);
+
+        paintText.setColor(COL_INK);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Il tempo si ferma nelle correnti sottomarine...", Game.SCREEN_W / 2f, 275f, paintText);
+
+        // Resume pill
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF16A34A);
+        canvas.drawRoundRect(Game.SCREEN_W / 2f - 110f, 315f, Game.SCREEN_W / 2f + 110f, 355f, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(Game.SCREEN_W / 2f - 110f, 315f, Game.SCREEN_W / 2f + 110f, 355f, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(14f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("TOCCA PER RIPRENDERE", Game.SCREEN_W / 2f, 340f, paintText);
     }
 
     @Override

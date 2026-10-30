@@ -281,12 +281,114 @@ def gen_paguro_bottegaio():
     sticker.save(out_dir / 'paguro_bottegaio.png')
     print('Generato paguro_bottegaio.png (supersampled Lanczos)')
 
+def gen_murena():
+    # Abyssal Moray Eel (Murena dei Fondali)
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Dorsal fin along serpentine back
+    fin_pts = [(100, 280), (140, 200), (220, 160), (320, 150), (410, 210), (460, 290), (410, 260), (320, 180), (220, 190), (140, 230), (100, 280)]
+    draw.polygon(fin_pts, fill=(52, 211, 153, 255), outline=COL_INK)
+
+    # Sinuous moray eel body with accordion curves
+    body_pts = [(80, 310), (140, 240), (240, 210), (350, 230), (440, 300),
+                (420, 370), (330, 310), (220, 290), (140, 330), (70, 370)]
+    draw.polygon(body_pts, fill=(147, 51, 234, 255), outline=COL_INK)
+
+    # Golden belly stripe
+    belly_pts = [(100, 340), (160, 290), (250, 270), (340, 285), (410, 340),
+                 (380, 360), (310, 310), (220, 300), (140, 330)]
+    draw.polygon(belly_pts, fill=COL_GOLD)
+
+    # Round Head
+    draw.ellipse([50, 270, 180, 390], fill=(168, 85, 247, 255), outline=COL_INK, width=12)
+
+    # Wide grinning open mouth
+    draw.polygon([(60, 340), (120, 340), (100, 380)], fill=(225, 29, 72, 255), outline=COL_INK)
+    # Cute sharp triangle fangs
+    draw.polygon([(70, 340), (76, 354), (82, 340)], fill=COL_WHITE)
+    draw.polygon([(86, 340), (92, 354), (98, 340)], fill=COL_WHITE)
+    draw.polygon([(78, 374), (84, 360), (90, 374)], fill=COL_WHITE)
+
+    # Big googly cartoon eyes with shiny pupils
+    draw.ellipse([90, 275, 140, 325], fill=COL_WHITE, outline=COL_INK, width=8)
+    draw.ellipse([100, 285, 125, 310], fill=COL_INK)
+    draw.ellipse([104, 288, 114, 298], fill=COL_WHITE)
+
+    # Cute rosy cheek
+    draw.ellipse([135, 330, 155, 350], fill=(244, 114, 182, 200))
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'murena.png')
+    print('Generato murena.png (supersampled Lanczos)')
+
+def gen_stella_marina():
+    # Cute cartoon starfish for seabed decoration
+    w, h = 256, 256
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # 5-pointed star
+    pts = []
+    cx, cy = 128, 128
+    for i in range(10):
+        rad = math.radians(i * 36 - 90)
+        r = 100 if i % 2 == 0 else 46
+        pts.append((cx + int(math.cos(rad) * r), cy + int(math.sin(rad) * r)))
+    draw.polygon(pts, fill=(251, 146, 60, 255), outline=COL_INK, width=8)
+
+    # Cute polka dots on arms
+    for arm in range(5):
+        rad = math.radians(arm * 72 - 90)
+        dot_x = cx + int(math.cos(rad) * 65)
+        dot_y = cy + int(math.sin(rad) * 65)
+        draw.ellipse([dot_x - 8, dot_y - 8, dot_x + 8, dot_y + 8], fill=COL_GOLD)
+
+    # Starfish happy eyes
+    draw.ellipse([110, 112, 124, 128], fill=COL_WHITE, outline=COL_INK, width=4)
+    draw.ellipse([132, 112, 146, 128], fill=COL_WHITE, outline=COL_INK, width=4)
+    draw.ellipse([115, 117, 122, 125], fill=COL_INK)
+    draw.ellipse([137, 117, 144, 125], fill=COL_INK)
+    # Smile
+    draw.arc([118, 128, 138, 142], start=0, end=180, fill=COL_INK, width=4)
+
+    sticker = apply_smooth_sticker(im, stroke_width=10, target_size=(128, 128))
+    sticker.save(out_dir / 'stella_marina.png')
+    print('Generata stella_marina.png (supersampled Lanczos)')
+
+def gen_anemone():
+    # Bioluminescent sea anemone cluster
+    w, h = 360, 360
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Base rock / pedestal
+    draw.ellipse([100, 280, 260, 340], fill=(71, 85, 105, 255), outline=COL_INK, width=8)
+
+    # Swaying tentacles
+    for i in range(9):
+        tx = 120 + i * 15
+        curve_x = tx + (i - 4) * 8
+        pts = [(tx, 290), (curve_x, 220), (curve_x + (i - 4) * 6, 140)]
+        draw.line(pts, fill=COL_INK, width=16)
+        draw.line(pts, fill=(236, 72, 153, 255) if i % 2 == 0 else (192, 132, 252, 255), width=10)
+        # Glowing tip bulb
+        draw.ellipse([pts[-1][0] - 10, pts[-1][1] - 10, pts[-1][0] + 10, pts[-1][1] + 10], fill=COL_GOLD, outline=COL_INK, width=4)
+
+    sticker = apply_smooth_sticker(im, stroke_width=12, target_size=(180, 180))
+    sticker.save(out_dir / 'anemone.png')
+    print('Generato anemone.png (supersampled Lanczos)')
+
 if __name__ == '__main__':
     gen_palombaro()
     gen_granchio()
     gen_medusa()
     gen_boss_leviatano()
+    gen_murena()
     gen_coralli()
     gen_conchiglia()
     gen_paguro_bottegaio()
+    gen_stella_marina()
+    gen_anemone()
     print('Tutti gli asset grafici Paper Mario PNG generati con successo e anti-aliasing liscio!')
