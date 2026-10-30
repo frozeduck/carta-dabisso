@@ -1437,7 +1437,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         paintText.setTextAlign(Paint.Align.RIGHT);
         paintText.setTextSize(14f);
-        canvas.drawText("Conchiglie: " + game.shells + " 🐚", shopModalRect.right - 65f, shopModalRect.top + 38f, paintText);
+        canvas.drawText("Conchiglie: " + game.shells, shopModalRect.right - 80f, shopModalRect.top + 38f, paintText);
+        if (bmpShell != null) {
+            tempRect.set(shopModalRect.right - 72f, shopModalRect.top + 20f, shopModalRect.right - 46f, shopModalRect.top + 46f);
+            canvas.drawBitmap(bmpShell, null, tempRect, null);
+        }
 
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFFEF4444);
@@ -1494,7 +1498,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setColor(canBuy ? COL_STICKER : 0xFF64748B);
         paintText.setTextSize(12f);
         paintText.setFakeBoldText(true);
-        canvas.drawText(cost + " 🐚 COMPRA", bx + btnW / 2f, by + 25f, paintText);
+        canvas.drawText("ACQUISTA (" + cost + ")", bx + btnW / 2f, by + 25f, paintText);
     }
 
     private void handlePerkSelectionTouch(float vx, float vy) {
