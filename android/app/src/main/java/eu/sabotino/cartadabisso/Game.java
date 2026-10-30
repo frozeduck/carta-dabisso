@@ -190,6 +190,11 @@ public class Game {
     public float beaconY = -100f;
     public float beaconTimer = 0f;
 
+    // Mobile Virtual Joystick Input
+    public float joystickX = 0f;
+    public float joystickY = 0f;
+    public boolean joystickActive = false;
+
     // Stats & Leveling
     public int level = 1;
     public int xp = 0;
@@ -428,6 +433,37 @@ public class Game {
     }
 
     private void updatePlayerMovement(float dt) {
+        if (joystickActive) {
+            float lenSq = joystickX * joystickX + joystickY * joystickY;
+            if (lenSq > 0.04f) {
+                float len = (float) Math.sqrt(lenSq);
+                float normX = joystickX / len;
+                float normY = joystickY / len;
+                playerFacingAngle = (float) Math.atan2(normY, normX);
+                float currentSpeed = getMoveSpeed();
+                if (dashAnim > 0f) currentSpeed *= 2.2f;
+
+                playerX += normX * currentSpeed * dt;
+                playerY += normY * currentSpeed * dt;
+                playerMoving = true;
+
+                // Spawn movement bubbles
+                if (Math.random() < (dashAnim > 0f ? 0.8 : 0.25)) {
+                    particles.add(new Particle(playerX + (float)(Math.random()*12-6),
+                            playerY + (float)(Math.random()*12-6),
+                            (float)(Math.random()*20-10), -30f - (float)(Math.random()*20),
+                            3f + (float)(Math.random()*4), 0x9944C8FF, 0.6f));
+                }
+            } else {
+                playerMoving = false;
+            }
+
+            // Boundary clamping
+            playerX = Math.max(60f, Math.min(MAP_W - 60f, playerX));
+            playerY = Math.max(60f, Math.min(MAP_H - 60f, playerY));
+            return;
+        }
+
         if (!playerMoving) return;
 
         float dx = playerTargetX - playerX;
@@ -472,6 +508,29 @@ public class Game {
         attackCooldown = attackRate;
         attackAnim = 1.0f;
         playerSquash = 0.5f;
+
+        // Auto-aim to closest enemy if no specific coordinate provided
+        if (targetWorldX < 0f && targetWorldY < 0f) {
+            Enemy closest = null;
+            float minDistSq = 600f * 600f;
+            for (Enemy e : enemies) {
+                if (e.hp <= 0) continue;
+                float dX = e.x - playerX;
+                float dY = e.y - playerY;
+                float d2 = dX * dX + dY * dY;
+                if (d2 < minDistSq) {
+                    minDistSq = d2;
+                    closest = e;
+                }
+            }
+            if (closest != null) {
+                targetWorldX = closest.x;
+                targetWorldY = closest.y;
+            } else {
+                targetWorldX = playerX + (float) Math.cos(playerFacingAngle) * 150f;
+                targetWorldY = playerY + (float) Math.sin(playerFacingAngle) * 150f;
+            }
+        }
 
         float dx = targetWorldX - playerX;
         float dy = targetWorldY - playerY;
