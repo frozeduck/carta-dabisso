@@ -164,6 +164,25 @@ public class GameTest {
         assert game.shells == 5 : "Costo 55 conchiglie non detratto";
         System.out.println("Test 14 PASSATO: Bottega di Mastro Paguro OK.");
 
-        System.out.println("TUTTI I 14 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
+        // Test 15: Categorie Oggetti e Slot Equipaggiati (Diablo system)
+        game.initPlayer();
+        assert "ARMA (Mano Principale)".equals(game.equippedWeapon.getCategoryName()) : "Nome categoria arma errato";
+        assert "CORAZZA (Torace)".equals(game.equippedArmor.getCategoryName()) : "Nome categoria corazza errato";
+        assert "RELIQUIA (Talismano)".equals(game.equippedRelic.getCategoryName()) : "Nome categoria reliquia errato";
+        assert "ARMA".equals(game.equippedWeapon.getSlotTitle()) : "Titolo slot arma errato";
+        assert game.getEquippedForSlot("weapon") == game.equippedWeapon : "Slot weapon non corrispondente";
+        assert game.getEquippedForSlot("armor") == game.equippedArmor : "Slot armor non corrispondente";
+        assert game.getEquippedForSlot("relic") == game.equippedRelic : "Slot relic non corrispondente";
+        System.out.println("Test 15 PASSATO: Categorie Diablo e Slot Equipaggiati OK.");
+
+        // Test 16: Movimento Joystick Dinamico e assenza drift
+        game.initPlayer();
+        assert !game.joystickActive : "Joystick non deve essere attivo all'avvio";
+        assert game.joystickX == 0f && game.joystickY == 0f : "Joystick vector non nullo";
+        game.update(0.1f);
+        assert !game.playerMoving : "Giocatore non deve muoversi senza input";
+        System.out.println("Test 16 PASSATO: Joystick dinamico e zero drift OK.");
+
+        System.out.println("TUTTI I 16 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
     }
 }

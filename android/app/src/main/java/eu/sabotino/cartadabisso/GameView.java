@@ -85,14 +85,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final Path shadowPath = new Path();
     private final RectF tempRect = new RectF();
 
-    // Mobile Virtual Joystick (Left Thumb)
-    private final float joyBaseX = 130f;
-    private final float joyBaseY = 415f;
+    // Mobile Dynamic Virtual Joystick (Left Thumb)
+    private final float joyDefaultBaseX = 140f;
+    private final float joyDefaultBaseY = 415f;
+    private float joyCurrentBaseX = joyDefaultBaseX;
+    private float joyCurrentBaseY = joyDefaultBaseY;
     private final float joyBaseRadius = 56f;
     private final float joyKnobRadius = 26f;
-    private float joyKnobX = joyBaseX;
-    private float joyKnobY = joyBaseY;
+    private float joyKnobX = joyDefaultBaseX;
+    private float joyKnobY = joyDefaultBaseY;
     private int joyPointerId = -1;
+    private boolean joyTouched = false;
 
     // Mobile Action Button Cluster (Right Thumb)
     private final float btnAttackX = 855f, btnAttackY = 425f, btnAttackRadius = 44f;
@@ -117,8 +120,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     // Backpack 8-slot grid (4x2)
     private final RectF[] backpackSlots = new RectF[8];
-    private final RectF btnEquipSelected = new RectF(560f, 370f, 680f, 415f);
-    private final RectF btnDropSelected = new RectF(700f, 370f, 810f, 415f);
+    private final RectF btnEquipSelected = new RectF(560f, 385f, 690f, 425f);
+    private final RectF btnDropSelected = new RectF(705f, 385f, 825f, 425f);
 
     // Game Over / Victory Buttons
     private final RectF btnRestart = new RectF(380f, 340f, 580f, 395f);
@@ -165,10 +168,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void initBackpackSlotRects() {
-        float startX = 540f;
+        float startX = 350f;
         float startY = 120f;
-        float slotW = 65f;
-        float slotH = 65f;
+        float slotW = 110f;
+        float slotH = 58f;
         float gap = 12f;
 
         for (int i = 0; i < 8; i++) {
@@ -230,16 +233,25 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         AudioHelper.playClick();
     }
 
+    private void resetJoystick() {
+        joyPointerId = -1;
+        joyTouched = false;
+        joyCurrentBaseX = joyDefaultBaseX;
+        joyCurrentBaseY = joyDefaultBaseY;
+        joyKnobX = joyDefaultBaseX;
+        joyKnobY = joyDefaultBaseY;
+        game.joystickX = 0f;
+        game.joystickY = 0f;
+        game.joystickActive = false;
+    }
+
     public void restartGame() {
         game.initPlayer();
         game.loadZone(1);
         game.gameOver = false;
         game.victory = false;
         inventoryOpen = false;
-        joyPointerId = -1;
-        joyKnobX = joyBaseX;
-        joyKnobY = joyBaseY;
-        game.joystickActive = false;
+        resetJoystick();
         AudioHelper.playClick();
     }
 
@@ -606,6 +618,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             float s = 0.21f;
             canvas.scale(s, s);
             canvas.drawBitmap(bmpDiver, -bmpDiver.getWidth() / 2f, -220f, null);
+            drawDiverEquipment(canvas);
         } else {
             // Procedural fallback with white sticker border
             float[][] suit = {{-15,-30}, {-10,-40}, {10,-40}, {16,-28}, {12,-12}, {2,-8}, {-12,-12}};
@@ -626,6 +639,147 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         canvas.restore();
+    }
+
+    private void drawDiverEquipment(Canvas canvas) {
+        // Local space: diver center is x: 0, y: -110, feet at y: 0, top of helmet at y: -220
+        // 1. ARMOR CHESTPLATE & PAULDRONS (Visual aesthetic changes based on equipped armor)
+        if (game.equippedArmor != null) {
+            String setName = game.equippedArmor.setName;
+            int armorCol = 0xFFF87171; // Corallo (Red)
+            int accentCol = 0xFFFFFFFF;
+            if ("Marea".equals(setName)) {
+                armorCol = 0xFF0284C7; // Marea (Cyan)
+                accentCol = 0xFF38BDF8;
+            } else if ("Abisso".equals(setName)) {
+                armorCol = 0xFF7E22CE; // Abisso (Purple)
+                accentCol = 0xFFC084FC;
+            } else if (game.equippedArmor.rarity == Game.RARITY_COMMON) {
+                armorCol = 0xFFD97706; // Bronze / leather
+                accentCol = 0xFFFDE047;
+            }
+
+            // Chestplate cutout over diver torso
+            float[][] chest = {
+                    {-32f, -112f}, {24f, -112f},
+                    {28f, -62f}, {-4f, -48f}, {-34f, -62f}
+            };
+            drawPaperCutout(canvas, chest, armorCol, true);
+
+            // Inner chestplate decorative plate
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(accentCol);
+            if ("Abisso".equals(setName)) {
+                // Golden abyssal eye
+                paintFill.setColor(COL_GOLD);
+                canvas.drawCircle(-4f, -80f, 7f, paintFill);
+                paintFill.setColor(COL_INK);
+                canvas.drawCircle(-4f, -80f, 3.5f, paintFill);
+            } else if ("Marea".equals(setName)) {
+                // Wave rune arc
+                paintStroke.setStyle(Paint.Style.STROKE);
+                paintStroke.setColor(COL_STICKER);
+                paintStroke.setStrokeWidth(3f);
+                canvas.drawArc(-18f, -92f, 10f, -68f, 0f, 180f, false, paintStroke);
+            } else {
+                // Coral studs
+                paintFill.setColor(COL_STICKER);
+                canvas.drawCircle(-18f, -80f, 4f, paintFill);
+                canvas.drawCircle(10f, -80f, 4f, paintFill);
+            }
+
+            // Left & Right shoulder pauldrons
+            float[][] pauldronLeft = {{-48f, -120f}, {-28f, -120f}, {-30f, -96f}, {-52f, -96f}};
+            float[][] pauldronRight = {{20f, -120f}, {40f, -120f}, {42f, -96f}, {22f, -96f}};
+            drawPaperCutout(canvas, pauldronLeft, armorCol, true);
+            drawPaperCutout(canvas, pauldronRight, armorCol, true);
+
+            // Visor tint overlay on helmet
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor("Marea".equals(setName) ? 0x6638BDF8 : ("Abisso".equals(setName) ? 0x66A855F7 : 0x44F87171));
+            canvas.drawCircle(-4f, -155f, 22f, paintFill);
+        }
+
+        // 2. WEAPON IN FRONT HAND (Thrusts forward dynamically during attackAnim)
+        if (game.equippedWeapon != null) {
+            String setName = game.equippedWeapon.setName;
+            int wepCol = 0xFFB45309; // Copper
+            if ("Corallo".equals(setName)) wepCol = 0xFFEF4444; // Coral
+            else if ("Marea".equals(setName)) wepCol = 0xFF0284C7; // Tide
+            else if ("Abisso".equals(setName)) wepCol = 0xFF6B21A8; // Void
+
+            // Attack thrust translation during weapon swing
+            float thrust = game.attackAnim > 0f ? (float) Math.sin(game.attackAnim * Math.PI) * 45f : 0f;
+
+            canvas.save();
+            canvas.translate(-50f - thrust, -90f);
+            canvas.rotate(-15f + (thrust * 0.4f));
+
+            // Harpoon / Spear shaft
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(9f);
+            canvas.drawLine(0f, 75f, 0f, -75f, paintStroke);
+
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(6f);
+            canvas.drawLine(0f, 75f, 0f, -75f, paintStroke);
+
+            paintStroke.setColor(wepCol);
+            paintStroke.setStrokeWidth(3.5f);
+            canvas.drawLine(0f, 75f, 0f, -75f, paintStroke);
+
+            // Spearhead based on weapon type
+            if ("Marea".equals(setName)) {
+                // 3-pronged Trident head
+                float[][] tridentLeft = {{-16f, -70f}, {-16f, -110f}, {-11f, -110f}, {-8f, -70f}};
+                float[][] tridentCenter = {{-5f, -70f}, {0f, -125f}, {5f, -70f}};
+                float[][] tridentRight = {{8f, -70f}, {11f, -110f}, {16f, -110f}, {16f, -70f}};
+                drawPaperCutout(canvas, tridentLeft, 0xFF38BDF8, true);
+                drawPaperCutout(canvas, tridentCenter, 0xFF38BDF8, true);
+                drawPaperCutout(canvas, tridentRight, 0xFF38BDF8, true);
+            } else if ("Abisso".equals(setName)) {
+                // Curved scythe-harpoon head
+                float[][] scythe = {{0f, -70f}, {-28f, -95f}, {-18f, -125f}, {8f, -85f}};
+                drawPaperCutout(canvas, scythe, 0xFFC084FC, true);
+            } else if ("Corallo".equals(setName)) {
+                // Jagged serrated coral spearhead
+                float[][] coralTip = {{0f, -125f}, {14f, -95f}, {6f, -90f}, {12f, -75f}, {0f, -70f}, {-12f, -75f}, {-6f, -90f}, {-14f, -95f}};
+                drawPaperCutout(canvas, coralTip, 0xFFF87171, true);
+            } else {
+                // Standard Barbed Harpoon
+                float[][] spear = {{0f, -115f}, {10f, -85f}, {3f, -80f}, {-3f, -80f}, {-10f, -85f}};
+                drawPaperCutout(canvas, spear, 0xFFCBD5E1, true);
+            }
+
+            canvas.restore();
+        }
+
+        // 3. FLOATING RELIC COMPANION CHARM (Bobs smoothly near shoulder)
+        if (game.equippedRelic != null) {
+            String setName = game.equippedRelic.setName;
+            float bobRelic = (float) Math.sin(animTime * 3.5) * 8f;
+            canvas.save();
+            canvas.translate(46f, -145f + bobRelic);
+
+            int rCol = "Marea".equals(setName) ? 0xFF38BDF8 : ("Abisso".equals(setName) ? 0xFFA855F7 : 0xFFFBBF24);
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(COL_STICKER);
+            canvas.drawCircle(0f, 0f, 13f, paintFill);
+
+            paintFill.setColor(rCol);
+            canvas.drawCircle(0f, 0f, 10f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(2.5f);
+            canvas.drawCircle(0f, 0f, 10f, paintStroke);
+
+            paintFill.setColor(COL_STICKER);
+            canvas.drawCircle(-3f, -3f, 3.5f, paintFill);
+
+            canvas.restore();
+        }
     }
 
     // =========================================================================
@@ -663,20 +817,38 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawPaperCrab(canvas, e);
         }
 
-        // Cartoon Health Bar
-        if (e.hp < e.maxHp && !"boss".equals(e.type)) {
-            float barW = 34f;
-            float barY = -46f;
+        // Clear Diablo-like Enemy Health Bar above head (Always visible so player tracks enemy HP)
+        if (!"boss".equals(e.type)) {
+            float barW = Math.max(38f, e.radius * 2.2f);
+            float barH = 7f;
+            float barY = -e.radius - 22f;
+
+            // White sticker border
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(COL_STICKER);
-            canvas.drawRoundRect(-barW / 2f - 2f, barY - 5f, barW / 2f + 2f, barY + 5f, 3f, 3f, paintFill);
+            canvas.drawRoundRect(-barW / 2f - 2f, barY - barH / 2f - 2f, barW / 2f + 2f, barY + barH / 2f + 2f, 4f, 4f, paintFill);
 
-            paintFill.setColor(COL_INK);
-            canvas.drawRect(-barW / 2f, barY - 3f, barW / 2f, barY + 3f, paintFill);
+            // Dark slate background
+            paintFill.setColor(0xFF0F172A);
+            canvas.drawRoundRect(-barW / 2f, barY - barH / 2f, barW / 2f, barY + barH / 2f, 3f, 3f, paintFill);
 
-            float hpPct = (float) e.hp / e.maxHp;
-            paintFill.setColor(COL_CORAL);
-            canvas.drawRect(-barW / 2f, barY - 3f, -barW / 2f + barW * hpPct, barY + 3f, paintFill);
+            // Red life bar fill
+            float hpPct = Math.max(0f, Math.min(1.0f, (float) e.hp / e.maxHp));
+            paintFill.setColor(e.isWindingUp ? 0xFFF59E0B : 0xFFEF4444);
+            canvas.drawRect(-barW / 2f, barY - barH / 2f, -barW / 2f + (barW * hpPct), barY + barH / 2f, paintFill);
+
+            // Inner ink border
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(1.2f);
+            canvas.drawRoundRect(-barW / 2f, barY - barH / 2f, barW / 2f, barY + barH / 2f, 3f, 3f, paintStroke);
+
+            // Miniature HP text: e.g. "45 / 75"
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(8f);
+            paintText.setColor(COL_CREAM);
+            paintText.setFakeBoldText(true);
+            canvas.drawText(e.hp + " / " + e.maxHp, 0f, barY + 3f, paintText);
         }
 
         canvas.restore();
@@ -815,7 +987,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setTextSize(12f);
         paintText.setFakeBoldText(true);
-        float tw = paintText.measureText(drop.item.name) + 16f;
+        String dropLabel = "[" + drop.item.getSlotTitle() + "] " + drop.item.name;
+        float tw = paintText.measureText(dropLabel) + 16f;
 
         paintFill.setColor(COL_STICKER);
         canvas.drawRoundRect(drop.x - tw / 2f - 2f, cy - 38f, drop.x + tw / 2f + 2f, cy - 18f, 5f, 5f, paintFill);
@@ -824,7 +997,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRoundRect(drop.x - tw / 2f, cy - 36f, drop.x + tw / 2f, cy - 20f, 4f, 4f, paintFill);
 
         paintText.setColor(rColor);
-        canvas.drawText(drop.item.name, drop.x, cy - 25f, paintText);
+        canvas.drawText(dropLabel, drop.x, cy - 25f, paintText);
     }
 
     private void drawComicFloater(Canvas canvas, Game.Floater f) {
@@ -898,40 +1071,82 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         drawRedLifeGlobe(canvas, globeHpX, globeHpY, globeHpRadius);
         drawBlueTideGlobe(canvas, globeTideX, globeTideY, globeTideRadius);
 
+        // Diablo Boss Health Bar (if Boss is alive in current zone)
+        for (Game.Enemy e : game.enemies) {
+            if ("boss".equals(e.type) && e.hp > 0) {
+                drawDiabloBossBar(canvas, e);
+                break;
+            }
+        }
+
         drawVirtualJoystick(canvas);
         drawMobileActionButtons(canvas);
+    }
+
+    private void drawDiabloBossBar(Canvas canvas, Game.Enemy boss) {
+        float cx = Game.SCREEN_W / 2f;
+        float barY = 62f;
+        float barW = 340f;
+        float barH = 22f;
+
+        // Sticker outline
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_STICKER);
+        canvas.drawRoundRect(cx - barW / 2f - 3f, barY - barH / 2f - 3f, cx + barW / 2f + 3f, barY + barH / 2f + 3f, 8f, 8f, paintFill);
+
+        // Frame
+        paintFill.setColor(0xFF0F172A);
+        canvas.drawRoundRect(cx - barW / 2f, barY - barH / 2f, cx + barW / 2f, barY + barH / 2f, 6f, 6f, paintFill);
+
+        // Health fill
+        float pct = Math.max(0f, Math.min(1.0f, (float) boss.hp / boss.maxHp));
+        paintFill.setColor(0xFFDC2626);
+        canvas.drawRoundRect(cx - barW / 2f + 2f, barY - barH / 2f + 2f, cx - barW / 2f + 2f + (barW - 4f) * pct, barY + barH / 2f - 2f, 4f, 4f, paintFill);
+
+        // Comic border
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(cx - barW / 2f, barY - barH / 2f, cx + barW / 2f, barY + barH / 2f, 6f, 6f, paintStroke);
+
+        // Boss Title & HP text
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(COL_GOLD);
+        canvas.drawText("👑 LEVIATANO DEGLI ABISSI: " + boss.hp + " / " + boss.maxHp + " PV", cx, barY + 4f, paintText);
     }
 
     private void drawVirtualJoystick(Canvas canvas) {
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(5f);
-        canvas.drawCircle(joyBaseX, joyBaseY, joyBaseRadius, paintStroke);
+        canvas.drawCircle(joyCurrentBaseX, joyCurrentBaseY, joyBaseRadius, paintStroke);
 
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0x880F172A);
-        canvas.drawCircle(joyBaseX, joyBaseY, joyBaseRadius, paintFill);
+        paintFill.setColor(joyTouched ? 0x990F172A : 0x440F172A);
+        canvas.drawCircle(joyCurrentBaseX, joyCurrentBaseY, joyBaseRadius, paintFill);
 
-        paintStroke.setColor(COL_AQUA);
+        paintStroke.setColor(joyTouched ? COL_AQUA : 0x5538BDF8);
         paintStroke.setStrokeWidth(2.5f);
-        canvas.drawCircle(joyBaseX, joyBaseY, joyBaseRadius, paintStroke);
+        canvas.drawCircle(joyCurrentBaseX, joyCurrentBaseY, joyBaseRadius, paintStroke);
 
         paintStroke.setColor(0x4438BDF8);
-        canvas.drawLine(joyBaseX - 35f, joyBaseY, joyBaseX + 35f, joyBaseY, paintStroke);
-        canvas.drawLine(joyBaseX, joyBaseY - 35f, joyBaseX, joyBaseY + 35f, paintStroke);
+        canvas.drawLine(joyCurrentBaseX - 35f, joyCurrentBaseY, joyCurrentBaseX + 35f, joyCurrentBaseY, paintStroke);
+        canvas.drawLine(joyCurrentBaseX, joyCurrentBaseY - 35f, joyCurrentBaseX, joyCurrentBaseY + 35f, paintStroke);
 
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(5f);
         canvas.drawCircle(joyKnobX, joyKnobY, joyKnobRadius, paintStroke);
 
-        paintFill.setColor(0xEE1E293B);
+        paintFill.setColor(joyTouched ? 0xFF1E293B : 0x881E293B);
         canvas.drawCircle(joyKnobX, joyKnobY, joyKnobRadius, paintFill);
 
-        paintStroke.setColor(COL_AQUA);
+        paintStroke.setColor(joyTouched ? COL_AQUA : 0x6638BDF8);
         paintStroke.setStrokeWidth(2.5f);
         canvas.drawCircle(joyKnobX, joyKnobY, joyKnobRadius, paintStroke);
 
-        paintFill.setColor(COL_GOLD);
+        paintFill.setColor(joyTouched ? COL_GOLD : 0x88FBBF24);
         canvas.drawCircle(joyKnobX, joyKnobY, 5f, paintFill);
     }
 
@@ -1142,14 +1357,40 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextSize(16f);
         canvas.drawText("X", btnCloseModal.centerX(), btnCloseModal.centerY() + 5f, paintText);
 
-        drawEquippedSlot(canvas, slotEquipWeapon, "ARMA", game.equippedWeapon);
-        drawEquippedSlot(canvas, slotEquipArmor, "CORAZZA", game.equippedArmor);
-        drawEquippedSlot(canvas, slotEquipRelic, "RELIQUIA", game.equippedRelic);
+        Game.Item selItem = (selectedBackpackIndex >= 0 && selectedBackpackIndex < game.backpack.size()) ?
+                game.backpack.get(selectedBackpackIndex) : null;
+        String targetedSlot = selItem != null ? selItem.slot : null;
+
+        drawEquippedSlot(canvas, slotEquipWeapon, "ARMA", game.equippedWeapon, "weapon".equals(targetedSlot));
+        drawEquippedSlot(canvas, slotEquipArmor, "CORAZZA", game.equippedArmor, "armor".equals(targetedSlot));
+        drawEquippedSlot(canvas, slotEquipRelic, "RELIQUIA", game.equippedRelic, "relic".equals(targetedSlot));
+
+        // Active Set Bonuses info box on the left below equipment
+        float setBoxY = 320f;
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF1E293B);
+        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 6f, 6f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0xFF475569);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 6f, 6f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(10f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(COL_GOLD);
+        canvas.drawText("BONUS SET (2+ PEZZI):", 140f, setBoxY + 18f, paintText);
+
+        drawSetBonusLine(canvas, 140f, setBoxY + 38f, "Set Corallo", "+35 PV, +5 Dif", game.isSetBonusActive("Corallo"));
+        drawSetBonusLine(canvas, 140f, setBoxY + 62f, "Set Marea", "+30 Marea, -20% Cd", game.isSetBonusActive("Marea"));
+        drawSetBonusLine(canvas, 140f, setBoxY + 86f, "Set Abisso", "+22% Dmg, +12% Crit", game.isSetBonusActive("Abisso"));
+
+        // Backpack Grid Header
+        paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setColor(0xFFCBD5E1);
-        paintText.setTextSize(14f);
-        canvas.drawText("ZAINO (8 SLOT)", 540f, 100f, paintText);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("ZAINO (8 SLOT) - TOCCA PER CONFRONTARE", 350f, 100f, paintText);
 
         for (int i = 0; i < 8; i++) {
             RectF slot = backpackSlots[i];
@@ -1160,59 +1401,134 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawRoundRect(slot, 6f, 6f, paintFill);
 
             paintStroke.setStyle(Paint.Style.STROKE);
-            paintStroke.setColor(isSelected ? 0xFF38BDF8 : 0xFF475569);
+            paintStroke.setColor(isSelected ? COL_GOLD : 0xFF475569);
             paintStroke.setStrokeWidth(isSelected ? 2.5f : 1.5f);
             canvas.drawRoundRect(slot, 6f, 6f, paintStroke);
 
             if (i < game.backpack.size()) {
                 Game.Item it = game.backpack.get(i);
                 int rColor = game.getRarityColor(it.rarity);
-                paintStroke.setColor(rColor);
-                paintStroke.setStrokeWidth(2f);
-                canvas.drawRect(slot.left + 4f, slot.top + 4f, slot.right - 4f, slot.bottom - 4f, paintStroke);
+
+                // Slot category pill badge
+                int pillBg = "weapon".equals(it.slot) ? 0x4438BDF8 : ("armor".equals(it.slot) ? 0x444ADE80 : 0x44C084FC);
+                paintFill.setColor(pillBg);
+                canvas.drawRoundRect(slot.left + 4f, slot.top + 4f, slot.right - 4f, slot.top + 18f, 3f, 3f, paintFill);
 
                 paintText.setTextAlign(Paint.Align.CENTER);
-                paintText.setTextSize(10f);
+                paintText.setTextSize(9f);
+                paintText.setFakeBoldText(true);
                 paintText.setColor(rColor);
-                canvas.drawText(it.slot.toUpperCase(), slot.centerX(), slot.centerY() - 6f, paintText);
+                canvas.drawText(it.getSlotTitle(), slot.centerX(), slot.top + 14f, paintText);
 
                 paintText.setTextSize(9f);
                 paintText.setColor(0xFFFFFFFF);
-                String sn = it.name.length() > 9 ? it.name.substring(0, 8) + ".." : it.name;
-                canvas.drawText(sn, slot.centerX(), slot.centerY() + 10f, paintText);
+                paintText.setFakeBoldText(false);
+                String sn = it.name.length() > 14 ? it.name.substring(0, 13) + ".." : it.name;
+                canvas.drawText(sn, slot.centerX(), slot.centerY() + 8f, paintText);
+
+                if (it.setName != null) {
+                    paintText.setTextSize(8f);
+                    paintText.setColor(COL_GOLD);
+                    canvas.drawText(it.setName, slot.centerX(), slot.bottom - 4f, paintText);
+                }
             }
         }
 
-        if (selectedBackpackIndex >= 0 && selectedBackpackIndex < game.backpack.size()) {
-            Game.Item sel = game.backpack.get(selectedBackpackIndex);
-            int rColor = game.getRarityColor(sel.rarity);
+        // Comparison & Detail Box (Diablo comparison card)
+        RectF compRect = new RectF(350f, 260f, 850f, 440f);
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF131D2E);
+        canvas.drawRoundRect(compRect, 8f, 8f, paintFill);
 
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(selItem != null ? game.getRarityColor(selItem.rarity) : 0xFF334155);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(compRect, 8f, 8f, paintStroke);
+
+        if (selItem != null) {
+            Game.Item eq = game.getEquippedForSlot(selItem.slot);
+            int rColor = game.getRarityColor(selItem.rarity);
+
+            // Item Name & Category
             paintText.setTextAlign(Paint.Align.LEFT);
-            paintText.setTextSize(15f);
+            paintText.setTextSize(14f);
             paintText.setFakeBoldText(true);
             paintText.setColor(rColor);
-            canvas.drawText(sel.name + " (" + sel.getRarityName() + ")", 540f, 290f, paintText);
+            canvas.drawText(selItem.name + " (" + selItem.getRarityName() + ")", compRect.left + 14f, compRect.top + 22f, paintText);
 
-            paintText.setTextSize(12f);
-            paintText.setColor(0xFFE2E8F0);
-            String statLine = "weapon".equals(sel.slot) ? "Danno: +" + sel.damageBonus :
-                    "armor".equals(sel.slot) ? "Difesa: +" + sel.defenseBonus + "  Salute: +" + sel.healthBonus :
-                            "Velocita: +" + (int)sel.speedBonus;
-            canvas.drawText(statLine, 540f, 314f, paintText);
+            paintText.setTextSize(11f);
+            paintText.setColor(0xFF38BDF8);
+            paintText.setFakeBoldText(false);
+            canvas.drawText("CATEGORIA: " + selItem.getCategoryName(), compRect.left + 14f, compRect.top + 38f, paintText);
 
+            paintText.setColor(selItem.setName != null ? COL_GOLD : 0xFF94A3B8);
+            canvas.drawText("SET: " + (selItem.setName != null ? "Set " + selItem.setName : "Nessun Set"), compRect.left + 260f, compRect.top + 38f, paintText);
+
+            // Divider line
+            paintStroke.setColor(0x44FFFFFF);
+            paintStroke.setStrokeWidth(1f);
+            canvas.drawLine(compRect.left + 14f, compRect.top + 45f, compRect.right - 14f, compRect.top + 45f, paintStroke);
+
+            // Comparison Header
+            paintText.setTextSize(11f);
+            paintText.setColor(COL_GOLD);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("CONFRONTO CON: " + (eq != null ? eq.name + " (Equipaggiato)" : "Slot Vuoto"), compRect.left + 14f, compRect.top + 62f, paintText);
+
+            // Diablo Stat Comparison with Deltas
+            float statY = compRect.top + 80f;
+            paintText.setTextSize(11f);
+            paintText.setFakeBoldText(false);
+
+            if ("weapon".equals(selItem.slot)) {
+                int eqDmg = eq != null ? eq.damageBonus : 0;
+                int dDmg = selItem.damageBonus - eqDmg;
+                drawDiabloStatRow(canvas, compRect.left + 14f, statY, "Danno Base:", "+" + selItem.damageBonus, dDmg);
+
+                float eqCrit = eq != null ? eq.critBonus : 0f;
+                int dCrit = (int) ((selItem.critBonus - eqCrit) * 100f);
+                drawDiabloStatRow(canvas, compRect.left + 14f, statY + 18f, "Critico:", "+" + (int)(selItem.critBonus * 100) + "%", dCrit);
+            } else if ("armor".equals(selItem.slot)) {
+                int eqDef = eq != null ? eq.defenseBonus : 0;
+                int dDef = selItem.defenseBonus - eqDef;
+                drawDiabloStatRow(canvas, compRect.left + 14f, statY, "Difesa:", "+" + selItem.defenseBonus, dDef);
+
+                int eqHp = eq != null ? eq.healthBonus : 0;
+                int dHp = selItem.healthBonus - eqHp;
+                drawDiabloStatRow(canvas, compRect.left + 14f, statY + 18f, "Salute Massima:", "+" + selItem.healthBonus, dHp);
+            } else if ("relic".equals(selItem.slot)) {
+                float eqSpd = eq != null ? eq.speedBonus : 0f;
+                int dSpd = (int)(selItem.speedBonus - eqSpd);
+                drawDiabloStatRow(canvas, compRect.left + 14f, statY, "Velocità Movimento:", "+" + (int)selItem.speedBonus, dSpd);
+
+                float eqCrit = eq != null ? eq.critBonus : 0f;
+                int dCrit = (int)((selItem.critBonus - eqCrit) * 100f);
+                drawDiabloStatRow(canvas, compRect.left + 14f, statY + 18f, "Critico:", "+" + (int)(selItem.critBonus * 100) + "%", dCrit);
+            }
+
+            // Action Buttons
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(0xFF15803D);
             canvas.drawRoundRect(btnEquipSelected, 6f, 6f, paintFill);
             paintText.setTextAlign(Paint.Align.CENTER);
             paintText.setColor(0xFFFFFFFF);
-            paintText.setTextSize(13f);
-            canvas.drawText("EQUIPAGGIA", btnEquipSelected.centerX(), btnEquipSelected.centerY() + 5f, paintText);
+            paintText.setTextSize(12f);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("EQUIPAGGIA", btnEquipSelected.centerX(), btnEquipSelected.centerY() + 4f, paintText);
 
             paintFill.setColor(0xFFB91C1C);
             canvas.drawRoundRect(btnDropSelected, 6f, 6f, paintFill);
-            canvas.drawText("SCARTA", btnDropSelected.centerX(), btnDropSelected.centerY() + 5f, paintText);
+            canvas.drawText("SCARTA", btnDropSelected.centerX(), btnDropSelected.centerY() + 4f, paintText);
+        } else {
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(12f);
+            paintText.setColor(0xFF94A3B8);
+            paintText.setFakeBoldText(false);
+            canvas.drawText("Tocca un oggetto nello zaino per esaminarne categoria e statistiche", compRect.centerX(), compRect.centerY() - 10f, paintText);
+            canvas.drawText("e visualizzare il confronto automatico con l'equipaggiamento attivo.", compRect.centerX(), compRect.centerY() + 12f, paintText);
         }
 
+        // Overall stats bar
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setColor(COL_GOLD);
         paintText.setTextSize(13f);
@@ -1220,31 +1536,63 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         String fullStats = "STATISTICHE:   DANNO: " + game.getAttackDamage() +
                 "    DIFESA: " + game.getDefense() +
                 "    SALUTE: " + game.getMaxHp() +
-                "    VELOCITA: " + (int)game.getMoveSpeed();
-        canvas.drawText(fullStats, modalRect.left + 30f, 465f, paintText);
+                "    VELOCITA: " + (int)game.getMoveSpeed() +
+                "    CRIT: " + (int)(game.getCritChance() * 100) + "%";
+        canvas.drawText(fullStats, modalRect.left + 30f, 470f, paintText);
     }
 
-    private void drawEquippedSlot(Canvas canvas, RectF r, String slotTitle, Game.Item item) {
+    private void drawSetBonusLine(Canvas canvas, float x, float y, String name, String bonus, boolean active) {
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(10f);
+        paintText.setColor(active ? 0xFF4ADE80 : 0xFF64748B);
+        paintText.setFakeBoldText(active);
+        canvas.drawText(name + ": " + bonus + (active ? " [ATTIVO]" : " (2pz)"), x, y, paintText);
+    }
+
+    private void drawDiabloStatRow(Canvas canvas, float x, float y, String statName, String val, int delta) {
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(0xFFE2E8F0);
+        canvas.drawText(statName + " " + val, x, y, paintText);
+
+        float nameW = paintText.measureText(statName + " " + val);
+        if (delta > 0) {
+            paintText.setColor(0xFF4ADE80); // Green for improvement
+            canvas.drawText("  (+" + delta + " PIÙ FORTE)", x + nameW, y, paintText);
+        } else if (delta < 0) {
+            paintText.setColor(0xFFF87171); // Red for downgrade
+            canvas.drawText("  (" + delta + " PIÙ DEBOLE)", x + nameW, y, paintText);
+        } else {
+            paintText.setColor(0xFF94A3B8);
+            canvas.drawText("  (= IDENTICO)", x + nameW, y, paintText);
+        }
+    }
+
+    private void drawEquippedSlot(Canvas canvas, RectF r, String slotTitle, Game.Item item, boolean isTargeted) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFF1E293B);
+        paintFill.setColor(isTargeted ? 0xFF1E3A8A : 0xFF1E293B);
         canvas.drawRoundRect(r, 6f, 6f, paintFill);
 
         int rColor = item != null ? game.getRarityColor(item.rarity) : 0xFF475569;
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(rColor);
-        paintStroke.setStrokeWidth(2f);
+        paintStroke.setColor(isTargeted ? COL_GOLD : rColor);
+        paintStroke.setStrokeWidth(isTargeted ? 3f : 2f);
         canvas.drawRoundRect(r, 6f, 6f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(10f);
-        paintText.setColor(0xFF94A3B8);
-        canvas.drawText(slotTitle, r.left + 12f, r.top + 18f, paintText);
+        paintText.setColor(isTargeted ? COL_GOLD : 0xFF94A3B8);
+        canvas.drawText(slotTitle + (isTargeted ? " (SOSTITUISCE)" : ""), r.left + 12f, r.top + 18f, paintText);
 
         if (item != null) {
             paintText.setTextSize(13f);
             paintText.setFakeBoldText(true);
             paintText.setColor(rColor);
             canvas.drawText(item.name, r.left + 12f, r.top + 36f, paintText);
+            if (item.setName != null) {
+                paintText.setTextSize(9f);
+                paintText.setColor(COL_GOLD);
+                canvas.drawText("[Set " + item.setName + "]", r.right - 70f, r.top + 18f, paintText);
+            }
         } else {
             paintText.setTextSize(12f);
             paintText.setColor(0xFF64748B);
@@ -1614,11 +1962,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 break;
             }
 
-            case MotionEvent.ACTION_POINTER_UP:
+            case MotionEvent.ACTION_POINTER_UP: {
+                int pointerId = event.getPointerId(actionIndex);
+                handlePointerUp(pointerId);
+                break;
+            }
+
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
                 int pointerId = event.getPointerId(actionIndex);
                 handlePointerUp(pointerId);
+                resetJoystick();
                 break;
             }
         }
@@ -1633,9 +1987,18 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
-        if (vx < 420f && vy > 120f) {
-            joyPointerId = pointerId;
-            updateJoystick(vx, vy);
+        if (vx < 420f && vy > 110f) {
+            if (joyPointerId == -1) {
+                joyPointerId = pointerId;
+                joyTouched = true;
+                joyCurrentBaseX = vx;
+                joyCurrentBaseY = vy;
+                joyKnobX = vx;
+                joyKnobY = vy;
+                game.joystickX = 0f;
+                game.joystickY = 0f;
+                game.joystickActive = false;
+            }
             return;
         }
 
@@ -1701,31 +2064,30 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void handlePointerUp(int pointerId) {
         if (pointerId == joyPointerId) {
-            joyPointerId = -1;
-            joyKnobX = joyBaseX;
-            joyKnobY = joyBaseY;
-            game.joystickX = 0f;
-            game.joystickY = 0f;
-            game.joystickActive = false;
+            resetJoystick();
         }
     }
 
     private void updateJoystick(float vx, float vy) {
-        float dx = vx - joyBaseX;
-        float dy = vy - joyBaseY;
+        float dx = vx - joyCurrentBaseX;
+        float dy = vy - joyCurrentBaseY;
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
 
-        if (dist > joyBaseRadius) {
-            joyKnobX = joyBaseX + (dx / dist) * joyBaseRadius;
-            joyKnobY = joyBaseY + (dy / dist) * joyBaseRadius;
+        if (dist > 8f) {
+            float clampedDist = Math.min(dist, joyBaseRadius);
+            joyKnobX = joyCurrentBaseX + (dx / dist) * clampedDist;
+            joyKnobY = joyCurrentBaseY + (dy / dist) * clampedDist;
+            game.joystickX = (joyKnobX - joyCurrentBaseX) / joyBaseRadius;
+            game.joystickY = (joyKnobY - joyCurrentBaseY) / joyBaseRadius;
+            game.joystickActive = true;
+            game.playerMoving = true;
         } else {
-            joyKnobX = vx;
-            joyKnobY = vy;
+            joyKnobX = joyCurrentBaseX;
+            joyKnobY = joyCurrentBaseY;
+            game.joystickX = 0f;
+            game.joystickY = 0f;
+            game.joystickActive = false;
         }
-
-        game.joystickX = (joyKnobX - joyBaseX) / joyBaseRadius;
-        game.joystickY = (joyKnobY - joyBaseY) / joyBaseRadius;
-        game.joystickActive = true;
     }
 
     private float distSq(float x1, float y1, float x2, float y2) {

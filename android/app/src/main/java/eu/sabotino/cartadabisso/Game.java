@@ -72,6 +72,20 @@ public class Game {
                 default: return "Comune";
             }
         }
+
+        public String getSlotTitle() {
+            if ("weapon".equals(slot)) return "ARMA";
+            if ("armor".equals(slot)) return "CORAZZA";
+            if ("relic".equals(slot)) return "RELIQUIA";
+            return slot != null ? slot.toUpperCase() : "OGGETTO";
+        }
+
+        public String getCategoryName() {
+            if ("weapon".equals(slot)) return "ARMA (Mano Principale)";
+            if ("armor".equals(slot)) return "CORAZZA (Torace)";
+            if ("relic".equals(slot)) return "RELIQUIA (Talismano)";
+            return slot != null ? slot.toUpperCase() : "OGGETTO";
+        }
     }
 
     public static class Perk {
@@ -357,6 +371,13 @@ public class Game {
 
     public boolean isSetBonusActive(String setName) {
         return countSetPieces(setName) >= 2;
+    }
+
+    public Item getEquippedForSlot(String slot) {
+        if ("weapon".equals(slot)) return equippedWeapon;
+        if ("armor".equals(slot)) return equippedArmor;
+        if ("relic".equals(slot)) return equippedRelic;
+        return null;
     }
 
     public int getMaxHp() {
