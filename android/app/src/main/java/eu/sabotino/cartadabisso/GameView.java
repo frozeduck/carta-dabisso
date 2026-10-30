@@ -62,12 +62,18 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             new RectF(640f, 100f, 890f, 440f)
     };
 
-    // Modals: Merchant Shop Dialog Rects
-    private final RectF shopModalRect = new RectF(120f, 45f, 840f, 495f);
-    private final RectF btnCloseShop = new RectF(795f, 55f, 830f, 90f);
-    private final RectF shopSlotPotion = new RectF(150f, 130f, 810f, 220f);
-    private final RectF shopSlotBlessing = new RectF(150f, 235f, 810f, 325f);
-    private final RectF shopSlotCoffer = new RectF(150f, 340f, 810f, 430f);
+    // Modals: Merchant Shop Dialog Rects & Exit Button
+    private final RectF shopModalRect = new RectF(120f, 25f, 840f, 515f);
+    private final RectF btnCloseShop = new RectF(785f, 15f, 835f, 65f);
+    private final RectF btnShopExit = new RectF(360f, 465f, 600f, 508f);
+    private final RectF shopSlotPotion = new RectF(150f, 125f, 810f, 222f);
+    private final RectF shopSlotBlessing = new RectF(150f, 235f, 810f, 332f);
+    private final RectF shopSlotCoffer = new RectF(150f, 345f, 810f, 442f);
+
+    // Dynamic Fullscreen Adaptive Widescreen (Galaxy Z Flip 7, 22:9, 20:9, 16:9 - ZERO Black Bars)
+    public static final float VIRTUAL_H = 540f;
+    public float screenW = 960f;
+    public float screenH = 540f;
 
     // Cartoon Paper Mario Palette
     private static final int COL_STICKER = 0xFFFFFFFF; // Iconic white sticker die-cut border
@@ -89,8 +95,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final RectF tempRect = new RectF();
 
     // Mobile Dynamic Virtual Joystick (Left Thumb)
-    private final float joyDefaultBaseX = 140f;
-    private final float joyDefaultBaseY = 415f;
+    private float joyDefaultBaseX = 140f;
+    private float joyDefaultBaseY = 415f;
     private float joyCurrentBaseX = joyDefaultBaseX;
     private float joyCurrentBaseY = joyDefaultBaseY;
     private final float joyBaseRadius = 56f;
@@ -100,17 +106,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private int joyPointerId = -1;
     private boolean joyTouched = false;
 
-    // Mobile Action Button Cluster (Right Thumb)
-    private final float btnAttackX = 860f, btnAttackY = 420f, btnAttackRadius = 44f;
-    private final float btnWaveX = 750f, btnWaveY = 440f, btnWaveRadius = 28f;
-    private final float btnDashX = 860f, btnDashY = 300f, btnDashRadius = 28f;
-    private final float btnPotionX = 750f, btnPotionY = 330f, btnPotionRadius = 26f;
-    private final float btnInventoryX = 655f, btnInventoryY = 460f, btnInventoryRadius = 24f;
-    private final float btnSkillTreeX = 575f, btnSkillTreeY = 460f, btnSkillTreeRadius = 24f;
+    // Mobile Action Button Cluster (Right Thumb - Dynamic edge anchoring)
+    private float btnAttackX = 860f, btnAttackY = 420f, btnAttackRadius = 44f;
+    private float btnWaveX = 750f, btnWaveY = 440f, btnWaveRadius = 28f;
+    private float btnDashX = 860f, btnDashY = 300f, btnDashRadius = 28f;
+    private float btnPotionX = 750f, btnPotionY = 330f, btnPotionRadius = 26f;
+    private float btnInventoryX = 655f, btnInventoryY = 460f, btnInventoryRadius = 24f;
+    private float btnSkillTreeX = 575f, btnSkillTreeY = 460f, btnSkillTreeRadius = 24f;
 
     // Diablo Spheres (Upper Corners)
-    private final float globeHpX = 55f, globeHpY = 55f, globeHpRadius = 34f;
-    private final float globeTideX = 905f, globeTideY = 55f, globeTideRadius = 34f;
+    private float globeHpX = 55f, globeHpY = 55f, globeHpRadius = 34f;
+    private float globeTideX = 905f, globeTideY = 55f, globeTideRadius = 34f;
 
     // Sound button (Top center-right)
     private final RectF btnSound = new RectF(810f, 12f, 860f, 44f);
@@ -118,38 +124,38 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // Skill Tree Modal Rectangles & Classes (Completely non-overlapping geometry)
     public boolean skillTreeOpen = false;
     public String selectedSkillId = "hunt_pierce";
-    private final RectF modalSkillTreeRect = new RectF(50f, 20f, 910f, 520f);
-    private final RectF btnCloseSkillTree = new RectF(845f, 26f, 885f, 64f);
-    private final RectF btnRespec = new RectF(670f, 28f, 825f, 62f);
-    private final RectF tabHunter = new RectF(65f, 28f, 195f, 62f);
-    private final RectF tabJuggernaut = new RectF(205f, 28f, 335f, 62f);
-    private final RectF tabMystic = new RectF(345f, 28f, 475f, 62f);
-    private final RectF spPillRect = new RectF(490f, 28f, 655f, 62f);
+    private final RectF modalSkillTreeRect = new RectF(50f, 15f, 910f, 525f);
+    private final RectF btnCloseSkillTree = new RectF(845f, 18f, 895f, 70f);
+    private final RectF btnRespec = new RectF(670f, 26f, 825f, 64f);
+    private final RectF tabHunter = new RectF(65f, 26f, 195f, 64f);
+    private final RectF tabJuggernaut = new RectF(205f, 26f, 335f, 64f);
+    private final RectF tabMystic = new RectF(345f, 26f, 475f, 64f);
+    private final RectF spPillRect = new RectF(490f, 26f, 655f, 64f);
 
     // Tree coordinates (genuine visual tree topology with branch banners)
-    private final float treeRootX = 480f, treeRootY = 325f, treeRootRadius = 24f;
-    private final float[] treeB1X = new float[]{340f, 250f, 180f};
-    private final float[] treeB1Y = new float[]{250f, 190f, 135f};
-    private final float[] treeB2X = new float[]{620f, 710f, 780f};
-    private final float[] treeB2Y = new float[]{250f, 190f, 135f};
-    private final float treeNodeRadius = 22f;
-    private final RectF btnUpgradeSelectedSkill = new RectF(670f, 395f, 880f, 485f);
-    private final RectF skillInspectRect = new RectF(65f, 375f, 895f, 505f);
+    private float treeRootX = 480f, treeRootY = 320f, treeRootRadius = 24f;
+    private final float[] treeB1X = new float[]{340f, 245f, 175f};
+    private final float[] treeB1Y = new float[]{250f, 185f, 135f};
+    private final float[] treeB2X = new float[]{620f, 715f, 785f};
+    private final float[] treeB2Y = new float[]{250f, 185f, 135f};
+    private float treeNodeRadius = 22f;
+    private final RectF btnUpgradeSelectedSkill = new RectF(670f, 385f, 880f, 490f);
+    private final RectF skillInspectRect = new RectF(65f, 365f, 895f, 508f);
 
     // Merchant interact HUD button (when near Mastro Paguro - dedicated slot)
     private final RectF btnMerchantInteract = new RectF(635f, 12f, 795f, 44f);
 
     // Inventory Modal Rectangles
-    private final RectF modalRect = new RectF(100f, 45f, 860f, 495f);
-    private final RectF btnCloseModal = new RectF(815f, 55f, 850f, 85f);
-    private final RectF slotEquipWeapon = new RectF(130f, 120f, 310f, 175f);
-    private final RectF slotEquipArmor = new RectF(130f, 185f, 310f, 240f);
-    private final RectF slotEquipRelic = new RectF(130f, 250f, 310f, 305f);
+    private final RectF modalRect = new RectF(100f, 20f, 860f, 520f);
+    private final RectF btnCloseModal = new RectF(810f, 15f, 855f, 68f);
+    private final RectF slotEquipWeapon = new RectF(130f, 110f, 310f, 165f);
+    private final RectF slotEquipArmor = new RectF(130f, 175f, 310f, 230f);
+    private final RectF slotEquipRelic = new RectF(130f, 240f, 310f, 295f);
 
     // Backpack 8-slot grid (4x2)
     private final RectF[] backpackSlots = new RectF[8];
-    private final RectF btnEquipSelected = new RectF(560f, 385f, 690f, 425f);
-    private final RectF btnDropSelected = new RectF(705f, 385f, 825f, 425f);
+    private final RectF btnEquipSelected = new RectF(560f, 395f, 690f, 440f);
+    private final RectF btnDropSelected = new RectF(705f, 395f, 825f, 440f);
 
     // Game Over / Victory Buttons
     private final RectF btnRestart = new RectF(330f, 375f, 630f, 430f);
@@ -230,9 +236,117 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void updateViewport(int w, int h) {
-        viewScale = Math.min((float) w / Game.SCREEN_W, (float) h / Game.SCREEN_H);
-        offsetX = (w - Game.SCREEN_W * viewScale) / 2f;
-        offsetY = (h - Game.SCREEN_H * viewScale) / 2f;
+        if (h <= 0 || w <= 0) return;
+        viewScale = (float) h / VIRTUAL_H;
+        screenW = Math.max(960f, (float) w / viewScale);
+        screenH = VIRTUAL_H;
+        offsetX = 0f;
+        offsetY = 0f;
+        updateLayoutPositions();
+    }
+
+    private void updateLayoutPositions() {
+        globeHpX = 55f;
+        globeHpY = 55f;
+        globeTideX = screenW - 55f;
+        globeTideY = 55f;
+
+        btnSound.set(screenW - 170f, 12f, screenW - 110f, 44f);
+        btnMerchantInteract.set(screenW / 2f + 155f, 12f, screenW / 2f + 325f, 44f);
+
+        btnAttackX = screenW - 95f;
+        btnAttackY = 420f;
+        btnDashX = screenW - 95f;
+        btnDashY = 300f;
+        btnWaveX = screenW - 195f;
+        btnWaveY = 440f;
+        btnPotionX = screenW - 195f;
+        btnPotionY = 330f;
+        btnInventoryX = screenW - 285f;
+        btnInventoryY = 460f;
+        btnSkillTreeX = screenW - 365f;
+        btnSkillTreeY = 460f;
+
+        float cx = screenW / 2f;
+
+        // 1. Skill Tree Modal (Spazioso e widescreen-adaptive, zero collisioni)
+        float treeW = Math.min(screenW - 40f, 1020f);
+        float treeL = cx - treeW / 2f;
+        float treeR = treeL + treeW;
+        modalSkillTreeRect.set(treeL, 12f, treeR, 528f);
+
+        // Header Row: 3 Archetype Tabs, Skill Points Badge, Respec Button, Close Seal
+        float tabW = 120f;
+        float tabH = 34f;
+        tabHunter.set(treeL + 20f, 22f, treeL + 20f + tabW, 22f + tabH);
+        tabJuggernaut.set(treeL + 150f, 22f, treeL + 150f + tabW, 22f + tabH);
+        tabMystic.set(treeL + 280f, 22f, treeL + 280f + tabW, 22f + tabH);
+
+        spPillRect.set(cx + 20f, 22f, cx + 175f, 22f + tabH);
+        btnRespec.set(treeR - 220f, 22f, treeR - 85f, 22f + tabH);
+        btnCloseSkillTree.set(treeR - 70f, 14f, treeR - 18f, 66f);
+
+        treeRootX = cx;
+        treeRootY = 320f;
+        treeB1X[0] = cx - 130f; treeB1Y[0] = 250f;
+        treeB1X[1] = cx - 210f; treeB1Y[1] = 190f;
+        treeB1X[2] = cx - 280f; treeB1Y[2] = 135f;
+
+        treeB2X[0] = cx + 130f; treeB2Y[0] = 250f;
+        treeB2X[1] = cx + 210f; treeB2Y[1] = 190f;
+        treeB2X[2] = cx + 280f; treeB2Y[2] = 135f;
+
+        skillInspectRect.set(treeL + 20f, 365f, treeR - 20f, 512f);
+        btnUpgradeSelectedSkill.set(treeR - 250f, 385f, treeR - 35f, 495f);
+
+        // 2. Merchant Shop Modal
+        float shopW = Math.min(screenW - 60f, 840f);
+        float shopL = cx - shopW / 2f;
+        float shopR = shopL + shopW;
+        shopModalRect.set(shopL, 20f, shopR, 520f);
+        btnCloseShop.set(shopR - 65f, 15f, shopR - 10f, 68f);
+        btnShopExit.set(cx - 130f, 465f, cx + 130f, 508f);
+
+        shopSlotPotion.set(shopL + 30f, 125f, shopR - 30f, 222f);
+        shopSlotBlessing.set(shopL + 30f, 235f, shopR - 30f, 332f);
+        shopSlotCoffer.set(shopL + 30f, 345f, shopR - 30f, 442f);
+
+        // 3. Inventory Modal
+        float invW = Math.min(screenW - 60f, 860f);
+        float invL = cx - invW / 2f;
+        float invR = invL + invW;
+        modalRect.set(invL, 20f, invR, 520f);
+        btnCloseModal.set(invR - 65f, 15f, invR - 10f, 68f);
+
+        slotEquipWeapon.set(invL + 30f, 110f, invL + 230f, 165f);
+        slotEquipArmor.set(invL + 30f, 175f, invL + 230f, 230f);
+        slotEquipRelic.set(invL + 30f, 240f, invL + 230f, 295f);
+
+        float bagStartX = invL + 260f;
+        float bagStartY = 110f;
+        float slotW = (invW - 290f - 36f) / 4f;
+        float slotH = 58f;
+        for (int i = 0; i < 8; i++) {
+            int col = i % 4;
+            int row = i / 4;
+            float left = bagStartX + col * (slotW + 12f);
+            float top = bagStartY + row * (slotH + 12f);
+            backpackSlots[i] = new RectF(left, top, left + slotW, top + slotH);
+        }
+
+        btnEquipSelected.set(invR - 300f, 395f, invR - 165f, 440f);
+        btnDropSelected.set(invR - 150f, 395f, invR - 35f, 440f);
+
+        // 4. Perk Selection Cards
+        float perkCardW = (Math.min(screenW - 60f, 900f) - 60f) / 3f;
+        float perkStart = cx - (perkCardW * 1.5f + 20f);
+        for (int i = 0; i < 3; i++) {
+            float left = perkStart + i * (perkCardW + 20f);
+            perkCardRects[i].set(left, 100f, left + perkCardW, 440f);
+        }
+
+        // 5. Game Over / Victory
+        btnRestart.set(cx - 150f, 400f, cx + 150f, 455f);
     }
 
     public void resume() {
@@ -342,11 +456,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void updateCamera() {
-        float targetCamX = game.playerX - Game.SCREEN_W / 2f;
-        float targetCamY = game.playerY - Game.SCREEN_H / 2f;
+        float targetCamX = game.playerX - screenW / 2f;
+        float targetCamY = game.playerY - screenH / 2f;
 
-        targetCamX = Math.max(0f, Math.min(Game.MAP_W - Game.SCREEN_W, targetCamX));
-        targetCamY = Math.max(0f, Math.min(Game.MAP_H - Game.SCREEN_H, targetCamY));
+        targetCamX = Math.max(0f, Math.min(Game.MAP_W - screenW, targetCamX));
+        targetCamY = Math.max(0f, Math.min(Game.MAP_H - screenH, targetCamY));
 
         camX += (targetCamX - camX) * 0.16f;
         camY += (targetCamY - camY) * 0.16f;
@@ -413,9 +527,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawColor(0xFF020B14);
 
         canvas.save();
-        canvas.translate(offsetX, offsetY);
         canvas.scale(viewScale, viewScale);
-        canvas.clipRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H);
+        canvas.clipRect(0f, 0f, screenW, screenH);
 
         // 1. World Layer
         canvas.save();
@@ -1361,20 +1474,22 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setFakeBoldText(true);
         canvas.drawText(String.valueOf(game.shells), 150f, 33f, paintText);
 
-        // Zone Title Banner (Centrato nello slot 340f .. 620f)
+        // Zone Title Banner (Centrato dinamicamente rispetto a screenW)
+        float bannerHalfW = 140f;
+        float bCenter = screenW / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
-        canvas.drawRoundRect(338f, 10f, 622f, 46f, 8f, 8f, paintFill);
+        canvas.drawRoundRect(bCenter - bannerHalfW - 2f, 10f, bCenter + bannerHalfW + 2f, 46f, 8f, 8f, paintFill);
 
         paintFill.setColor(0xFF0F172A);
-        canvas.drawRoundRect(340f, 12f, 620f, 44f, 7f, 7f, paintFill);
+        canvas.drawRoundRect(bCenter - bannerHalfW, 12f, bCenter + bannerHalfW, 44f, 7f, 7f, paintFill);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_GOLD);
         paintText.setTextSize(13.5f);
         paintText.setFakeBoldText(true);
         canvas.drawText(game.zoneName.toUpperCase() + "  -  " + game.depthMeters + "m",
-                Game.SCREEN_W / 2f, 33f, paintText);
+                bCenter, 33f, paintText);
 
         // Sound Toggle Button (Slot 810f .. 860f)
         paintFill.setColor(COL_STICKER);
@@ -1402,7 +1517,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawDiabloBossBar(Canvas canvas, Game.Enemy boss) {
-        float cx = Game.SCREEN_W / 2f;
+        float cx = screenW / 2f;
         float barY = 62f;
         float barW = 340f;
         float barH = 22f;
@@ -1873,28 +1988,46 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         // 8. Close Button (Wax Seal 'X')
         if (closeBtn != null) {
-            paintFill.setStyle(Paint.Style.FILL);
-            paintFill.setColor(0x44000000);
-            canvas.drawCircle(closeBtn.centerX() + 2f, closeBtn.centerY() + 2f, closeBtn.width() / 2f, paintFill);
-
-            paintFill.setColor(0xFFDC2626);
-            canvas.drawCircle(closeBtn.centerX(), closeBtn.centerY(), closeBtn.width() / 2f, paintFill);
-
-            paintStroke.setStyle(Paint.Style.STROKE);
-            paintStroke.setColor(COL_STICKER);
-            paintStroke.setStrokeWidth(3f);
-            canvas.drawCircle(closeBtn.centerX(), closeBtn.centerY(), closeBtn.width() / 2f, paintStroke);
-
-            paintStroke.setColor(COL_INK);
-            paintStroke.setStrokeWidth(1.5f);
-            canvas.drawCircle(closeBtn.centerX(), closeBtn.centerY(), closeBtn.width() / 2f, paintStroke);
-
-            paintText.setTextAlign(Paint.Align.CENTER);
-            paintText.setColor(COL_STICKER);
-            paintText.setTextSize(16f);
-            paintText.setFakeBoldText(true);
-            canvas.drawText("✕", closeBtn.centerX(), closeBtn.centerY() + 5.5f, paintText);
+            drawCloseWaxSeal(canvas, closeBtn);
         }
+    }
+
+    private void drawCloseWaxSeal(Canvas canvas, RectF r) {
+        float cx = r.centerX();
+        float cy = r.centerY();
+        float radius = Math.min(r.width(), r.height()) / 2f;
+
+        // Cardboard shadow
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0x55000000);
+        canvas.drawCircle(cx + 3f, cy + 4f, radius, paintFill);
+
+        // White die-cut sticker rim
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(5f);
+        canvas.drawCircle(cx, cy, radius, paintStroke);
+
+        // Deep crimson wax seal body
+        paintFill.setColor(0xFFDC2626);
+        canvas.drawCircle(cx, cy, radius, paintFill);
+
+        // Inner ink rim
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawCircle(cx, cy, radius, paintStroke);
+
+        // Inner gold highlight ring
+        paintStroke.setColor(COL_GOLD);
+        paintStroke.setStrokeWidth(1.2f);
+        canvas.drawCircle(cx, cy, radius - 4f, paintStroke);
+
+        // Bold white ✕
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(radius * 1.15f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("✕", cx, cy + (radius * 0.4f), paintText);
     }
 
     private void drawBrassCorner(Canvas canvas, float cx, float cy, float rotation) {
@@ -1924,7 +2057,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // Dim overlay
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xB3020B14);
-        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
 
         // Storybook Parchment Frame
         drawStorybookParchment(canvas, modalRect, "DIARIO DI BORDO & REPERTI", btnCloseModal);
@@ -1932,6 +2065,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         Game.Item selItem = (selectedBackpackIndex >= 0 && selectedBackpackIndex < game.backpack.size()) ?
                 game.backpack.get(selectedBackpackIndex) : null;
         String targetedSlot = selItem != null ? selItem.slot : null;
+
+        float invL = modalRect.left;
+        float invR = modalRect.right;
 
         // Left Page: Equipped Gear in Carved Driftwood Slots
         drawEquippedSlot(canvas, slotEquipWeapon, "ARMA", game.equippedWeapon, "weapon".equals(targetedSlot));
@@ -1942,28 +2078,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float setBoxY = 320f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFFFEF3C7);
-        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 8f, 8f, paintFill);
+        canvas.drawRoundRect(invL + 30f, setBoxY, invL + 230f, setBoxY + 115f, 8f, 8f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(0xFFD97706);
         paintStroke.setStrokeWidth(1.5f);
-        canvas.drawRoundRect(130f, setBoxY, 310f, setBoxY + 115f, 8f, 8f, paintStroke);
+        canvas.drawRoundRect(invL + 30f, setBoxY, invL + 230f, setBoxY + 115f, 8f, 8f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(10f);
         paintText.setFakeBoldText(true);
         paintText.setColor(0xFF78350F);
-        canvas.drawText("BONUS SET (2+ PEZZI):", 140f, setBoxY + 18f, paintText);
+        canvas.drawText("BONUS SET (2+ PEZZI):", invL + 40f, setBoxY + 18f, paintText);
 
-        drawSetBonusLine(canvas, 140f, setBoxY + 38f, "Set Corallo", "+35 PV, +5 Dif", game.isSetBonusActive("Corallo"));
-        drawSetBonusLine(canvas, 140f, setBoxY + 62f, "Set Marea", "+30 Marea, -20% Cd", game.isSetBonusActive("Marea"));
-        drawSetBonusLine(canvas, 140f, setBoxY + 86f, "Set Abisso", "+22% Dmg, +12% Crit", game.isSetBonusActive("Abisso"));
+        drawSetBonusLine(canvas, invL + 40f, setBoxY + 38f, "Set Corallo", "+35 PV, +5 Dif", game.isSetBonusActive("Corallo"));
+        drawSetBonusLine(canvas, invL + 40f, setBoxY + 62f, "Set Marea", "+30 Marea, -20% Cd", game.isSetBonusActive("Marea"));
+        drawSetBonusLine(canvas, invL + 40f, setBoxY + 86f, "Set Abisso", "+22% Dmg, +12% Crit", game.isSetBonusActive("Abisso"));
 
         // Right Page: Backpack 8-Slot Grid Header
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setColor(0xFF78350F);
         paintText.setTextSize(12.5f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("ZAINO (8 SLOT) — TOCCA PER CONFRONTARE", 350f, 100f, paintText);
+        canvas.drawText("ZAINO (8 SLOT) — TOCCA PER CONFRONTARE", invL + 260f, 100f, paintText);
 
         for (int i = 0; i < 8; i++) {
             RectF slot = backpackSlots[i];
@@ -2010,7 +2146,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         // Right Page Bottom: Comparison & Detail Scroll
-        RectF compRect = new RectF(350f, 260f, 850f, 440f);
+        RectF compRect = new RectF(invL + 260f, 260f, invR - 30f, 440f);
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFFFEF3C7);
         canvas.drawRoundRect(compRect, 8f, 8f, paintFill);
@@ -2187,11 +2323,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawGameOverOverlay(Canvas canvas) {
+        float cx = screenW / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xEE020617);
-        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
 
-        RectF goBox = new RectF(180f, 75f, 780f, 465f);
+        float boxW = Math.min(screenW - 60f, 660f);
+        RectF goBox = new RectF(cx - boxW / 2f, 50f, cx + boxW / 2f, 490f);
         drawStorybookParchment(canvas, goBox, "SPEDIZIONE CONCLUSA", null);
 
         // Titolo Sconfitta ad alto contrasto
@@ -2199,19 +2337,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setColor(0xFFDC2626);
         paintText.setTextSize(26f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("INGHIOTTITO DAGLI ABISSI", Game.SCREEN_W / 2f, 160f, paintText);
+        canvas.drawText("INGHIOTTITO DAGLI ABISSI", cx, goBox.top + 80f, paintText);
 
-        // Testo descrittivo in inchiostro scuro ultra-leggibile
+        // Testo descrittivo in inchiostro scuro ultra-leggibile su pergamena chiara
         paintText.setColor(COL_INK);
-        paintText.setTextSize(13f);
+        paintText.setTextSize(12.5f);
         paintText.setFakeBoldText(false);
-        canvas.drawText("La pressione oceanica ha avuto la meglio sul tuo scafandro.", Game.SCREEN_W / 2f, 195f, paintText);
-        canvas.drawText("Le tue conchiglie e i tesori raccolti giacciono nel fondale marino.", Game.SCREEN_W / 2f, 218f, paintText);
+        canvas.drawText("La pressione oceanica ha avuto la meglio sul tuo scafandro.", cx, goBox.top + 112f, paintText);
+        canvas.drawText("Le tue conchiglie e i tesori raccolti giacciono nel fondale marino.", cx, goBox.top + 134f, paintText);
 
         // Cartellino riepilogo spedizione
-        float cardL = 230f, cardT = 245f, cardR = 730f, cardB = 350f;
+        float cardW = boxW - 60f;
+        float cardL = cx - cardW / 2f, cardT = goBox.top + 160f, cardR = cx + cardW / 2f, cardB = goBox.top + 270f;
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFFFEF3C7);
+        paintFill.setColor(0xFFFFFBEB);
         canvas.drawRoundRect(cardL, cardT, cardR, cardB, 8f, 8f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(0xFFD97706);
@@ -2222,15 +2361,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextSize(12f);
         paintText.setColor(0xFF78350F);
         paintText.setFakeBoldText(true);
-        canvas.drawText("RIEPILOGO DELLA DISCESA", Game.SCREEN_W / 2f, cardT + 26f, paintText);
+        canvas.drawText("RIEPILOGO DELLA DISCESA", cx, cardT + 26f, paintText);
 
         paintText.setTextSize(13f);
         paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Profondità Raggiunta: " + game.depthMeters + "m  •  " + game.zoneName, Game.SCREEN_W / 2f, cardT + 55f, paintText);
-        canvas.drawText("Livello Palombaro: " + game.level + "  •  Conchiglie Totali: " + game.shells, Game.SCREEN_W / 2f, cardT + 80f, paintText);
+        canvas.drawText("Profondità Raggiunta: " + game.depthMeters + "m  •  " + game.zoneName, cx, cardT + 58f, paintText);
+        canvas.drawText("Livello Palombaro: " + game.level + "  •  Conchiglie Totali: " + game.shells, cx, cardT + 84f, paintText);
 
         // Tasto Riavvio Verde Smeraldo
+        btnRestart.set(cx - 150f, goBox.bottom - 65f, cx + 150f, goBox.bottom - 18f);
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFF16A34A);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintFill);
@@ -2243,33 +2383,36 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setColor(COL_STICKER);
         paintText.setTextSize(15f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("RITENTA L'IMMERSIONE", btnRestart.centerX(), btnRestart.centerY() + 5.5f, paintText);
+        canvas.drawText("↺ RITENTA L'IMMERSIONE", btnRestart.centerX(), btnRestart.centerY() + 5.5f, paintText);
     }
 
     private void drawVictoryOverlay(Canvas canvas) {
+        float cx = screenW / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xEE020617);
-        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
 
-        RectF vicBox = new RectF(180f, 75f, 780f, 465f);
+        float boxW = Math.min(screenW - 60f, 660f);
+        RectF vicBox = new RectF(cx - boxW / 2f, 50f, cx + boxW / 2f, 490f);
         drawStorybookParchment(canvas, vicBox, "VITTORIA LEGGENDARIA", null);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(0xFFD97706);
         paintText.setTextSize(26f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("DOMINATORE DEGLI ABISSI!", Game.SCREEN_W / 2f, 160f, paintText);
+        canvas.drawText("DOMINATORE DEGLI ABISSI!", cx, vicBox.top + 80f, paintText);
 
         paintText.setColor(COL_INK);
-        paintText.setTextSize(13f);
+        paintText.setTextSize(12.5f);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Hai sconfitto il Leviatano e conquistato i segreti del fondale!", Game.SCREEN_W / 2f, 195f, paintText);
-        canvas.drawText("La tua leggenda è incisa sulla Carta d'Abisso.", Game.SCREEN_W / 2f, 218f, paintText);
+        canvas.drawText("Hai sconfitto il Leviatano e conquistato i segreti del fondale!", cx, vicBox.top + 112f, paintText);
+        canvas.drawText("La tua leggenda è incisa sulla Carta d'Abisso.", cx, vicBox.top + 134f, paintText);
 
         // Cartellino trionfo
-        float cardL = 230f, cardT = 245f, cardR = 730f, cardB = 350f;
+        float cardW = boxW - 60f;
+        float cardL = cx - cardW / 2f, cardT = vicBox.top + 160f, cardR = cx + cardW / 2f, cardB = vicBox.top + 270f;
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFFFEF3C7);
+        paintFill.setColor(0xFFFFFBEB);
         canvas.drawRoundRect(cardL, cardT, cardR, cardB, 8f, 8f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(0xFFD97706);
@@ -2280,14 +2423,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextSize(12f);
         paintText.setColor(0xFF78350F);
         paintText.setFakeBoldText(true);
-        canvas.drawText("IMPRESA DEGLI ABISSI COMPLETATA", Game.SCREEN_W / 2f, cardT + 26f, paintText);
+        canvas.drawText("IMPRESA DEGLI ABISSI COMPLETATA", cx, cardT + 26f, paintText);
 
         paintText.setTextSize(13f);
         paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Profondità Finale: " + game.depthMeters + "m  •  Tutte le Zone Ripulite", Game.SCREEN_W / 2f, cardT + 55f, paintText);
-        canvas.drawText("Palombaro Livello " + game.level + "  •  Conchiglie Raccolte: " + game.shells, Game.SCREEN_W / 2f, cardT + 80f, paintText);
+        canvas.drawText("Profondità Finale: " + game.depthMeters + "m  •  Tutte le Zone Ripulite", cx, cardT + 58f, paintText);
+        canvas.drawText("Palombaro Livello " + game.level + "  •  Conchiglie Raccolte: " + game.shells, cx, cardT + 84f, paintText);
 
+        btnRestart.set(cx - 150f, vicBox.bottom - 65f, cx + 150f, vicBox.bottom - 18f);
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFF16A34A);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintFill);
@@ -2342,17 +2486,18 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // MODALE ALBERO DELLE ABILITÀ E CLASSI DI COMBATTIMENTO
     // =========================================================================
     private void drawSkillTreeModal(Canvas canvas) {
+        float cx = screenW / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xDE020B14);
-        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
 
-        // Storybook Nautical Chart Parchment (Solida, opaca e die-cut)
-        drawStorybookParchment(canvas, modalSkillTreeRect, "MAPPA DELLE ABILITÀ & ARCHETIPI", btnCloseSkillTree);
+        // Storybook Nautical Chart Parchment (Solida, opaca e die-cut - nessun titolo conflittuale)
+        drawStorybookParchment(canvas, modalSkillTreeRect, "", null);
 
         // Header Class Tabs (Hunter, Juggernaut, Mystic) - coordinate pulite non sovrapposte
-        drawClassTab(canvas, tabHunter, "CACCIATORE", Game.CLASS_HUNTER.equals(game.playerClass), 0xFF0284C7);
-        drawClassTab(canvas, tabJuggernaut, "CUSTODE", Game.CLASS_JUGGERNAUT.equals(game.playerClass), 0xFFD97706);
-        drawClassTab(canvas, tabMystic, "MISTICO", Game.CLASS_MYSTIC.equals(game.playerClass), 0xFF7E22CE);
+        drawClassTab(canvas, tabHunter, "🏹 CACCIATORE", Game.CLASS_HUNTER.equals(game.playerClass), 0xFF0284C7);
+        drawClassTab(canvas, tabJuggernaut, "🛡 CUSTODE", Game.CLASS_JUGGERNAUT.equals(game.playerClass), 0xFFD97706);
+        drawClassTab(canvas, tabMystic, "🔮 MISTICO", Game.CLASS_MYSTIC.equals(game.playerClass), 0xFF7E22CE);
 
         // Skill points pill at top center (Golden wax seal badge)
         paintFill.setStyle(Paint.Style.FILL);
@@ -2367,7 +2512,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextSize(10.5f);
         paintText.setFakeBoldText(true);
         paintText.setColor(COL_STICKER);
-        canvas.drawText("PUNTI ABILITÀ: " + game.skillPoints, spPillRect.centerX(), spPillRect.centerY() + 4f, paintText);
+        canvas.drawText("⭐ PUNTI: " + game.skillPoints, spPillRect.centerX(), spPillRect.centerY() + 4f, paintText);
 
         // Respec button (Wax seal style)
         paintFill.setStyle(Paint.Style.FILL);
@@ -2381,7 +2526,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setColor(COL_STICKER);
         paintText.setTextSize(10.5f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("RESET (RESPEC)", btnRespec.centerX(), btnRespec.centerY() + 4f, paintText);
+        canvas.drawText("↺ RESET (RESPEC)", btnRespec.centerX(), btnRespec.centerY() + 4f, paintText);
+
+        // Tasto di Chiusura 'X' (Sigillo in ceralacca rossa prominente)
+        drawCloseWaxSeal(canvas, btnCloseSkillTree);
 
         // Subheader: Branch Titles in Dedicated Decorative Banners (sotto le tab, zero collisioni!)
         String b1Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 1: BALISTICA PESANTE"
@@ -2389,33 +2537,37 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         String b2Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 2: AGILITÀ IDRODINAMICA"
                 : (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? "RAMO 2: MAGLIO SISMICO" : "RAMO 2: DRENAGGIO OSCURO");
 
+        float b1CenterX = cx - 210f;
+        float b2CenterX = cx + 210f;
+        float bannerHalfW = 125f;
+
         // Ramo 1 Banner (Sinistra)
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0x330284C7);
-        canvas.drawRoundRect(100f, 76f, 380f, 102f, 6f, 6f, paintFill);
+        paintFill.setColor(0x220284C7);
+        canvas.drawRoundRect(b1CenterX - bannerHalfW, 68f, b1CenterX + bannerHalfW, 94f, 6f, 6f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(0xFF0284C7);
         paintStroke.setStrokeWidth(1.5f);
-        canvas.drawRoundRect(100f, 76f, 380f, 102f, 6f, 6f, paintStroke);
+        canvas.drawRoundRect(b1CenterX - bannerHalfW, 68f, b1CenterX + bannerHalfW, 94f, 6f, 6f, paintStroke);
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setTextSize(11f);
+        paintText.setTextSize(10.5f);
         paintText.setFakeBoldText(true);
         paintText.setColor(0xFF0369A1);
-        canvas.drawText(b1Title, 240f, 93f, paintText);
+        canvas.drawText(b1Title, b1CenterX, 85f, paintText);
 
         // Ramo 2 Banner (Destra)
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0x33D97706);
-        canvas.drawRoundRect(580f, 76f, 860f, 102f, 6f, 6f, paintFill);
+        paintFill.setColor(0x22D97706);
+        canvas.drawRoundRect(b2CenterX - bannerHalfW, 68f, b2CenterX + bannerHalfW, 94f, 6f, 6f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(0xFFD97706);
         paintStroke.setStrokeWidth(1.5f);
-        canvas.drawRoundRect(580f, 76f, 860f, 102f, 6f, 6f, paintStroke);
+        canvas.drawRoundRect(b2CenterX - bannerHalfW, 68f, b2CenterX + bannerHalfW, 94f, 6f, 6f, paintStroke);
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setTextSize(11f);
+        paintText.setTextSize(10.5f);
         paintText.setFakeBoldText(true);
         paintText.setColor(0xFFB45309);
-        canvas.drawText(b2Title, 720f, 93f, paintText);
+        canvas.drawText(b2Title, b2CenterX, 85f, paintText);
 
         // Retrieve Skills
         List<Game.Skill> skills = game.getSkillsForClass(game.playerClass);
@@ -2514,44 +2666,62 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         boolean canUnlock = game.canUpgradeSkill(s.id);
 
         if (isSelected) {
-            float pulse = 0.85f + (float) Math.sin(animTime * 5.0) * 0.15f;
+            float pulse = 0.88f + (float) Math.sin(animTime * 6.0) * 0.12f;
             paintStroke.setStyle(Paint.Style.STROKE);
-            paintStroke.setColor(0x88F59E0B);
-            paintStroke.setStrokeWidth(6f);
-            canvas.drawCircle(cx, cy, (r + 7f) * pulse, paintStroke);
+            paintStroke.setColor(0xCCF59E0B);
+            paintStroke.setStrokeWidth(6.5f);
+            canvas.drawCircle(cx, cy, (r + 8f) * pulse, paintStroke);
         }
 
+        // Sticker Die-cut Border
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
-        canvas.drawCircle(cx, cy, r + 3f, paintFill);
+        canvas.drawCircle(cx, cy, r + 4f, paintFill);
 
-        int nodeBg = unlocked ? 0xFF16A34A : (canUnlock ? 0xFF0284C7 : 0xFFFFFBEB);
+        // Background
+        int nodeBg = unlocked ? 0xFF16A34A : (canUnlock ? 0xFF0284C7 : 0xFFF1F5F9);
         paintFill.setColor(nodeBg);
         canvas.drawCircle(cx, cy, r, paintFill);
 
+        // Inner Ink contour
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(isSelected ? 3f : (unlocked ? 2.2f : 1.5f));
+        paintStroke.setColor(isSelected ? COL_GOLD : COL_INK);
+        paintStroke.setStrokeWidth(isSelected ? 3.5f : (unlocked ? 2.5f : 1.8f));
         canvas.drawCircle(cx, cy, r, paintStroke);
 
+        // Badge short label inside circle
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setTextSize(8.5f);
+        paintText.setTextSize(9f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(unlocked || canUnlock ? COL_STICKER : 0xFF78350F);
-        canvas.drawText(s.badge, cx, cy + 3f, paintText);
+        paintText.setColor(unlocked || canUnlock ? COL_STICKER : 0xFF475569);
+        canvas.drawText(s.badge, cx, cy + 3.5f, paintText);
 
-        float tagX = cx < 480f ? cx - r - 12f : cx + r + 12f;
+        // Pinned Tier Pill at top-right of medallion (Zero vertical text collisions!)
+        float tagX = cx + r - 2f;
+        float tagY = cy - r + 2f;
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(unlocked ? 0xFF15803D : 0xFFFEF3C7);
-        canvas.drawRoundRect(tagX - 10f, cy - 8f, tagX + 10f, cy + 8f, 3f, 3f, paintFill);
-        paintText.setTextSize(7.5f);
-        paintText.setColor(unlocked ? COL_STICKER : 0xFF78350F);
-        canvas.drawText("T" + s.tier, tagX, cy + 3f, paintText);
+        paintFill.setColor(COL_STICKER);
+        canvas.drawCircle(tagX, tagY, 10f, paintFill);
+        paintFill.setColor(unlocked ? 0xFF15803D : (canUnlock ? 0xFF0369A1 : 0xFF64748B));
+        canvas.drawCircle(tagX, tagY, 8f, paintFill);
+        paintText.setTextSize(8f);
+        paintText.setColor(COL_STICKER);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("T" + s.tier, tagX, tagY + 3f, paintText);
 
-        paintText.setTextSize(8.5f);
-        paintText.setColor(unlocked ? 0xFF16A34A : (canUnlock ? 0xFF0284C7 : 0xFF94A3B8));
-        String statusText = unlocked ? "ATTIVO" : (canUnlock ? "+ SBLOCCA" : "BLOCCATO");
-        canvas.drawText(statusText, cx, cy + r + 12f, paintText);
+        // Unlocked Checkmark pill at bottom-right
+        if (unlocked) {
+            float chkX = cx + r - 2f;
+            float chkY = cy + r - 2f;
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(COL_STICKER);
+            canvas.drawCircle(chkX, chkY, 9f, paintFill);
+            paintFill.setColor(0xFF16A34A);
+            canvas.drawCircle(chkX, chkY, 7f, paintFill);
+            paintText.setTextSize(8f);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText("✓", chkX, chkY + 3f, paintText);
+        }
     }
 
     private void drawSkillInspectionBar(Canvas canvas, Game.Skill s) {
@@ -2559,7 +2729,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         boolean canUnlock = game.canUpgradeSkill(s.id);
 
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFFFEF3C7);
+        paintFill.setColor(0xFFFFFBEB);
         canvas.drawRoundRect(skillInspectRect, 8f, 8f, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
@@ -2581,25 +2751,26 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextSize(10f);
         paintText.setColor(0xFFB45309);
         paintText.setFakeBoldText(false);
-        String subHeader = "Ramo " + s.branch + " • Tier " + s.tier + " • Grado: " + (unlocked ? "1/1" : "0/1");
+        String subHeader = "Ramo " + s.branch + " • Tier " + s.tier + " • Grado: " + (unlocked ? "1/1 (ATTIVO)" : "0/1 (NON APPRESO)");
         canvas.drawText(subHeader, skillInspectRect.left + 16f, skillInspectRect.top + 42f, paintText);
 
         float bPillW = paintText.measureText(s.badge) + 16f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(s.color);
-        canvas.drawRoundRect(skillInspectRect.left + 16f, skillInspectRect.top + 52f, skillInspectRect.left + 16f + bPillW, skillInspectRect.top + 70f, 4f, 4f, paintFill);
+        canvas.drawRoundRect(skillInspectRect.left + 16f, skillInspectRect.top + 52f, skillInspectRect.left + 16f + bPillW, skillInspectRect.top + 72f, 4f, 4f, paintFill);
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
         paintText.setTextSize(9.5f);
         paintText.setFakeBoldText(true);
-        canvas.drawText(s.badge, skillInspectRect.left + 16f + bPillW / 2f, skillInspectRect.top + 65f, paintText);
+        canvas.drawText(s.badge, skillInspectRect.left + 16f + bPillW / 2f, skillInspectRect.top + 66f, paintText);
 
         // Centro: Descrizione
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(10.5f);
         paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
-        drawWrappedText(canvas, s.desc, skillInspectRect.left + 230f, skillInspectRect.top + 30f, 15f, 420f, paintText);
+        float descMaxW = btnUpgradeSelectedSkill.left - (skillInspectRect.left + 230f) - 20f;
+        drawWrappedText(canvas, s.desc, skillInspectRect.left + 230f, skillInspectRect.top + 28f, 15f, Math.max(260f, descMaxW), paintText);
 
         if (s.requiredSkillId != null && !game.hasSkill(s.requiredSkillId)) {
             Game.Skill reqSkill = game.getSkillById(s.requiredSkillId);
@@ -2620,32 +2791,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRoundRect(btnUpgradeSelectedSkill, 8f, 8f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(unlocked || canUnlock ? COL_STICKER : 0xFF64748B);
+        paintText.setTextSize(12f);
         paintText.setFakeBoldText(true);
+
         if (unlocked) {
-            paintText.setTextSize(12f);
-            paintText.setColor(COL_STICKER);
-            canvas.drawText("TALENTO ATTIVO ✓", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() - 2f, paintText);
-            paintText.setTextSize(9f);
-            paintText.setColor(0xFFFEF3C7);
-            paintText.setFakeBoldText(false);
-            canvas.drawText("Già Acquisito", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() + 14f, paintText);
+            canvas.drawText("TALENTO ATTIVO ✓", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() + 4.5f, paintText);
         } else if (canUnlock) {
-            paintText.setTextSize(12.5f);
-            paintText.setColor(COL_STICKER);
-            canvas.drawText("+ SBLOCCA TALENTO", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() - 3f, paintText);
-            paintText.setTextSize(9f);
-            paintText.setColor(0xFFFEF08A);
-            paintText.setFakeBoldText(false);
-            canvas.drawText("Costa 1 Punto Abilità", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() + 14f, paintText);
+            canvas.drawText("+ SBLOCCA TALENTO", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() - 4f, paintText);
+            paintText.setTextSize(10f);
+            canvas.drawText("(Costo: 1 Punto)", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() + 14f, paintText);
         } else {
-            paintText.setTextSize(11f);
-            paintText.setColor(0xFF64748B);
-            canvas.drawText("BLOCCATO", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() - 3f, paintText);
-            paintText.setTextSize(8.5f);
-            paintText.setFakeBoldText(false);
-            String reason = (s.requiredSkillId != null && !game.hasSkill(s.requiredSkillId))
-                    ? "Richiede Tier " + (s.tier - 1)
-                    : "Punti esauriti";
+            canvas.drawText("BLOCCATO", btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() - 4f, paintText);
+            paintText.setTextSize(9.5f);
+            String reason = game.skillPoints <= 0 ? "Punti esauriti" : "Richiede Tier prec.";
             canvas.drawText(reason, btnUpgradeSelectedSkill.centerX(), btnUpgradeSelectedSkill.centerY() + 13f, paintText);
         }
     }
@@ -2687,20 +2846,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawPerkSelectionModal(Canvas canvas) {
+        float cx = screenW / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xB3020B14);
-        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_GOLD);
         paintText.setTextSize(22f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("LIVELLO " + game.level + "! SCEGLI UN TALENTO ABISSALE", Game.SCREEN_W / 2f, 50f, paintText);
+        canvas.drawText("LIVELLO " + game.level + "! SCEGLI UN TALENTO ABISSALE", cx, 50f, paintText);
 
         paintText.setTextSize(12f);
         paintText.setColor(COL_CREAM);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Tocca una carta per sbloccare la tua nuova abilità permanente", Game.SCREEN_W / 2f, 75f, paintText);
+        canvas.drawText("Tocca una carta per sbloccare la tua nuova abilità permanente", cx, 75f, paintText);
 
         List<Game.Perk> choices = game.pendingPerkChoices;
         for (int i = 0; i < choices.size() && i < perkCardRects.length; i++) {
@@ -2817,14 +2977,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawMerchantShopModal(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xB3020B14);
-        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+        paintFill.setColor(0xDE020B14);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
 
-        // Storybook Parchment Frame
-        drawStorybookParchment(canvas, shopModalRect, "BOTTEGA DI MASTRO PAGURO", btnCloseShop);
+        // Storybook Parchment Frame (senza close button qui per disegnarlo SOPRA la tenda!)
+        drawStorybookParchment(canvas, shopModalRect, "BOTTEGA DI MASTRO PAGURO", null);
 
         // Striped Nautical Awning Canopy
         drawMerchantAwning(canvas, shopModalRect);
+
+        // Sigillo di chiusura 'X' disegnato SOPRA la tenda per massima visibilità e accessibilità!
+        drawCloseWaxSeal(canvas, btnCloseShop);
 
         // Conchiglie counter pill
         paintText.setTextAlign(Paint.Align.RIGHT);
@@ -2872,6 +3035,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         drawShopItem(canvas, shopSlotCoffer, "Scrigno Misterioso dei Fondali", "Genera un equipaggiamento Raro o Abissale per lo zaino", 55,
                 game.shells >= 55 && game.backpack.size() < 8, 0xFF9333EA);
+
+        // Tasto di uscita chiaro in basso
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF7F1D1D);
+        canvas.drawRoundRect(btnShopExit, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2.5f);
+        canvas.drawRoundRect(btnShopExit, 8f, 8f, paintStroke);
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(12f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("✕ ESCI DALLA BOTTEGA", btnShopExit.centerX(), btnShopExit.centerY() + 4.5f, paintText);
     }
 
     private void drawShopItem(Canvas canvas, RectF r, String title, String desc, int cost, boolean canBuy, int accentCol) {
@@ -2926,7 +3103,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void handleMerchantShopTouch(float vx, float vy) {
-        if (btnCloseShop.contains(vx, vy)) {
+        if (btnCloseShop.contains(vx, vy) || btnShopExit.contains(vx, vy) || !shopModalRect.contains(vx, vy)) {
             game.merchantShopOpen = false;
             AudioHelper.playClick();
             return;
@@ -2949,38 +3126,40 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawPauseOverlay(Canvas canvas) {
+        float cx = screenW / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xCC020617);
-        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
 
-        RectF pBox = new RectF(260f, 150f, 700f, 390f);
+        RectF pBox = new RectF(cx - 220f, 150f, cx + 220f, 390f);
         drawStorybookParchment(canvas, pBox, "IMMERSIONE IN PAUSA", null);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(0xFF78350F);
         paintText.setTextSize(22f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("PAUSA DI BORDO", Game.SCREEN_W / 2f, 235f, paintText);
+        canvas.drawText("PAUSA DI BORDO", cx, 235f, paintText);
 
         paintText.setColor(COL_INK);
         paintText.setTextSize(13f);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Il tempo si ferma nelle correnti sottomarine...", Game.SCREEN_W / 2f, 275f, paintText);
+        canvas.drawText("Il tempo si ferma nelle correnti sottomarine...", cx, 275f, paintText);
 
         // Resume pill
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFF16A34A);
-        canvas.drawRoundRect(Game.SCREEN_W / 2f - 110f, 315f, Game.SCREEN_W / 2f + 110f, 355f, 8f, 8f, paintFill);
+        canvas.drawRoundRect(cx - 110f, 315f, cx + 110f, 355f, 8f, 8f, paintFill);
+
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(2f);
-        canvas.drawRoundRect(Game.SCREEN_W / 2f - 110f, 315f, Game.SCREEN_W / 2f + 110f, 355f, 8f, 8f, paintStroke);
+        canvas.drawRoundRect(cx - 110f, 315f, cx + 110f, 355f, 8f, 8f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
         paintText.setTextSize(14f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("TOCCA PER RIPRENDERE", Game.SCREEN_W / 2f, 340f, paintText);
+        canvas.drawText("TOCCA PER RIPRENDERE", cx, 340f, paintText);
     }
 
     @Override
@@ -3230,7 +3409,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void handleInventoryTouch(float vx, float vy) {
-        if (btnCloseModal.contains(vx, vy)) {
+        if (btnCloseModal.contains(vx, vy) || !modalRect.contains(vx, vy)) {
             toggleInventory();
             return;
         }
@@ -3259,7 +3438,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void handleSkillTreeTouch(float vx, float vy) {
-        if (btnCloseSkillTree.contains(vx, vy)) {
+        if (btnCloseSkillTree.contains(vx, vy) || !modalSkillTreeRect.contains(vx, vy)) {
             skillTreeOpen = false;
             AudioHelper.playClick();
             return;

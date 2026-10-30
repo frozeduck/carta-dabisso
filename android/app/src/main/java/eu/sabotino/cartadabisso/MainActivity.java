@@ -17,6 +17,13 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // Estendi la superficie su tutto lo schermo (notch / cutout e telefoni ultra-wide come Galaxy Z Flip 7)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+
         applyImmersive();
 
         gameView = new GameView(this);
@@ -58,6 +65,14 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         if (gameView != null) {
+            if (gameView.skillTreeOpen) {
+                gameView.skillTreeOpen = false;
+                return;
+            }
+            if (gameView.game.merchantShopOpen) {
+                gameView.game.merchantShopOpen = false;
+                return;
+            }
             if (gameView.inventoryOpen) {
                 gameView.toggleInventory();
                 return;
