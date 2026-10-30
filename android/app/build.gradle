@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'eu.sabotino.cartadabisso'
+    compileSdk 36
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    defaultConfig {
+        applicationId 'eu.sabotino.cartadabisso'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.debug }
+    }
+}
+
+tasks.register('syncWebAssets', Sync) {
+    from('../../dist') {
+        include '*.html', '*.js', '*.css'
+        filter { String line -> line.startsWith('@import url(') ? '' : line }
+    }
+    into 'src/main/assets/web'
+    inputs.file('../phone.css')
+    doLast {
+        file('src/main/assets/web/style.css').append('\n' + file('../phone.css').getText('UTF-8'), 'UTF-8')
+    }
+}
+preBuild.dependsOn syncWebAssets
