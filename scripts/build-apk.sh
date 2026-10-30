@@ -27,13 +27,18 @@ fi
 echo "Compilazione APK nativo Android con Gradle..."
 android/gradlew -p android --offline --no-daemon assembleDebug
 
+version="$(grep "versionName" android/app/build.gradle | head -n1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")"
+if [ -z "$version" ]; then
+    version="0.3.0"
+fi
+echo "Versione build: $version"
+
 mkdir -p downloads
-cp android/app/build/outputs/apk/debug/app-debug.apk downloads/carta-dabisso-0.3.0-debug.apk
-cp downloads/carta-dabisso-0.3.0-debug.apk downloads/carta-dabisso-0.2.0-debug.apk
-cp downloads/carta-dabisso-0.3.0-debug.apk downloads/carta-dabisso-0.1.0-debug.apk
+apk_target="downloads/carta-dabisso-${version}-debug.apk"
+cp android/app/build/outputs/apk/debug/app-debug.apk "$apk_target"
 
 # Verifica integrita APK e assenza vincoli web
 python3 scripts/check-apk.py
 
-sha256sum downloads/carta-dabisso-0.3.0-debug.apk > downloads/carta-dabisso-0.3.0-debug.apk.sha256
-cat downloads/carta-dabisso-0.3.0-debug.apk.sha256
+sha256sum "$apk_target" > "${apk_target}.sha256"
+cat "${apk_target}.sha256"
