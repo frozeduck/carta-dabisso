@@ -88,6 +88,72 @@ public class Game {
         }
     }
 
+    public static class Skill {
+        public String id;
+        public String name;
+        public String desc;
+        public String classType; // "hunter", "juggernaut", "mystic"
+        public int branch; // 1 or 2
+        public int tier; // 1, 2, or 3
+        public int maxRank; // 1 or 3
+        public String requiredSkillId;
+        public String badge;
+        public int color;
+
+        public Skill(String id, String name, String desc, String classType, int branch, int tier, int maxRank, String requiredSkillId, String badge, int color) {
+            this.id = id;
+            this.name = name;
+            this.desc = desc;
+            this.classType = classType;
+            this.branch = branch;
+            this.tier = tier;
+            this.maxRank = maxRank;
+            this.requiredSkillId = requiredSkillId;
+            this.badge = badge;
+            this.color = color;
+        }
+    }
+
+    public static final String CLASS_HUNTER = "hunter";
+    public static final String CLASS_JUGGERNAUT = "juggernaut";
+    public static final String CLASS_MYSTIC = "mystic";
+
+    public static final List<Skill> ALL_SKILLS = new ArrayList<>();
+    static {
+        // --- CACCIATORE DEI MARI (HUNTER) ---
+        // Ramo 1: Balistica Pesante
+        ALL_SKILLS.add(new Skill("hunt_pierce", "Arpione Perforante", "I proiettili trapassano fino a 3 nemici in linea retta.", CLASS_HUNTER, 1, 1, 1, null, "PERFORA", 0xFF38BDF8));
+        ALL_SKILLS.add(new Skill("hunt_multishot", "Tiro a Ventaglio", "L'attacco primario scaglia 3 arpioni contemporaneamente.", CLASS_HUNTER, 1, 2, 1, "hunt_pierce", "MULTITIRO", 0xFF60A5FA));
+        ALL_SKILLS.add(new Skill("hunt_crit", "Occhio di Falco", "+15% probabilità di Critico e danno critico 2.4x.", CLASS_HUNTER, 1, 3, 1, "hunt_multishot", "CRITICO", 0xFFF43F5E));
+
+        // Ramo 2: Agilità Idrodinamica
+        ALL_SKILLS.add(new Skill("hunt_rapid", "Tiro Rapido", "Cadenza di fuoco +35% e velocità proiettile +25%.", CLASS_HUNTER, 2, 1, 1, null, "CADENZA", 0xFFFBBF24));
+        ALL_SKILLS.add(new Skill("hunt_dash_cut", "Scia Tagliente", "Lo scatto rilascia una scia d'acqua affilata che recide i nemici.", CLASS_HUNTER, 2, 2, 1, "hunt_rapid", "SCIA", 0xFF34D399));
+        ALL_SKILLS.add(new Skill("hunt_surge", "Impeto Oceanico", "+50 Velocità permanente e -25% tempo di ricarica dello scatto.", CLASS_HUNTER, 2, 3, 1, "hunt_dash_cut", "IMPETO", 0xFF06B6D4));
+
+        // --- CUSTODE DEI FONDALI (JUGGERNAUT) ---
+        // Ramo 1: Bastione di Corallo
+        ALL_SKILLS.add(new Skill("jug_armor", "Guscio Corazzato", "+8 Difesa permanente e +35 Salute massima.", CLASS_JUGGERNAUT, 1, 1, 1, null, "CORAZZA", 0xFFF87171));
+        ALL_SKILLS.add(new Skill("jug_reflect", "Spine di Corallo", "Riflette il 40% del danno subito direttamente sugli attaccanti.", CLASS_JUGGERNAUT, 1, 2, 1, "jug_armor", "SPINE", 0xFFFB923C));
+        ALL_SKILLS.add(new Skill("jug_unbreakable", "Fortezza Marina", "Sotto il 35% di PV subisci il 50% di danni in meno.", CLASS_JUGGERNAUT, 1, 3, 1, "jug_reflect", "FORTEZZA", 0xFFEF4444));
+
+        // Ramo 2: Maglio Sismico
+        ALL_SKILLS.add(new Skill("jug_slam", "Ancora Pesante", "L'attacco primario infligge +30% danno in mischia con onde d'urto.", CLASS_JUGGERNAUT, 2, 1, 1, null, "MAGLIO", 0xFFD97706));
+        ALL_SKILLS.add(new Skill("jug_shockwave", "Onda Tellurica", "L'onda di Marea ha raggio +60% e scaglia i mostri marini.", CLASS_JUGGERNAUT, 2, 2, 1, "jug_slam", "SISMICO", 0xFFF59E0B));
+        ALL_SKILLS.add(new Skill("jug_titan", "Colosso Abissale", "+35% Danno totale a tutte le armi e abilità.", CLASS_JUGGERNAUT, 2, 3, 1, "jug_shockwave", "COLOSSO", 0xFFB45309));
+
+        // --- MISTICO DELL'ABISSO (MYSTIC) ---
+        // Ramo 1: Signore delle Tempeste
+        ALL_SKILLS.add(new Skill("mys_vortex", "Marea Vorticosa", "L'onda di Marea risucchia con forza tutti i nemici al centro.", CLASS_MYSTIC, 1, 1, 1, null, "VORTICE", 0xFF38BDF8));
+        ALL_SKILLS.add(new Skill("mys_lightning", "Scarica Voltaica", "Lo scatto rilascia archi elettrici a catena tra tutti i mostri vicini.", CLASS_MYSTIC, 1, 2, 1, "mys_vortex", "FOLGORE", 0xFFFCD34D));
+        ALL_SKILLS.add(new Skill("mys_tideflow", "Flusso Eterno", "+40 Marea massima e rigenerazione passiva costante (+8/s).", CLASS_MYSTIC, 1, 3, 1, "mys_lightning", "FLUSSO", 0xFF0284C7));
+
+        // Ramo 2: Drenaggio Oscuro
+        ALL_SKILLS.add(new Skill("mys_siphon", "Sifone Vitale", "Uccidere nemici o colpirli con la Marea rigenera +12 PV al palombaro.", CLASS_MYSTIC, 2, 1, 1, null, "SIFONE", 0xFFA78BFA));
+        ALL_SKILLS.add(new Skill("mys_alchemy", "Elisir Abissale", "Pozioni curano +50% PV e conferiscono super-velocità per 5s.", CLASS_MYSTIC, 2, 2, 1, "mys_siphon", "ELISIR", 0xFF818CF8));
+        ALL_SKILLS.add(new Skill("mys_cataclysm", "Cataclisma del Kraken", "L'onda di Marea rilascia 12 sfere d'acqua oscure aggiuntive.", CLASS_MYSTIC, 2, 3, 1, "mys_alchemy", "CATACLISMA", 0xFFC084FC));
+    }
+
     public static class Perk {
         public String id;
         public String title;
@@ -273,7 +339,13 @@ public class Game {
     public int shells = 15; // Conchiglie d'oro (valuta abissale)
     public float speedBoostTimer = 0f;
 
-    // Talenti e Perk al Level Up
+    // Classi e Albero delle Abilità Fisso
+    public String playerClass = CLASS_HUNTER;
+    public int skillPoints = 0;
+    public final java.util.Map<String, Integer> skillRanks = new java.util.HashMap<>();
+    public boolean skillTreeOpen = false;
+
+    // Talenti e Perk al Level Up (retro-compatibilità)
     public final java.util.Set<String> activePerks = new java.util.HashSet<>();
     public final List<Perk> pendingPerkChoices = new ArrayList<>();
     public boolean perkChoicePending = false;
@@ -341,6 +413,9 @@ public class Game {
         potions = 3;
         shells = 15;
         speedBoostTimer = 0f;
+        skillPoints = 0;
+        skillRanks.clear();
+        skillTreeOpen = false;
         activePerks.clear();
         pendingPerkChoices.clear();
         perkChoicePending = false;
@@ -384,6 +459,7 @@ public class Game {
         int base = 80 + (level * 15);
         if (equippedArmor != null) base += equippedArmor.healthBonus;
         if (isSetBonusActive("Corallo")) base += 35; // Set Corallo (2pz): +35 PV
+        if (hasSkill("jug_armor")) base += 35 * getSkillRank("jug_armor");
         return base;
     }
 
@@ -391,6 +467,8 @@ public class Game {
         int base = 10 + (level * 4);
         if (equippedWeapon != null) base += equippedWeapon.damageBonus;
         if (isSetBonusActive("Abisso")) base += (int) (base * 0.22f); // Set Abisso (2pz): +22% Danno
+        if (hasSkill("jug_titan")) base += (int) (base * 0.35f);
+        if (hasSkill("jug_slam")) base += (int) (base * 0.30f);
         return base;
     }
 
@@ -398,13 +476,15 @@ public class Game {
         int base = 2 + (level * 2);
         if (equippedArmor != null) base += equippedArmor.defenseBonus;
         if (isSetBonusActive("Corallo")) base += 5; // Set Corallo (2pz): +5 Difesa
-        if (hasPerk("perk_armor")) base += 6; // Talento Guscio Corazzato: +6 Difesa
+        if (hasSkill("jug_armor")) base += 8 * getSkillRank("jug_armor");
+        if (activePerks.contains("perk_armor")) base += 6; // Talento retro-compatibile Guscio Corazzato
         return base;
     }
 
     public float getMoveSpeed() {
         float speed = 190f;
         if (equippedRelic != null) speed += equippedRelic.speedBonus;
+        if (hasSkill("hunt_surge")) speed += 50f;
         if (speedBoostTimer > 0f) speed += 60f; // Buff velocità da pozione alchemica
         return speed;
     }
@@ -414,17 +494,89 @@ public class Game {
         if (equippedWeapon != null) crit += equippedWeapon.critBonus;
         if (equippedRelic != null) crit += equippedRelic.critBonus;
         if (isSetBonusActive("Abisso")) crit += 0.12f; // Set Abisso (2pz): +12% Critico
-        if (hasPerk("perk_crit")) crit += 0.15f; // Talento Occhio di Falco: +15% Critico
+        if (hasSkill("hunt_crit")) crit += 0.15f;
+        if (activePerks.contains("perk_crit")) crit += 0.15f;
         return crit;
     }
 
     public float getMaxTide() {
         float base = 100f;
         if (isSetBonusActive("Marea")) base += 30f; // Set Marea (2pz): +30 Marea
+        if (hasSkill("mys_tideflow")) base += 40f;
         return base;
     }
 
-    // Gestione Talenti / Perk
+    // Gestione Classi e Albero Abilità Fisso
+    public List<Skill> getSkillsForClass(String clz) {
+        List<Skill> list = new ArrayList<>();
+        for (Skill s : ALL_SKILLS) {
+            if (s.classType.equals(clz)) list.add(s);
+        }
+        return list;
+    }
+
+    public int getSkillRank(String skillId) {
+        return skillRanks.getOrDefault(skillId, 0);
+    }
+
+    public boolean hasSkill(String skillId) {
+        return getSkillRank(skillId) > 0;
+    }
+
+    public Skill getSkillById(String id) {
+        for (Skill s : ALL_SKILLS) {
+            if (s.id.equals(id)) return s;
+        }
+        return null;
+    }
+
+    public boolean canUpgradeSkill(String skillId) {
+        if (skillPoints <= 0) return false;
+        Skill s = getSkillById(skillId);
+        if (s == null) return false;
+        if (getSkillRank(skillId) >= s.maxRank) return false;
+        if (s.requiredSkillId != null && getSkillRank(s.requiredSkillId) <= 0) return false;
+        return true;
+    }
+
+    public boolean upgradeSkill(String skillId) {
+        if (!canUpgradeSkill(skillId)) return false;
+        skillPoints--;
+        int next = getSkillRank(skillId) + 1;
+        skillRanks.put(skillId, next);
+        Skill s = getSkillById(skillId);
+        if (s != null) {
+            floaters.add(new Floater(playerX, playerY - 60f, "ABILITÀ: " + s.name, s.color, true, 1.5f));
+        }
+        if (soundListener != null) soundListener.onLevelUp();
+        return true;
+    }
+
+    public void respecSkills() {
+        int spent = 0;
+        for (int r : skillRanks.values()) spent += r;
+        skillPoints += spent;
+        skillRanks.clear();
+        if (soundListener != null) soundListener.onClick();
+        floaters.add(new Floater(playerX, playerY - 50f, "PUNTI ABILITÀ RESETTATI", 0xFFFCD34D, true, 1.3f));
+    }
+
+    public void selectClass(String newClass) {
+        if (newClass.equals(playerClass)) return;
+        respecSkills();
+        playerClass = newClass;
+        if (soundListener != null) soundListener.onClick();
+        floaters.add(new Floater(playerX, playerY - 60f, "CLASSE: " + getClassName(newClass), 0xFF38BDF8, true, 1.5f));
+    }
+
+    public String getClassName(String clz) {
+        if (CLASS_HUNTER.equals(clz)) return "Cacciatore dei Mari";
+        if (CLASS_JUGGERNAUT.equals(clz)) return "Custode dei Fondali";
+        if (CLASS_MYSTIC.equals(clz)) return "Mistico dell'Abisso";
+        return clz;
+    }
+
+    // Gestione Talenti / Perk (Retro-compatibilità)
     public void generatePerkChoices() {
         pendingPerkChoices.clear();
         List<Perk> available = new ArrayList<>();
@@ -458,7 +610,15 @@ public class Game {
     }
 
     public boolean hasPerk(String perkId) {
-        return activePerks.contains(perkId);
+        if (activePerks.contains(perkId)) return true;
+        if ("perk_pierce".equals(perkId)) return hasSkill("hunt_pierce");
+        if ("perk_rapid".equals(perkId)) return hasSkill("hunt_rapid");
+        if ("perk_vortex".equals(perkId)) return hasSkill("mys_vortex");
+        if ("perk_electric_dash".equals(perkId)) return hasSkill("mys_lightning") || hasSkill("hunt_dash_cut");
+        if ("perk_armor".equals(perkId)) return hasSkill("jug_armor");
+        if ("perk_crit".equals(perkId)) return hasSkill("hunt_crit");
+        if ("perk_alchemy".equals(perkId)) return hasSkill("mys_alchemy");
+        return false;
     }
 
     // Bottega di Mastro Paguro
@@ -583,8 +743,10 @@ public class Game {
         if (playerSquash > 0f) playerSquash = Math.max(0f, playerSquash - dt * 5f);
 
         // Passive Tide regeneration
+        float tideRegen = 10f;
+        if (hasSkill("mys_tideflow")) tideRegen += 12f;
         if (tide < maxTide) {
-            tide = Math.min(maxTide, tide + dt * 10f);
+            tide = Math.min(maxTide, tide + dt * tideRegen);
         }
 
         // Beacon animation
@@ -745,11 +907,22 @@ public class Game {
         }
 
         // Shoot harpoon spear projectile (with piercing if perk active)
+        int pCount = hasPerk("perk_pierce") ? (1 + Math.max(1, getSkillRank("hunt_pierce")) * 2) : 1;
         Projectile proj = new Projectile(playerX, playerY, vx, vy, 8f, dmg, true, 0.45f, pColor);
-        if (hasPerk("perk_pierce")) {
-            proj.pierceCount = 3;
-        }
+        proj.pierceCount = pCount;
         projectiles.add(proj);
+
+        // Tiro a Ventaglio (Cacciatore dei Mari)
+        if (hasSkill("hunt_multishot")) {
+            for (float offset : new float[]{-0.24f, 0.24f}) {
+                float a = angle + offset;
+                float msVx = (float) Math.cos(a) * speed;
+                float msVy = (float) Math.sin(a) * speed;
+                Projectile msProj = new Projectile(playerX, playerY, msVx, msVy, 8f, (int)(dmg * 0.80f), true, 0.45f, pColor);
+                msProj.pierceCount = pCount;
+                projectiles.add(msProj);
+            }
+        }
 
         if (soundListener != null) soundListener.onHit();
         return true;
@@ -777,13 +950,24 @@ public class Game {
         }
 
         // Spawn outward wave projectiles
-        int waveCount = 14;
+        int waveCount = hasSkill("jug_shockwave") ? 20 : 14;
+        float waveSpeed = hasSkill("jug_shockwave") ? 460f : 380f;
         int dmg = (int) (getAttackDamage() * (hasPerk("perk_vortex") ? 1.95f : 1.6f));
         for (int i = 0; i < waveCount; i++) {
             double angle = (2.0 * Math.PI / waveCount) * i;
-            float vx = (float) (Math.cos(angle) * 380.0);
-            float vy = (float) (Math.sin(angle) * 380.0);
+            float vx = (float) (Math.cos(angle) * waveSpeed);
+            float vy = (float) (Math.sin(angle) * waveSpeed);
             projectiles.add(new Projectile(playerX, playerY, vx, vy, 11f, dmg, true, 0.65f, 0xFF0284C7));
+        }
+
+        // Cataclisma del Kraken (Mistico dell'Abisso)
+        if (hasSkill("mys_cataclysm")) {
+            for (int i = 0; i < 10; i++) {
+                double angle = (Math.PI * 2 / 10) * i;
+                float vx = (float) (Math.cos(angle) * 310f);
+                float vy = (float) (Math.sin(angle) * 310f);
+                projectiles.add(new Projectile(playerX, playerY, vx, vy, 14f, (int)(dmg * 1.3f), true, 0.8f, 0xFFC084FC));
+            }
         }
 
         // Wave particles
@@ -916,9 +1100,28 @@ public class Game {
 
         int def = getDefense();
         int taken = Math.max(1, rawDamage - (def / 2));
+
+        // Custode: Fortezza Marina (riduzione danno 50% se HP bassi)
+        if (hasSkill("jug_unbreakable") && hp < (int)(getMaxHp() * 0.35f)) {
+            taken = Math.max(1, (int)(taken * 0.5f));
+        }
+
         hp -= taken;
         trauma = Math.min(1.0f, trauma + 0.45f);
         playerSquash = 0.8f;
+
+        // Custode: Spine di Corallo (riflette 40% del danno subito)
+        if (hasSkill("jug_reflect")) {
+            int reflected = Math.max(1, (int)(taken * 0.40f));
+            for (Enemy ne : enemies) {
+                float dx = ne.x - playerX;
+                float dy = ne.y - playerY;
+                if (dx * dx + dy * dy < 260f * 260f) {
+                    ne.hp -= reflected;
+                    floaters.add(new Floater(ne.x, ne.y - 30f, "SPINE " + reflected, 0xFFFB923C, false, 0.6f));
+                }
+            }
+        }
 
         floaters.add(new Floater(playerX, playerY - 35f, "-" + taken, 0xFFEF4444, false, 0.8f));
 
@@ -933,6 +1136,13 @@ public class Game {
     public void damageEnemy(Enemy e, int damage, float hitX, float hitY) {
         e.hp -= damage;
         e.hitSquash = 0.6f;
+
+        // Sifone Vitale (Mistico dell'Abisso)
+        if (hasSkill("mys_siphon")) {
+            int heal = 4;
+            hp = Math.min(getMaxHp(), hp + heal);
+            floaters.add(new Floater(playerX, playerY - 30f, "+" + heal + " PV", 0xFFA78BFA, false, 0.6f));
+        }
 
         // Knockback (attenuato dal talento perk_armor se applicato a player, qui e' su nemici)
         float kx = e.x - hitX;
@@ -975,6 +1185,13 @@ public class Game {
 
         addXp(gainedXp);
 
+        // Sifone Vitale per uccisione (Mistico dell'Abisso)
+        if (hasSkill("mys_siphon")) {
+            int heal = 12;
+            hp = Math.min(getMaxHp(), hp + heal);
+            floaters.add(new Floater(playerX, playerY - 30f, "+" + heal + " PV", 0xFFA78BFA, true, 0.8f));
+        }
+
         // Death burst particles
         int particleCount = "boss".equals(e.type) ? 40 : 16;
         for (int i = 0; i < particleCount; i++) {
@@ -998,11 +1215,11 @@ public class Game {
         while (xp >= xpNext) {
             xp -= xpNext;
             level++;
+            skillPoints++;
             xpNext = (int) (xpNext * 1.45f);
             hp = getMaxHp(); // Full heal on level up
-            floaters.add(new Floater(playerX, playerY - 75f, "LIVELLO " + level + "!", 0xFFFCD34D, true, 1.4f));
+            floaters.add(new Floater(playerX, playerY - 75f, "LIVELLO " + level + "! +1 PUNTO ABILITÀ", 0xFFFCD34D, true, 1.4f));
             if (soundListener != null) soundListener.onLevelUp();
-            generatePerkChoices();
         }
     }
 

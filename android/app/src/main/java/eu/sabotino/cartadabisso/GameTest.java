@@ -111,27 +111,69 @@ public class GameTest {
         assert game.getDefense() < defWithSet : "Bonus Difesa da Set Corallo non disattivato";
         System.out.println("Test 11 PASSATO: Set di Equipaggiamento e Bonus Set OK.");
 
-        // Test 12: Sistema Talenti / Perk al Level Up
+        // Test 12: Sistema Classi di Combattimento e Albero Abilità Fisso
         game.initPlayer();
-        assert !game.perkChoicePending : "Scelta talenti non deve essere attiva al livello 1";
-        assert game.activePerks.isEmpty() : "Nessun talento attivo all'avvio";
-        // Assegna XP sufficiente a salire di livello
+        assert game.skillPoints == 0 : "Punti abilità iniziali diversi da 0";
+        assert Game.CLASS_HUNTER.equals(game.playerClass) : "Classe predefinita non Cacciatore";
+
+        // Assegna XP sufficiente a salire di livello: non deve bloccare il gioco ma dare punti abilità
         game.addXp(70);
         assert game.level == 2 : "Livello non incrementato dopo XP";
-        assert game.perkChoicePending : "Scelta talenti deve attivarsi al level up";
-        assert !game.pendingPerkChoices.isEmpty() : "Scelte talenti vuote";
-        String chosenPerkId = game.pendingPerkChoices.get(0).id;
-        boolean selected = game.selectPerk(chosenPerkId);
-        assert selected : "Selezione talento fallita";
-        assert game.hasPerk(chosenPerkId) : "Talento selezionato non registrato in activePerks";
-        assert !game.perkChoicePending : "Stato scelta talenti non reimpostato dopo selezione";
+        assert game.skillPoints == 1 : "Punto abilità non assegnato al level up";
+        assert !game.perkChoicePending : "Il gioco non deve interrompersi con pop-up roguelike casuali";
 
-        // Verifica effetto talento specifico (es. Guscio Corazzato o Tiro Rapido)
-        game.activePerks.add("perk_armor");
-        int defBeforeArmorPerk = game.getDefense();
-        game.activePerks.remove("perk_armor");
-        assert game.getDefense() == defBeforeArmorPerk - 6 : "Talento Guscio Corazzato (+6 Def) non calcolato";
-        System.out.println("Test 12 PASSATO: Sistema Talenti e Perk al Level Up OK.");
+        // Test progressione albero Hunter: Tier 1 sbloccabile, Tier 2 bloccato da prerequisito
+        assert game.canUpgradeSkill("hunt_pierce") : "hunt_pierce (Tier 1) deve essere sbloccabile";
+        assert !game.canUpgradeSkill("hunt_multishot") : "hunt_multishot (Tier 2) richiede hunt_pierce";
+
+        boolean unlockedTier1 = game.upgradeSkill("hunt_pierce");
+        assert unlockedTier1 : "Sblocco hunt_pierce fallito";
+        assert game.hasSkill("hunt_pierce") : "hunt_pierce non risulta acquisito";
+        assert game.skillPoints == 0 : "Punto abilità non detratto";
+
+        // Con 0 punti, Tier 2 non può essere sbloccato anche se il prerequisito è soddisfatto
+        assert !game.canUpgradeSkill("hunt_multishot") : "Impossibile sbloccare Tier 2 senza punti abilità";
+
+        // Aggiungi un altro punto e sblocca Tier 2 (Tiro a Ventaglio)
+        game.skillPoints = 1;
+        assert game.canUpgradeSkill("hunt_multishot") : "hunt_multishot deve essere sbloccabile ora";
+        boolean unlockedTier2 = game.upgradeSkill("hunt_multishot");
+        assert unlockedTier2 : "Sblocco hunt_multishot fallito";
+        assert game.hasSkill("hunt_multishot") : "hunt_multishot non risulta acquisito";
+
+        // Respec: resetta le abilità e restituisce tutti i punti
+        game.respecSkills();
+        assert !game.hasSkill("hunt_pierce") : "hunt_pierce non deve essere attivo dopo il respec";
+        assert !game.hasSkill("hunt_multishot") : "hunt_multishot non deve essere attivo dopo il respec";
+        assert game.skillPoints == 2 : "Punti abilità rimborsati errati dopo respec";
+
+        // Cambio Classe in Juggernaut (Custode dei Fondali)
+        game.selectClass(Game.CLASS_JUGGERNAUT);
+        assert Game.CLASS_JUGGERNAUT.equals(game.playerClass) : "Classe non passata a Custode";
+        assert "Custode dei Fondali".equals(game.getClassName(game.playerClass)) : "Nome classe Custode errato";
+
+        // Sblocca Guscio Corazzato (jug_armor) e verifica bonus difensivi e vitali
+        int baseDef = game.getDefense();
+        int baseHp = game.getMaxHp();
+        assert game.canUpgradeSkill("jug_armor") : "jug_armor deve essere sbloccabile";
+        game.upgradeSkill("jug_armor");
+        assert game.getDefense() == baseDef + 8 : "Bonus difesa +8 da Guscio Corazzato non applicato";
+        assert game.getMaxHp() == baseHp + 35 : "Bonus salute +35 da Guscio Corazzato non applicato";
+
+        // Cambio Classe in Mystic (Mistico dell'Abisso): deve azzerare i punti spesi e rimborsarli
+        game.selectClass(Game.CLASS_MYSTIC);
+        assert Game.CLASS_MYSTIC.equals(game.playerClass) : "Classe non passata a Mistico";
+        assert !game.hasSkill("jug_armor") : "Abilità del Custode non devono persistere dopo cambio classe";
+        assert game.skillPoints == 2 : "Tutti i punti abilità devono essere rimborsati al cambio classe";
+
+        // Sblocca Flusso Eterno e verifica aumento Marea Massima
+        game.skillRanks.put("mys_vortex", 1);
+        game.skillRanks.put("mys_lightning", 1);
+        float baseTide = game.getMaxTide();
+        game.upgradeSkill("mys_tideflow");
+        assert game.hasSkill("mys_tideflow") : "Flusso Eterno non attivo";
+        assert game.getMaxTide() == baseTide + 40f : "Bonus +40 Marea Massima non applicato";
+        System.out.println("Test 12 PASSATO: Classi di Combattimento, Albero Fisso e Respec OK.");
 
         // Test 13: Valuta Conchiglie d'oro e Drops
         game.initPlayer();

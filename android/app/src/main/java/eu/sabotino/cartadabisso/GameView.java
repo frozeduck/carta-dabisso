@@ -103,6 +103,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final float btnDashX = 855f, btnDashY = 315f, btnDashRadius = 28f;
     private final float btnPotionX = 760f, btnPotionY = 365f, btnPotionRadius = 26f;
     private final float btnInventoryX = 685f, btnInventoryY = 475f, btnInventoryRadius = 24f;
+    private final float btnSkillTreeX = 615f, btnSkillTreeY = 475f, btnSkillTreeRadius = 24f;
 
     // Diablo Spheres (Upper Corners)
     private final float globeHpX = 55f, globeHpY = 55f, globeHpRadius = 34f;
@@ -110,6 +111,27 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     // Sound button (Top center-right)
     private final RectF btnSound = new RectF(740f, 14f, 795f, 44f);
+
+    // Skill Tree Modal Rectangles & Classes
+    public boolean skillTreeOpen = false;
+    private final RectF modalSkillTreeRect = new RectF(65f, 30f, 895f, 510f);
+    private final RectF btnCloseSkillTree = new RectF(850f, 40f, 885f, 72f);
+    private final RectF btnRespec = new RectF(660f, 40f, 835f, 72f);
+    private final RectF tabHunter = new RectF(80f, 40f, 255f, 74f);
+    private final RectF tabJuggernaut = new RectF(265f, 40f, 445f, 74f);
+    private final RectF tabMystic = new RectF(455f, 40f, 625f, 74f);
+
+    // 6 Skill Nodes (3 for Branch 1 on left, 3 for Branch 2 on right)
+    private final RectF[] skillNodeRectsBranch1 = new RectF[]{
+            new RectF(95f, 135f, 470f, 240f),
+            new RectF(95f, 260f, 470f, 365f),
+            new RectF(95f, 385f, 470f, 490f)
+    };
+    private final RectF[] skillNodeRectsBranch2 = new RectF[]{
+            new RectF(490f, 135f, 865f, 240f),
+            new RectF(490f, 260f, 865f, 365f),
+            new RectF(490f, 385f, 865f, 490f)
+    };
 
     // Inventory Modal Rectangles
     private final RectF modalRect = new RectF(100f, 45f, 860f, 495f);
@@ -229,7 +251,18 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     public void toggleInventory() {
         inventoryOpen = !inventoryOpen;
+        if (inventoryOpen) {
+            skillTreeOpen = false;
+        }
         selectedBackpackIndex = -1;
+        AudioHelper.playClick();
+    }
+
+    public void toggleSkillTree() {
+        skillTreeOpen = !skillTreeOpen;
+        if (skillTreeOpen) {
+            inventoryOpen = false;
+        }
         AudioHelper.playClick();
     }
 
@@ -382,7 +415,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         drawHudAndControls(canvas);
 
         // 3. Modals & Overlays
-        if (game.perkChoicePending) {
+        if (skillTreeOpen) {
+            drawSkillTreeModal(canvas);
+        } else if (game.perkChoicePending) {
             drawPerkSelectionModal(canvas);
         } else if (game.merchantShopOpen) {
             drawMerchantShopModal(canvas);
@@ -1221,6 +1256,37 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawRoundRect(btnInventoryX - 9f, btnInventoryY - 6f, btnInventoryX + 9f, btnInventoryY + 8f, 3f, 3f, paintStroke);
             canvas.drawLine(btnInventoryX - 9f, btnInventoryY, btnInventoryX + 9f, btnInventoryY, paintStroke);
         });
+
+        drawActionButton(canvas, btnSkillTreeX, btnSkillTreeY, btnSkillTreeRadius, "ALBERO", 0f, 0xFF7C3AED, () -> {
+            paintStroke.setColor(0xFFFBBF24);
+            paintStroke.setStrokeWidth(2f);
+            canvas.drawLine(btnSkillTreeX, btnSkillTreeY + 8f, btnSkillTreeX, btnSkillTreeY - 6f, paintStroke);
+            canvas.drawLine(btnSkillTreeX, btnSkillTreeY, btnSkillTreeX - 7f, btnSkillTreeY - 6f, paintStroke);
+            canvas.drawLine(btnSkillTreeX, btnSkillTreeY, btnSkillTreeX + 7f, btnSkillTreeY - 6f, paintStroke);
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFFBBF24);
+            canvas.drawCircle(btnSkillTreeX, btnSkillTreeY - 8f, 3f, paintFill);
+            canvas.drawCircle(btnSkillTreeX - 8f, btnSkillTreeY - 7f, 2.5f, paintFill);
+            canvas.drawCircle(btnSkillTreeX + 8f, btnSkillTreeY - 7f, 2.5f, paintFill);
+        });
+
+        // Skill points notification badge if any unspent points
+        if (game.skillPoints > 0) {
+            float badgeX = btnSkillTreeX + 14f;
+            float badgeY = btnSkillTreeY - 14f;
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFEF4444);
+            canvas.drawCircle(badgeX, badgeY, 9f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(2f);
+            canvas.drawCircle(badgeX, badgeY, 9f, paintStroke);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(9f);
+            paintText.setColor(COL_STICKER);
+            paintText.setFakeBoldText(true);
+            canvas.drawText(String.valueOf(game.skillPoints), badgeX, badgeY + 3.5f, paintText);
+        }
     }
 
     private void drawActionButton(Canvas canvas, float cx, float cy, float r, String label, float cdPct, int ringCol, Runnable iconDraw) {
@@ -1671,6 +1737,272 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText("BOTTEGA [TOCCA]", x, y - 42f, paintText);
     }
 
+    // =========================================================================
+    // MODALE ALBERO DELLE ABILITÀ E CLASSI DI COMBATTIMENTO
+    // =========================================================================
+    private void drawSkillTreeModal(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xEE020B14);
+        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+
+        // Backdrop panel
+        float[][] box = {
+                {modalSkillTreeRect.left, modalSkillTreeRect.top}, {modalSkillTreeRect.right, modalSkillTreeRect.top},
+                {modalSkillTreeRect.right, modalSkillTreeRect.bottom}, {modalSkillTreeRect.left, modalSkillTreeRect.bottom}
+        };
+        drawPaperCutout(canvas, box, 0xFF0B132B, true);
+
+        // Header Class Tabs
+        drawClassTab(canvas, tabHunter, "CACCIATORE", Game.CLASS_HUNTER.equals(game.playerClass), 0xFF0284C7);
+        drawClassTab(canvas, tabJuggernaut, "CUSTODE", Game.CLASS_JUGGERNAUT.equals(game.playerClass), 0xFFD97706);
+        drawClassTab(canvas, tabMystic, "MISTICO", Game.CLASS_MYSTIC.equals(game.playerClass), 0xFF7E22CE);
+
+        // Respec button
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF7F1D1D);
+        canvas.drawRoundRect(btnRespec, 6f, 6f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0xFFF87171);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(btnRespec, 6f, 6f, paintStroke);
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_GOLD);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("RESET (RESPEC)", btnRespec.centerX(), btnRespec.centerY() + 4f, paintText);
+
+        // Close button
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF334155);
+        canvas.drawRoundRect(btnCloseSkillTree, 4f, 4f, paintFill);
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_CREAM);
+        paintText.setTextSize(16f);
+        canvas.drawText("X", btnCloseSkillTree.centerX(), btnCloseSkillTree.centerY() + 5.5f, paintText);
+
+        // Subheader Info Bar
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(COL_GOLD);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(true);
+        String className = game.getClassName(game.playerClass);
+        canvas.drawText("CLASSE: " + className.toUpperCase(), modalSkillTreeRect.left + 20f, 96f, paintText);
+
+        paintText.setColor(0xFF94A3B8);
+        paintText.setTextSize(10f);
+        paintText.setFakeBoldText(false);
+        String classDesc = Game.CLASS_HUNTER.equals(game.playerClass)
+                ? "Specialista a distanza, perforazione, scia tagliente e colpi critici mortali."
+                : (Game.CLASS_JUGGERNAUT.equals(game.playerClass)
+                ? "Campione corazzato in mischia, riduzione danni, spine di corallo e onde telluriche."
+                : "Manipolatore delle maree, risucchio con vortici oceanici, cataclisma e furto vitale costante.");
+        canvas.drawText(classDesc, modalSkillTreeRect.left + 20f, 110f, paintText);
+
+        // Skill points pill on the right of subheader
+        float spPillW = 150f;
+        float spPillH = 24f;
+        float spPillX = modalSkillTreeRect.right - spPillW - 20f;
+        float spPillY = 88f;
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(game.skillPoints > 0 ? 0xFF14532D : 0xFF1E293B);
+        canvas.drawRoundRect(spPillX, spPillY, spPillX + spPillW, spPillY + spPillH, 6f, 6f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(game.skillPoints > 0 ? 0xFF4ADE80 : 0xFF475569);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(spPillX, spPillY, spPillX + spPillW, spPillY + spPillH, 6f, 6f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(game.skillPoints > 0 ? 0xFF86EFAC : COL_CREAM);
+        canvas.drawText("PUNTI ABILITÀ: " + game.skillPoints, spPillX + spPillW / 2f, spPillY + 16f, paintText);
+
+        // Branch 1 & Branch 2 Column Headers
+        String b1Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 1: BALISTICA PESANTE"
+                : (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? "RAMO 1: BASTIONE DI CORALLO" : "RAMO 1: SIGNORE DELLE TEMPESTE");
+        String b2Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 2: AGILITÀ IDRODINAMICA"
+                : (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? "RAMO 2: MAGLIO SISMICO" : "RAMO 2: DRENAGGIO OSCURO");
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(0xFF38BDF8);
+        canvas.drawText(b1Title, 282.5f, 130f, paintText);
+        paintText.setColor(0xFFFBBF24);
+        canvas.drawText(b2Title, 677.5f, 130f, paintText);
+
+        // Branch connection lines between tiers
+        List<Game.Skill> skills = game.getSkillsForClass(game.playerClass);
+        Game.Skill sB1T1 = null, sB1T2 = null, sB1T3 = null;
+        Game.Skill sB2T1 = null, sB2T2 = null, sB2T3 = null;
+        for (Game.Skill s : skills) {
+            if (s.branch == 1) {
+                if (s.tier == 1) sB1T1 = s;
+                else if (s.tier == 2) sB1T2 = s;
+                else if (s.tier == 3) sB1T3 = s;
+            } else if (s.branch == 2) {
+                if (s.tier == 1) sB2T1 = s;
+                else if (s.tier == 2) sB2T2 = s;
+                else if (s.tier == 3) sB2T3 = s;
+            }
+        }
+
+        // Draw vertical connecting progression lines
+        drawBranchLine(canvas, 282.5f, skillNodeRectsBranch1[0].bottom, skillNodeRectsBranch1[1].top, sB1T1 != null && game.hasSkill(sB1T1.id));
+        drawBranchLine(canvas, 282.5f, skillNodeRectsBranch1[1].bottom, skillNodeRectsBranch1[2].top, sB1T2 != null && game.hasSkill(sB1T2.id));
+        drawBranchLine(canvas, 677.5f, skillNodeRectsBranch2[0].bottom, skillNodeRectsBranch2[1].top, sB2T1 != null && game.hasSkill(sB2T1.id));
+        drawBranchLine(canvas, 677.5f, skillNodeRectsBranch2[1].bottom, skillNodeRectsBranch2[2].top, sB2T2 != null && game.hasSkill(sB2T2.id));
+
+        // Draw Skill Cards
+        if (sB1T1 != null) drawSkillNodeCard(canvas, skillNodeRectsBranch1[0], sB1T1);
+        if (sB1T2 != null) drawSkillNodeCard(canvas, skillNodeRectsBranch1[1], sB1T2);
+        if (sB1T3 != null) drawSkillNodeCard(canvas, skillNodeRectsBranch1[2], sB1T3);
+
+        if (sB2T1 != null) drawSkillNodeCard(canvas, skillNodeRectsBranch2[0], sB2T1);
+        if (sB2T2 != null) drawSkillNodeCard(canvas, skillNodeRectsBranch2[1], sB2T2);
+        if (sB2T3 != null) drawSkillNodeCard(canvas, skillNodeRectsBranch2[2], sB2T3);
+    }
+
+    private void drawClassTab(Canvas canvas, RectF r, String title, boolean active, int accentCol) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(active ? accentCol : 0xFF1E293B);
+        canvas.drawRoundRect(r, 6f, 6f, paintFill);
+
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(active ? COL_GOLD : 0xFF475569);
+        paintStroke.setStrokeWidth(active ? 2.5f : 1.2f);
+        canvas.drawRoundRect(r, 6f, 6f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(active ? COL_STICKER : 0xFF94A3B8);
+        paintText.setTextSize(12f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText(title, r.centerX(), r.centerY() + 4.5f, paintText);
+    }
+
+    private void drawBranchLine(Canvas canvas, float x, float topY, float botY, boolean unlocked) {
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(unlocked ? COL_GOLD : 0xFF334155);
+        paintStroke.setStrokeWidth(unlocked ? 3.5f : 2f);
+        canvas.drawLine(x, topY, x, botY, paintStroke);
+    }
+
+    private void drawSkillNodeCard(Canvas canvas, RectF r, Game.Skill s) {
+        boolean unlocked = game.hasSkill(s.id);
+        boolean canUnlock = game.canUpgradeSkill(s.id);
+
+        // White paper sticker border
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_STICKER);
+        canvas.drawRoundRect(r.left - 2f, r.top - 2f, r.right + 2f, r.bottom + 2f, 8f, 8f, paintFill);
+
+        // Card background
+        int cardBg = unlocked ? 0xFF0B2538 : (canUnlock ? 0xFF172554 : 0xFF0F172A);
+        paintFill.setColor(cardBg);
+        canvas.drawRoundRect(r, 6f, 6f, paintFill);
+
+        // Card outline
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(unlocked ? COL_GOLD : (canUnlock ? 0xFF38BDF8 : 0xFF334155));
+        paintStroke.setStrokeWidth(unlocked ? 2.2f : (canUnlock ? 1.8f : 1.2f));
+        canvas.drawRoundRect(r, 6f, 6f, paintStroke);
+
+        // Badge pill
+        float badgeW = 75f;
+        float badgeH = 18f;
+        float badgeX = r.left + 10f;
+        float badgeY = r.top + 9f;
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(unlocked || canUnlock ? s.color : 0xFF475569);
+        canvas.drawRoundRect(badgeX, badgeY, badgeX + badgeW, badgeY + badgeH, 4f, 4f, paintFill);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_INK);
+        paintText.setTextSize(9f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText(s.badge, badgeX + badgeW / 2f, badgeY + 12.5f, paintText);
+
+        // Tier & Rank text
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(10f);
+        paintText.setColor(unlocked ? COL_GOLD : 0xFF94A3B8);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("TIER " + s.tier + " (" + (unlocked ? "1/1" : "0/1") + ")", badgeX + badgeW + 8f, badgeY + 13f, paintText);
+
+        // Skill Name
+        paintText.setTextSize(12.5f);
+        paintText.setColor(unlocked ? 0xFFFCD34D : (canUnlock ? COL_CREAM : 0xFF94A3B8));
+        paintText.setFakeBoldText(true);
+        canvas.drawText(s.name, r.left + 10f, r.top + 42f, paintText);
+
+        // Skill Description (wrapped text)
+        paintText.setTextSize(9.5f);
+        paintText.setColor(unlocked ? 0xFFE2E8F0 : 0xFF94A3B8);
+        paintText.setFakeBoldText(false);
+        drawWrappedText(canvas, s.desc, r.left + 10f, r.top + 57f, 13f, r.width() - 110f, paintText);
+
+        // Action / Status Button on the right
+        float btnLeft = r.right - 92f;
+        float btnTop = r.top + 22f;
+        float btnRight = r.right - 10f;
+        float btnBottom = r.top + 76f;
+        RectF btnAction = new RectF(btnLeft, btnTop, btnRight, btnBottom);
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(unlocked ? 0xFF14532D : (canUnlock ? 0xFF0284C7 : 0xFF1E293B));
+        canvas.drawRoundRect(btnAction, 6f, 6f, paintFill);
+
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(unlocked ? 0xFF22C55E : (canUnlock ? 0xFF38BDF8 : 0xFF475569));
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(btnAction, 6f, 6f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setFakeBoldText(true);
+        if (unlocked) {
+            paintText.setTextSize(11f);
+            paintText.setColor(0xFF86EFAC);
+            canvas.drawText("ATTIVO ✓", btnAction.centerX(), btnAction.centerY() + 4f, paintText);
+        } else if (canUnlock) {
+            paintText.setTextSize(11f);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText("+ SBLOCCA", btnAction.centerX(), btnAction.centerY() - 3f, paintText);
+            paintText.setTextSize(8.5f);
+            paintText.setColor(0xFFFEF08A);
+            paintText.setFakeBoldText(false);
+            canvas.drawText("1 Punto", btnAction.centerX(), btnAction.centerY() + 11f, paintText);
+        } else {
+            paintText.setTextSize(10f);
+            paintText.setColor(0xFF64748B);
+            canvas.drawText("BLOCCATO", btnAction.centerX(), btnAction.centerY() - 3f, paintText);
+            paintText.setTextSize(8f);
+            paintText.setFakeBoldText(false);
+            String reason = (s.requiredSkillId != null && !game.hasSkill(s.requiredSkillId))
+                    ? "Req Tier " + (s.tier - 1)
+                    : "No Punti";
+            canvas.drawText(reason, btnAction.centerX(), btnAction.centerY() + 11f, paintText);
+        }
+    }
+
+    private void drawWrappedText(Canvas canvas, String text, float leftX, float topY, float lineSpacing, float maxW, Paint paint) {
+        String[] words = text.split(" ");
+        StringBuilder line = new StringBuilder();
+        float y = topY;
+        for (String w : words) {
+            String test = line.length() == 0 ? w : line + " " + w;
+            if (paint.measureText(test) > maxW) {
+                canvas.drawText(line.toString(), leftX, y, paint);
+                line = new StringBuilder(w);
+                y += lineSpacing;
+            } else {
+                line = new StringBuilder(test);
+            }
+        }
+        if (line.length() > 0) {
+            canvas.drawText(line.toString(), leftX, y, paint);
+        }
+    }
+
     private void drawPerkSelectionModal(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xEE020B14);
@@ -1900,6 +2232,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         int action = event.getActionMasked();
         int actionIndex = event.getActionIndex();
 
+        if (skillTreeOpen) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handleSkillTreeTouch(vx, vy);
+            }
+            return true;
+        }
+
         if (game.perkChoicePending) {
             if (action == MotionEvent.ACTION_DOWN) {
                 float vx = (event.getX() - offsetX) / viewScale;
@@ -2026,6 +2367,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
+        float dSkill = distSq(vx, vy, btnSkillTreeX, btnSkillTreeY);
+        if (dSkill < btnSkillTreeRadius * btnSkillTreeRadius * 1.5f) {
+            toggleSkillTree();
+            return;
+        }
+
         float dInv = distSq(vx, vy, btnInventoryX, btnInventoryY);
         if (dInv < btnInventoryRadius * btnInventoryRadius * 1.5f) {
             toggleInventory();
@@ -2121,6 +2468,60 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             if (btnDropSelected.contains(vx, vy)) {
                 game.dropBackpackItem(selectedBackpackIndex);
                 selectedBackpackIndex = -1;
+            }
+        }
+    }
+
+    private void handleSkillTreeTouch(float vx, float vy) {
+        if (btnCloseSkillTree.contains(vx, vy)) {
+            skillTreeOpen = false;
+            AudioHelper.playClick();
+            return;
+        }
+
+        if (btnRespec.contains(vx, vy)) {
+            game.respecSkills();
+            return;
+        }
+
+        if (tabHunter.contains(vx, vy)) {
+            game.selectClass(Game.CLASS_HUNTER);
+            return;
+        }
+        if (tabJuggernaut.contains(vx, vy)) {
+            game.selectClass(Game.CLASS_JUGGERNAUT);
+            return;
+        }
+        if (tabMystic.contains(vx, vy)) {
+            game.selectClass(Game.CLASS_MYSTIC);
+            return;
+        }
+
+        List<Game.Skill> skills = game.getSkillsForClass(game.playerClass);
+        for (int i = 0; i < 3; i++) {
+            if (skillNodeRectsBranch1[i].contains(vx, vy)) {
+                for (Game.Skill s : skills) {
+                    if (s.branch == 1 && s.tier == (i + 1)) {
+                        if (game.canUpgradeSkill(s.id)) {
+                            game.upgradeSkill(s.id);
+                        } else {
+                            AudioHelper.playClick();
+                        }
+                        return;
+                    }
+                }
+            }
+            if (skillNodeRectsBranch2[i].contains(vx, vy)) {
+                for (Game.Skill s : skills) {
+                    if (s.branch == 2 && s.tier == (i + 1)) {
+                        if (game.canUpgradeSkill(s.id)) {
+                            game.upgradeSkill(s.id);
+                        } else {
+                            AudioHelper.playClick();
+                        }
+                        return;
+                    }
+                }
             }
         }
     }
