@@ -380,6 +380,216 @@ def gen_anemone():
     sticker.save(out_dir / 'anemone.png')
     print('Generato anemone.png (supersampled Lanczos)')
 
+def gen_app_icon():
+    # Builds both standard squircle and round adaptive Paper Mario app icons
+    w, h = 1024, 1024
+
+    def build_icon(is_round=False):
+        im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+
+        # Mask for squircle or circle
+        mask = Image.new('L', (w, h), 0)
+        dmask = ImageDraw.Draw(mask)
+        if is_round:
+            dmask.ellipse([32, 32, 992, 992], fill=255)
+        else:
+            dmask.rounded_rectangle([32, 32, 992, 992], radius=216, fill=255)
+
+        # 1. Background Content (Ocean + Dunes + God rays)
+        bg = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        dbg = ImageDraw.Draw(bg)
+
+        # Vertical ocean watercolor gradient
+        top_col = (14, 165, 233)
+        mid_col = (2, 132, 199)
+        bot_col = (8, 45, 56)
+        for y in range(h):
+            t = y / float(h)
+            if t < 0.5:
+                f = t / 0.5
+                r = int(top_col[0] * (1 - f) + mid_col[0] * f)
+                g = int(top_col[1] * (1 - f) + mid_col[1] * f)
+                b = int(top_col[2] * (1 - f) + mid_col[2] * f)
+            else:
+                f = (t - 0.5) / 0.5
+                r = int(mid_col[0] * (1 - f) + bot_col[0] * f)
+                g = int(mid_col[1] * (1 - f) + bot_col[1] * f)
+                b = int(mid_col[2] * (1 - f) + bot_col[2] * f)
+            dbg.line([(0, y), (w, y)], fill=(r, g, b, 255))
+
+        # Soft God Rays from surface
+        dbg.polygon([(240, 32), (400, 32), (580, 992), (360, 992)], fill=(253, 224, 71, 42))
+        dbg.polygon([(460, 32), (590, 32), (790, 992), (620, 992)], fill=(253, 224, 71, 32))
+
+        # Wave foam current trim (crepe paper ripples)
+        wave_pts = []
+        for x in range(32, 993, 20):
+            wy = 490 + math.sin(x * 0.015) * 25
+            wave_pts.append((x, wy))
+        wave_poly = [(32, 600)] + wave_pts + [(992, 600)]
+        dbg.polygon(wave_poly, fill=(255, 255, 255, 30))
+        for i in range(len(wave_pts) - 1):
+            dbg.line([wave_pts[i], wave_pts[i+1]], fill=(255, 255, 255, 80), width=6)
+
+        # Golden Sand Dunes at bottom
+        dune_pts = []
+        for x in range(32, 993, 20):
+            dy = 750 + math.sin(x * 0.009) * 35
+            dune_pts.append((x, dy))
+        dune_poly = [(32, 992)] + dune_pts + [(992, 992)]
+        dbg.polygon(dune_poly, fill=(253, 230, 138, 255))
+
+        # Dune shadow & gradient
+        for y in range(780, 993):
+            f = (y - 780) / 212.0
+            r = int(253 * (1 - f) + 217 * f)
+            g = int(230 * (1 - f) + 119 * f)
+            b = int(138 * (1 - f) + 6 * f)
+            dbg.line([(32, y), (992, y)], fill=(r, g, b, 140))
+
+        for i in range(len(dune_pts) - 1):
+            dbg.line([dune_pts[i], dune_pts[i+1]], fill=COL_WHITE, width=10)
+            dbg.line([dune_pts[i], dune_pts[i+1]], fill=COL_INK, width=4)
+
+        # Dashed sewing stitches along the dune
+        for x in range(50, 980, 40):
+            dy = 770 + math.sin(x * 0.009) * 35
+            dbg.line([(x, dy), (x + 22, dy)], fill=(180, 83, 9, 230), width=5)
+
+        # Pink Coral on the left dune
+        coral_pts = [(180, 770), (140, 680), (90, 640), (80, 580), (115, 590), (150, 640),
+                     (170, 530), (210, 520), (210, 620), (250, 580), (280, 600), (250, 660), (200, 770)]
+        dbg.polygon(coral_pts, fill=COL_CORAL, outline=COL_INK, width=6)
+        dbg.ellipse([145, 615, 165, 635], fill=COL_WHITE)
+        dbg.ellipse([225, 625, 245, 645], fill=COL_WHITE)
+        dbg.ellipse([185, 565, 200, 580], fill=COL_WHITE)
+
+        # Cute Starfish on the right dune
+        scx, scy = 800, 820
+        s_pts = []
+        for i in range(10):
+            rad = math.radians(i * 36 - 90)
+            r = 75 if i % 2 == 0 else 34
+            s_pts.append((scx + int(math.cos(rad) * r), scy + int(math.sin(rad) * r)))
+        dbg.polygon(s_pts, fill=(251, 146, 60, 255), outline=COL_INK, width=6)
+        dbg.ellipse([scx - 14, scy - 8, scx - 4, scy + 4], fill=COL_INK)
+        dbg.ellipse([scx + 4, scy - 8, scx + 14, scy + 4], fill=COL_INK)
+        dbg.arc([scx - 8, scy + 2, scx + 8, scy + 14], start=0, end=180, fill=COL_INK, width=4)
+
+        # Air Bubbles rising
+        for bx, by, br in [(180, 320, 26), (230, 260, 16), (820, 390, 30), (860, 320, 18), (760, 220, 22)]:
+            dbg.ellipse([bx - br, by - br, bx + br, by + br], fill=(255, 255, 255, 70), outline=COL_WHITE, width=4)
+            dbg.arc([bx - br + 4, by - br + 4, bx + br - 4, by + br - 4], start=210, end=330, fill=COL_WHITE, width=4)
+
+        # 2. Hero Palombaro Sprite with Die-Cut Sticker
+        hero = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        dhero = ImageDraw.Draw(hero)
+
+        pcx, pcy = 512, 450
+
+        # Oxygen tanks peeking from behind
+        dhero.rounded_rectangle([pcx - 220, pcy - 90, pcx - 130, pcy + 170], radius=38, fill=(52, 211, 153, 255), outline=COL_INK, width=12)
+        dhero.rounded_rectangle([pcx + 130, pcy - 90, pcx + 220, pcy + 170], radius=38, fill=(52, 211, 153, 255), outline=COL_INK, width=12)
+        dhero.ellipse([pcx - 200, pcy - 120, pcx - 150, pcy - 80], fill=COL_GOLD, outline=COL_INK, width=8)
+        dhero.ellipse([pcx + 150, pcy - 120, pcx + 200, pcy - 80], fill=COL_GOLD, outline=COL_INK, width=8)
+
+        # Diving Suit Torso & Shoulders
+        dhero.rounded_rectangle([pcx - 170, pcy + 70, pcx + 170, pcy + 300], radius=65, fill=COL_CANVAS, outline=COL_INK, width=14)
+        dhero.line([pcx - 140, pcy + 130, pcx + 140, pcy + 130], fill=COL_INK, width=16)
+        dhero.ellipse([pcx - 42, pcy + 96, pcx + 42, pcy + 164], fill=COL_GOLD, outline=COL_INK, width=10)
+        dhero.ellipse([pcx - 18, pcy + 115, pcx + 18, pcy + 145], fill=COL_WHITE)
+
+        # Harpoon spear in hand angled upwards
+        dhero.line([pcx + 140, pcy + 220, pcx + 270, pcy - 190], fill=(120, 53, 15, 255), width=22)
+        dhero.line([pcx + 140, pcy + 220, pcx + 270, pcy - 190], fill=COL_INK, width=8)
+        dhero.polygon([(pcx + 270, pcy - 190), (pcx + 220, pcy - 140), (pcx + 305, pcy - 165)], fill=(241, 245, 249, 255), outline=COL_INK, width=5)
+        dhero.ellipse([(pcx + 260, pcy - 210), (pcx + 290, pcy - 180)], fill=COL_WHITE)
+
+        # Big Round Paper Mario Brass Diving Helmet
+        dhero.ellipse([pcx - 195, pcy - 215, pcx + 195, pcy + 145], fill=(245, 158, 11, 255), outline=COL_INK, width=16)
+
+        # Brass Rivets around helmet rim
+        for deg in range(30, 160, 28):
+            rad = math.radians(deg + 90)
+            rx = pcx + math.cos(rad) * 162
+            ry = pcy - 35 + math.sin(rad) * 162
+            dhero.ellipse([rx - 12, ry - 12, rx + 12, ry + 12], fill=COL_GOLD, outline=COL_INK, width=6)
+        for deg in range(30, 160, 28):
+            rad = math.radians(-deg + 90)
+            rx = pcx + math.cos(rad) * 162
+            ry = pcy - 35 + math.sin(rad) * 162
+            dhero.ellipse([rx - 12, ry - 12, rx + 12, ry + 12], fill=COL_GOLD, outline=COL_INK, width=6)
+
+        # Porthole Visor Outer Bezel
+        dhero.ellipse([pcx - 125, pcy - 135, pcx + 125, pcy + 75], fill=(30, 41, 59, 255), outline=COL_INK, width=14)
+        dhero.ellipse([pcx - 110, pcy - 120, pcx + 110, pcy + 60], fill=(56, 189, 248, 255), outline=COL_INK, width=8)
+
+        # Visor Crossbars
+        dhero.line([pcx - 110, pcy - 30, pcx + 110, pcy - 30], fill=COL_GOLD, width=12)
+        dhero.line([pcx, pcy - 120, pcx, pcy + 60], fill=COL_GOLD, width=12)
+        dhero.line([pcx - 110, pcy - 30, pcx + 110, pcy - 30], fill=COL_INK, width=4)
+        dhero.line([pcx, pcy - 120, pcx, pcy + 60], fill=COL_INK, width=4)
+
+        # Glare Reflections
+        dhero.polygon([(pcx - 85, pcy - 85), (pcx - 45, pcy - 92), (pcx - 65, pcy - 35), (pcx - 100, pcy - 35)], fill=COL_WHITE)
+        dhero.polygon([(pcx + 35, pcy - 92), (pcx + 65, pcy - 95), (pcx + 55, pcy - 45), (pcx + 30, pcy - 45)], fill=COL_WHITE)
+
+        # Die-cut sticker outline
+        alpha = hero.split()[-1]
+        dilated = alpha.filter(ImageFilter.MaxFilter(25 * 2 + 1))
+        dilated = dilated.filter(ImageFilter.GaussianBlur(radius=25 * 0.42))
+        dilated = dilated.point(lambda p: 255 if p > 72 else int((p / 72.0) ** 1.6 * 255))
+        border = Image.new('RGBA', (w, h), COL_WHITE)
+        border.putalpha(dilated)
+        hero_sticker = Image.alpha_composite(border, hero)
+
+        # Floor / drop shadow for hero
+        shadow = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        dshadow = ImageDraw.Draw(shadow)
+        dshadow.ellipse([pcx - 220, pcy + 160, pcx + 220, pcy + 250], fill=(0, 0, 0, 110))
+        shadow = shadow.filter(ImageFilter.GaussianBlur(radius=16))
+
+        # Composite Background + Shadow + Hero
+        comp = Image.alpha_composite(bg, shadow)
+        comp = Image.alpha_composite(comp, hero_sticker)
+
+        # Apply outer squircle / circle mask
+        final_icon = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        final_icon.paste(comp, (0, 0), mask)
+
+        dfinal = ImageDraw.Draw(final_icon)
+        if is_round:
+            dfinal.ellipse([32, 32, 992, 992], outline=COL_WHITE, width=28)
+            dfinal.ellipse([18, 18, 1006, 1006], outline=COL_INK, width=8)
+        else:
+            dfinal.rounded_rectangle([32, 32, 992, 992], radius=216, outline=COL_WHITE, width=28)
+            dfinal.rounded_rectangle([18, 18, 1006, 1006], radius=230, outline=COL_INK, width=8)
+
+        return final_icon
+
+    sq_master = build_icon(is_round=False)
+    rd_master = build_icon(is_round=True)
+
+    res_root = out_dir.parent
+    densities = {
+        'drawable': 192,
+        'mipmap-mdpi': 48,
+        'mipmap-hdpi': 72,
+        'mipmap-xhdpi': 96,
+        'mipmap-xxhdpi': 144,
+        'mipmap-xxxhdpi': 192
+    }
+
+    for folder, size in densities.items():
+        target_dir = res_root / folder
+        target_dir.mkdir(parents=True, exist_ok=True)
+        sq_img = sq_master.resize((size, size), Image.Resampling.LANCZOS)
+        rd_img = rd_master.resize((size, size), Image.Resampling.LANCZOS)
+        sq_img.save(target_dir / 'ic_launcher.png')
+        rd_img.save(target_dir / 'ic_launcher_round.png')
+
+    print('Generate icone launcher Paper Mario PNG ad alta risoluzione (drawable e mipmap-*)')
+
 if __name__ == '__main__':
     gen_palombaro()
     gen_granchio()
@@ -391,4 +601,5 @@ if __name__ == '__main__':
     gen_paguro_bottegaio()
     gen_stella_marina()
     gen_anemone()
+    gen_app_icon()
     print('Tutti gli asset grafici Paper Mario PNG generati con successo e anti-aliasing liscio!')
