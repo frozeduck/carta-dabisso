@@ -2,6 +2,8 @@
 set -euo pipefail
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$project_dir"
+mkdir -p /tmp/.android
+export ANDROID_USER_HOME=/tmp/.android
 npm test
 if [ ! -f android/app/debug.keystore ]; then
     keytool -genkeypair -keystore android/app/debug.keystore \

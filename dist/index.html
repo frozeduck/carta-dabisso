@@ -19,14 +19,55 @@
   <section id="hud" hidden aria-label="Stato del giocatore">
     <div class="player-panel"><div class="portrait">◉</div><div class="vitals"><div class="vitals-title"><strong>Il palombaro</strong><span id="level">LV 1</span></div><div class="health-track"><div id="health-bar"></div></div><div class="vitals-numbers"><span id="health-text">100 / 100</span><span id="relic-stat">Arpione · 12</span></div><div class="xp-track"><div id="xp-bar"></div></div></div></div>
     <div class="objective"><span id="depth">− 240 M · IL GIARDINO SOMMERSO</span><strong id="objective">Sconfiggi le creature d’inchiostro</strong><small id="progress">0 / 8 creature</small></div>
-    <div class="currency"><span>◈</span><b id="pearls">0</b><small>PERLE</small><button id="pause" aria-label="Metti in pausa">Ⅱ</button></div>
+    <div class="currency"><span>◈</span><b id="pearls">0</b><small>PERLE</small><button id="inventory-btn" class="icon-button inv-btn" aria-label="Apri inventario">🎒 <span id="inv-badge">0</span></button><button id="pause" aria-label="Metti in pausa">Ⅱ</button></div>
     <div id="boss-hud" hidden><span>IL RE SENZA MAREA</span><div><i id="boss-bar"></i></div></div>
     <div class="hotbar"><button class="skill" id="attack"><kbd>J / CLICK</kbd><span class="skill-symbol">↗</span><b>Arpione</b></button><button class="skill" id="wave"><kbd>E</kbd><span class="skill-symbol">≋</span><b>Marea</b><i id="wave-cd"></i></button><button class="skill" id="dash"><kbd>SPAZIO</kbd><span class="skill-symbol">⤳</span><b>Scatto</b><i id="dash-cd"></i></button><button class="skill" id="heal"><kbd>Q</kbd><span class="skill-symbol">♧</span><b id="heal-count">3 cure</b></button></div>
-    <div class="bottom-help">WASD / FRECCE <span>muoviti</span> <b>·</b> ESC <span>pausa</span></div>
+    <div class="bottom-help">CLICK <span>muoviti / attacca</span> <b>·</b> WASD <span>tasti</span> <b>·</b> I <span>inventario</span> <b>·</b> ESC <span>pausa</span></div>
     <div id="joystick" aria-label="Joystick di movimento"><i></i></div>
   </section>
   <div id="toast" role="status" aria-live="polite"></div>
   <section id="modal" class="modal" hidden><div class="modal-card"><div id="modal-eyebrow" class="eyebrow">NEL SILENZIO DELL’ABISSO</div><h2 id="modal-title"></h2><p id="modal-text"></p><div id="choices"></div><button id="modal-action" class="primary"></button></div></section>
+  <section id="inventory-modal" class="modal" hidden>
+    <div class="modal-card inv-card">
+      <div class="eyebrow"><span>◈</span> EQUIPAGGIAMENTO E REPERTI DEGLI ABISSI</div>
+      <h2>Inventario del Palombaro</h2>
+      <p class="inv-subtitle">Clicca su un reperti nello zaino per equipaggiarlo o scambiarlo.</p>
+      <div class="inv-layout">
+        <div class="inv-gear-col">
+          <div class="inv-preview-box">
+            <canvas id="inv-avatar" width="120" height="130"></canvas>
+            <div class="inv-char-title"><strong>Il Palombaro</strong><small id="inv-depth-text">− 240 m</small></div>
+          </div>
+          <div class="inv-slots">
+            <div class="inv-slot" data-slot="weapon">
+              <span class="slot-tag">ARMA</span>
+              <div class="slot-content" id="slot-weapon"></div>
+            </div>
+            <div class="inv-slot" data-slot="armor">
+              <span class="slot-tag">CORAZZA</span>
+              <div class="slot-content" id="slot-armor"></div>
+            </div>
+            <div class="inv-slot" data-slot="relic">
+              <span class="slot-tag">RELIQUIA</span>
+              <div class="slot-content" id="slot-relic"></div>
+            </div>
+          </div>
+          <div class="inv-stats-sheet">
+            <div class="stat-row"><span>⚔️ Danno Arpione</span><b id="stat-dmg">12</b></div>
+            <div class="stat-row"><span>🛡️ Riduzione Danni</span><b id="stat-def">0</b></div>
+            <div class="stat-row"><span>♡ Salute Massima</span><b id="stat-hp">100</b></div>
+            <div class="stat-row"><span>💨 Velocità Nuoto</span><b id="stat-spd">220</b></div>
+          </div>
+        </div>
+        <div class="inv-bag-col">
+          <div class="bag-header"><span>ZAINO REPERTI</span> <small><span id="bag-count">0</span> / 8 oggetti</small></div>
+          <div id="backpack-grid" class="backpack-grid"></div>
+          <div id="item-details" class="item-details"><div class="details-placeholder">Seleziona o passa sopra un oggetto per vederne i poteri.</div></div>
+        </div>
+      </div>
+      <button id="close-inventory" class="primary">Torna all’immersione <span>↘</span></button>
+    </div>
+  </section>
   <script type="module" src="game.js"></script>
 </body>
 </html>

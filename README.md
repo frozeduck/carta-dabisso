@@ -16,7 +16,7 @@ Download in LAN: `docker compose up -d`, quindi http://192.168.1.200:8142/. APK 
 
 Avvio della versione browser locale: `npm start`, quindi aprire http://127.0.0.1:8143. Verifica della logica: `npm test`. Nessuna dipendenza npm o build richiesta per la versione browser. Il test browser `node tests/browser.mjs` usa il server sulla porta 8143 e la copia Playwright già installata su questo host.
 
-Comandi: WASD o frecce per muoversi, mouse o J per attaccare, E per marea, spazio per scatto, Q per cura, Esc per pausa. Su touchscreen: joystick sinistro e pulsanti a destra. Toccare il fondale per attaccare in una direzione. Le aree rosse anticipano gli attacchi nemici; le maree cancellano i proiettili vicini. Dopo aver sconfitto tutti i nemici, attraversare l’arco luminoso a est.
+Comandi: Click sul fondale o WASD per muoversi (supporto completo point-and-click stile Diablo con navigazione continua tenendo premuto il mouse). Click sui nemici o J per attaccare con l’arpione, click destro o Shift+Click per attaccare sul posto senza muoversi. I o C per aprire l’inventario (slot arma, corazza, reliquia, zaino reperti, scheda statistiche e cambio visivo dello sprite). E per marea, spazio per scatto, Q per cura, Esc per pausa. Su touchscreen: tocca per muoverti o usa il joystick sinistro e i pulsanti a destra. Le aree rosse anticipano gli attacchi nemici; le maree cancellano i proiettili vicini. Dopo aver sconfitto tutti i nemici, attraversare l’arco luminoso a est.
 
 Il prototipo dura circa 5–10 minuti. Non salva i progressi tra le visite. Il suono sintetizzato è facoltativo. I font di Google sono facoltativi e hanno fallback locali; il gioco funziona senza risorse grafiche o librerie esterne.
 
