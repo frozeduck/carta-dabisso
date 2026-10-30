@@ -216,10 +216,77 @@ def gen_coralli():
     s2.save(out_dir / 'corallo_verde.png')
     print('Generati coralli PNG (supersampled Lanczos)')
 
+def gen_conchiglia():
+    # Golden spiral shell (currency drop & HUD icon)
+    w, h = 256, 256
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    pts = [(128, 210), (60, 160), (45, 110), (65, 60), (128, 45), (191, 60), (211, 110), (196, 160)]
+    draw.polygon(pts, fill=COL_GOLD, outline=COL_INK, width=10)
+    for angle_deg in [70, 90, 110]:
+        rad = math.radians(angle_deg)
+        tx = 128 + int(math.cos(rad) * 75)
+        ty = 130 - int(math.sin(rad) * 75)
+        draw.line([128, 205, tx, ty], fill=(217, 119, 6, 255), width=6)
+    draw.ellipse([145, 70, 175, 100], fill=COL_WHITE)
+    draw.ellipse([100, 140, 115, 155], fill=COL_WHITE)
+
+    sticker = apply_smooth_sticker(im, stroke_width=12, target_size=(128, 128))
+    sticker.save(out_dir / 'conchiglia.png')
+    print('Generata conchiglia.png (supersampled Lanczos)')
+
+def gen_paguro_bottegaio():
+    # Mastro Paguro - Merchant Hermit Crab
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Big Spiral Shell on back (swirl of amber and gold)
+    draw.ellipse([180, 110, 430, 360], fill=(217, 119, 6, 255), outline=COL_INK, width=14)
+    draw.ellipse([210, 140, 400, 330], fill=COL_GOLD, outline=COL_INK, width=10)
+    draw.ellipse([250, 180, 360, 290], fill=(253, 230, 138, 255), outline=COL_INK, width=8)
+
+    # Merchant pack strapped on top of shell with ropes
+    draw.line([240, 140, 370, 330], fill=COL_BOOT, width=8)
+    draw.rounded_rectangle([290, 80, 390, 160], radius=16, fill=(52, 211, 153, 255), outline=COL_INK, width=10)
+    draw.line([290, 120, 390, 120], fill=COL_GOLD, width=6)
+
+    # Crab legs & body popping out of shell
+    for i in range(3):
+        lx = 140 - i * 20
+        ly = 320 + i * 35
+        draw.line([190, 310, lx, ly], fill=COL_INK, width=14)
+        draw.line([190, 310, lx, ly], fill=COL_CORAL, width=8)
+
+    # Body
+    draw.ellipse([110, 240, 250, 370], fill=COL_CORAL, outline=COL_INK, width=12)
+
+    # Little waving merchant claw
+    draw.line([130, 320, 70, 270], fill=COL_INK, width=14)
+    draw.line([130, 320, 70, 270], fill=COL_CORAL, width=8)
+    draw.ellipse([45, 230, 85, 280], fill=(239, 68, 68, 255), outline=COL_INK, width=8)
+
+    # Cute merchant face with wire spectacles!
+    draw.ellipse([130, 190, 175, 240], fill=COL_WHITE, outline=COL_INK, width=8)
+    draw.ellipse([175, 190, 220, 240], fill=COL_WHITE, outline=COL_INK, width=8)
+    draw.ellipse([130, 190, 175, 240], fill=None, outline=COL_GOLD, width=6)
+    draw.ellipse([175, 190, 220, 240], fill=None, outline=COL_GOLD, width=6)
+    draw.line([175, 215, 180, 215], fill=COL_GOLD, width=6)
+    draw.ellipse([145, 205, 160, 225], fill=COL_INK)
+    draw.ellipse([190, 205, 205, 225], fill=COL_INK)
+    draw.arc([150, 280, 200, 320], start=0, end=180, fill=COL_INK, width=6)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'paguro_bottegaio.png')
+    print('Generato paguro_bottegaio.png (supersampled Lanczos)')
+
 if __name__ == '__main__':
     gen_palombaro()
     gen_granchio()
     gen_medusa()
     gen_boss_leviatano()
     gen_coralli()
+    gen_conchiglia()
+    gen_paguro_bottegaio()
     print('Tutti gli asset grafici Paper Mario PNG generati con successo e anti-aliasing liscio!')

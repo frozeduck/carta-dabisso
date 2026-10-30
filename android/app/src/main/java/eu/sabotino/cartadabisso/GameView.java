@@ -16,6 +16,7 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import java.util.List;
 
 public class GameView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
     private Thread gameThread;
@@ -48,6 +49,22 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private Bitmap bmpBoss;
     private Bitmap bmpCoralRed;
     private Bitmap bmpCoralGreen;
+    private Bitmap bmpShell;
+    private Bitmap bmpMerchant;
+
+    // Modals: Perk Selection Card Rects (3 cards)
+    private final RectF[] perkCardRects = new RectF[]{
+            new RectF(70f, 100f, 320f, 440f),
+            new RectF(355f, 100f, 605f, 440f),
+            new RectF(640f, 100f, 890f, 440f)
+    };
+
+    // Modals: Merchant Shop Dialog Rects
+    private final RectF shopModalRect = new RectF(120f, 45f, 840f, 495f);
+    private final RectF btnCloseShop = new RectF(795f, 55f, 830f, 90f);
+    private final RectF shopSlotPotion = new RectF(150f, 130f, 810f, 220f);
+    private final RectF shopSlotBlessing = new RectF(150f, 235f, 810f, 325f);
+    private final RectF shopSlotCoffer = new RectF(150f, 340f, 810f, 430f);
 
     // Cartoon Paper Mario Palette
     private static final int COL_STICKER = 0xFFFFFFFF; // Iconic white sticker die-cut border
@@ -128,6 +145,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             bmpBoss = BitmapFactory.decodeResource(context.getResources(), R.drawable.boss_leviatano);
             bmpCoralRed = BitmapFactory.decodeResource(context.getResources(), R.drawable.corallo_rosso);
             bmpCoralGreen = BitmapFactory.decodeResource(context.getResources(), R.drawable.corallo_verde);
+            bmpShell = BitmapFactory.decodeResource(context.getResources(), R.drawable.conchiglia);
+            bmpMerchant = BitmapFactory.decodeResource(context.getResources(), R.drawable.paguro_bottegaio);
         } catch (Exception ignored) {
         }
     }
@@ -351,7 +370,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         drawHudAndControls(canvas);
 
         // 3. Modals & Overlays
-        if (inventoryOpen) {
+        if (game.perkChoicePending) {
+            drawPerkSelectionModal(canvas);
+        } else if (game.merchantShopOpen) {
+            drawMerchantShopModal(canvas);
+        } else if (inventoryOpen) {
             drawInventoryModal(canvas);
         } else if (game.gameOver) {
             drawGameOverOverlay(canvas);
@@ -404,6 +427,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRect(65f, 65f, Game.MAP_W - 65f, Game.MAP_H - 65f, paintStroke);
 
         drawPaperCoralsAndRuins(canvas);
+
+        if (game.merchantPresent) {
+            drawPaperMerchant(canvas);
+        }
 
         if (game.beaconTimer > 0f) {
             drawClickBeacon(canvas, game.beaconX, game.beaconY, game.beaconTimer);
@@ -745,6 +772,31 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawDrop(Canvas canvas, Game.Drop drop) {
+        if (drop.isShell()) {
+            float cy = drop.y + (float) Math.sin(drop.bobPhase) * 5f;
+            drawFloorShadow(canvas, drop.x, drop.y, 14f, 5f);
+            canvas.save();
+            canvas.translate(drop.x, cy);
+            if (bmpShell != null) {
+                float s = 0.22f;
+                canvas.scale(s, s);
+                canvas.drawBitmap(bmpShell, -bmpShell.getWidth() / 2f, -bmpShell.getHeight() / 2f, null);
+            } else {
+                paintFill.setStyle(Paint.Style.FILL);
+                paintFill.setColor(COL_GOLD);
+                canvas.drawCircle(0f, 0f, 8f, paintFill);
+            }
+            canvas.restore();
+
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(10f);
+            paintText.setFakeBoldText(true);
+            paintText.setColor(COL_GOLD);
+            canvas.drawText("+" + drop.shellAmount, drop.x, cy - 12f, paintText);
+            return;
+        }
+
+        if (drop.item == null) return;
         int rColor = game.getRarityColor(drop.item.rarity);
         float cy = drop.y + (float) Math.sin(drop.bobPhase) * 6f;
 
@@ -798,6 +850,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // HUD & MOBILE CONTROLS
     // =========================================================================
     private void drawHudAndControls(Canvas canvas) {
+        // Conchiglie counter (Golden Shell currency badge)
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_STICKER);
+        canvas.drawRoundRect(165f - 2f, 8f, 260f + 2f, 46f, 10f, 10f, paintFill);
+        paintFill.setColor(0xFF0F172A);
+        canvas.drawRoundRect(165f, 10f, 260f, 44f, 8f, 8f, paintFill);
+
+        if (bmpShell != null) {
+            float s = 0.16f;
+            canvas.save();
+            canvas.translate(182f, 27f);
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpShell, -bmpShell.getWidth() / 2f, -bmpShell.getHeight() / 2f, null);
+            canvas.restore();
+        }
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(COL_GOLD);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText(String.valueOf(game.shells), 198f, 32f, paintText);
+
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
         canvas.drawRoundRect(Game.SCREEN_W / 2f - 182f, 8f, Game.SCREEN_W / 2f + 182f, 46f, 10f, 10f, paintFill);
@@ -1214,6 +1288,249 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText("NUOVA SPEDIZIONE", btnRestart.centerX(), btnRestart.centerY() + 6f, paintText);
     }
 
+    private void drawPaperMerchant(Canvas canvas) {
+        float x = game.merchantX;
+        float y = game.merchantY;
+        drawFloorShadow(canvas, x, y, 22f, 7f);
+
+        float sway = (float) Math.sin(animTime * 1.8) * 3f;
+        canvas.save();
+        canvas.translate(x, y - 6f + sway);
+
+        if (bmpMerchant != null) {
+            float s = 0.22f;
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpMerchant, -bmpMerchant.getWidth() / 2f, -bmpMerchant.getHeight() + 20f, null);
+        } else {
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(COL_GOLD);
+            canvas.drawCircle(0f, -20f, 18f, paintFill);
+        }
+        canvas.restore();
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xDD0F172A);
+        canvas.drawRoundRect(x - 52f, y - 56f, x + 52f, y - 36f, 6f, 6f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_GOLD);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(x - 52f, y - 56f, x + 52f, y - 36f, 6f, 6f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_GOLD);
+        paintText.setTextSize(10f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("BOTTEGA [TOCCA]", x, y - 42f, paintText);
+    }
+
+    private void drawPerkSelectionModal(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xEE020B14);
+        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_GOLD);
+        paintText.setTextSize(22f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("LIVELLO " + game.level + "! SCEGLI UN TALENTO ABISSALE", Game.SCREEN_W / 2f, 50f, paintText);
+
+        paintText.setTextSize(12f);
+        paintText.setColor(COL_CREAM);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Tocca una carta per sbloccare la tua nuova abilità permanente", Game.SCREEN_W / 2f, 75f, paintText);
+
+        List<Game.Perk> choices = game.pendingPerkChoices;
+        for (int i = 0; i < choices.size() && i < perkCardRects.length; i++) {
+            Game.Perk p = choices.get(i);
+            RectF r = perkCardRects[i];
+
+            paintFill.setColor(COL_STICKER);
+            canvas.drawRoundRect(r.left - 4f, r.top - 4f, r.right + 4f, r.bottom + 4f, 14f, 14f, paintFill);
+
+            paintFill.setColor(0xFF0F1E2E);
+            canvas.drawRoundRect(r, 12f, 12f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(3f);
+            canvas.drawRoundRect(r, 12f, 12f, paintStroke);
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(p.color);
+            canvas.drawRoundRect(r.left + 20f, r.top + 16f, r.right - 20f, r.top + 46f, 8f, 8f, paintFill);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setColor(COL_INK);
+            paintText.setTextSize(11f);
+            paintText.setFakeBoldText(true);
+            canvas.drawText(p.badge, r.centerX(), r.top + 35f, paintText);
+
+            paintText.setColor(COL_CREAM);
+            paintText.setTextSize(15f);
+            canvas.drawText(p.title, r.centerX(), r.top + 78f, paintText);
+
+            paintStroke.setColor(0x44FFFFFF);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawLine(r.left + 24f, r.top + 95f, r.right - 24f, r.top + 95f, paintStroke);
+
+            paintText.setColor(0xFFCBD5E1);
+            paintText.setTextSize(11f);
+            paintText.setFakeBoldText(false);
+            drawWrappedCardText(canvas, p.desc, r.centerX(), r.top + 130f, r.width() - 32f);
+
+            float btnY = r.bottom - 50f;
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(p.color);
+            canvas.drawRoundRect(r.left + 25f, btnY, r.right - 25f, btnY + 34f, 8f, 8f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(2f);
+            canvas.drawRoundRect(r.left + 25f, btnY, r.right - 25f, btnY + 34f, 8f, 8f, paintStroke);
+
+            paintText.setColor(COL_INK);
+            paintText.setTextSize(13f);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("SCEGLI", r.centerX(), btnY + 22f, paintText);
+        }
+    }
+
+    private void drawWrappedCardText(Canvas canvas, String text, float cx, float topY, float maxW) {
+        String[] words = text.split(" ");
+        StringBuilder line = new StringBuilder();
+        float y = topY;
+        for (String w : words) {
+            String test = line.length() == 0 ? w : line + " " + w;
+            if (paintText.measureText(test) > maxW) {
+                canvas.drawText(line.toString(), cx, y, paintText);
+                line = new StringBuilder(w);
+                y += 18f;
+            } else {
+                line = new StringBuilder(test);
+            }
+        }
+        if (line.length() > 0) {
+            canvas.drawText(line.toString(), cx, y, paintText);
+        }
+    }
+
+    private void drawMerchantShopModal(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xDD020B14);
+        canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
+
+        paintFill.setColor(COL_STICKER);
+        canvas.drawRoundRect(shopModalRect.left - 4f, shopModalRect.top - 4f, shopModalRect.right + 4f, shopModalRect.bottom + 4f, 16f, 16f, paintFill);
+
+        paintFill.setColor(0xFF0F1E2E);
+        canvas.drawRoundRect(shopModalRect, 14f, 14f, paintFill);
+
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_INK);
+        paintStroke.setStrokeWidth(3f);
+        canvas.drawRoundRect(shopModalRect, 14f, 14f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(COL_GOLD);
+        paintText.setTextSize(18f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("BOTTEGA DI MASTRO PAGURO", shopModalRect.left + 28f, shopModalRect.top + 38f, paintText);
+
+        paintText.setTextAlign(Paint.Align.RIGHT);
+        paintText.setTextSize(14f);
+        canvas.drawText("Conchiglie: " + game.shells + " 🐚", shopModalRect.right - 65f, shopModalRect.top + 38f, paintText);
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFFEF4444);
+        canvas.drawRoundRect(btnCloseShop, 6f, 6f, paintFill);
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(16f);
+        canvas.drawText("X", btnCloseShop.centerX(), btnCloseShop.centerY() + 6f, paintText);
+
+        drawShopItem(canvas, shopSlotPotion, "Fiala di Cura Rinforzata", "+1 Pozione di cura istantanea (PV massimi ripristinati)", 15,
+                game.shells >= 15 && game.potions < game.maxPotions, 0xFF4ADE80);
+
+        drawShopItem(canvas, shopSlotBlessing, "Benedizione delle Maree", "Ripristina al 100% la Marea e guarisce +30 PV", 25,
+                game.shells >= 25, 0xFF38BDF8);
+
+        drawShopItem(canvas, shopSlotCoffer, "Scrigno Misterioso dei Fondali", "Genera un equipaggiamento Raro o Abissale per lo zaino", 55,
+                game.shells >= 55 && game.backpack.size() < 8, 0xFFC084FC);
+    }
+
+    private void drawShopItem(Canvas canvas, RectF r, String title, String desc, int cost, boolean canBuy, int accentCol) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF1E293B);
+        canvas.drawRoundRect(r, 10f, 10f, paintFill);
+
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(canBuy ? accentCol : 0x4464748B);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(r, 10f, 10f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(canBuy ? COL_CREAM : 0xFF94A3B8);
+        paintText.setTextSize(15f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText(title, r.left + 20f, r.top + 32f, paintText);
+
+        paintText.setTextSize(11f);
+        paintText.setColor(0xFF94A3B8);
+        paintText.setFakeBoldText(false);
+        canvas.drawText(desc, r.left + 20f, r.top + 58f, paintText);
+
+        float btnW = 130f;
+        float btnH = 40f;
+        float bx = r.right - btnW - 20f;
+        float by = r.centerY() - btnH / 2f;
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(canBuy ? 0xFF10B981 : 0xFF334155);
+        canvas.drawRoundRect(bx, by, bx + btnW, by + btnH, 8f, 8f, paintFill);
+
+        paintStroke.setColor(canBuy ? COL_STICKER : 0xFF475569);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(bx, by, bx + btnW, by + btnH, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(canBuy ? COL_STICKER : 0xFF64748B);
+        paintText.setTextSize(12f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText(cost + " 🐚 COMPRA", bx + btnW / 2f, by + 25f, paintText);
+    }
+
+    private void handlePerkSelectionTouch(float vx, float vy) {
+        List<Game.Perk> choices = game.pendingPerkChoices;
+        for (int i = 0; i < choices.size() && i < perkCardRects.length; i++) {
+            if (perkCardRects[i].contains(vx, vy)) {
+                game.selectPerk(choices.get(i).id);
+                AudioHelper.playLevelUp();
+                return;
+            }
+        }
+    }
+
+    private void handleMerchantShopTouch(float vx, float vy) {
+        if (btnCloseShop.contains(vx, vy)) {
+            game.merchantShopOpen = false;
+            AudioHelper.playClick();
+            return;
+        }
+
+        if (shopSlotPotion.contains(vx, vy)) {
+            game.buyPotionFromMerchant();
+            return;
+        }
+
+        if (shopSlotBlessing.contains(vx, vy)) {
+            game.buyTideBlessing();
+            return;
+        }
+
+        if (shopSlotCoffer.contains(vx, vy)) {
+            game.buyMysteryCoffer();
+            return;
+        }
+    }
+
     private void drawPauseOverlay(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xAA020617);
@@ -1230,6 +1547,24 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
         int actionIndex = event.getActionIndex();
+
+        if (game.perkChoicePending) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handlePerkSelectionTouch(vx, vy);
+            }
+            return true;
+        }
+
+        if (game.merchantShopOpen) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handleMerchantShopTouch(vx, vy);
+            }
+            return true;
+        }
 
         if (inventoryOpen) {
             if (action == MotionEvent.ACTION_DOWN) {
@@ -1332,6 +1667,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         float wx = vx + camX;
         float wy = vy + camY;
+
+        if (game.merchantPresent) {
+            float dm = distSq(wx, wy, game.merchantX, game.merchantY);
+            if (dm < 55f * 55f) {
+                game.merchantShopOpen = true;
+                AudioHelper.playClick();
+                return;
+            }
+        }
 
         for (Game.Enemy e : game.enemies) {
             if (e.hp <= 0) continue;

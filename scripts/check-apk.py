@@ -3,9 +3,10 @@ import subprocess
 import zipfile
 
 project = pathlib.Path(__file__).resolve().parent.parent
-apk = project / 'downloads/carta-dabisso-0.3.0-debug.apk'
-if not apk.exists():
-    apk = project / 'downloads/carta-dabisso-0.2.0-debug.apk'
+apks = sorted(list(project.glob('downloads/carta-dabisso-*-debug.apk')), key=lambda p: p.stat().st_mtime)
+assert apks, 'Nessun file APK trovato in downloads/'
+apk = apks[-1]
+print(f'Verifica APK: {apk.name}')
 
 with zipfile.ZipFile(apk) as archive:
     assert archive.testzip() is None, 'APK danneggiato'

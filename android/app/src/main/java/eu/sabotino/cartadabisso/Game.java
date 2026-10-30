@@ -39,10 +39,17 @@ public class Game {
         public float critBonus;
         public String desc;
         public int visualVariant; // 0..3
+        public String setName; // null or "Corallo", "Marea", "Abisso"
 
         public Item(String id, String name, String slot, int rarity,
                     int damageBonus, int defenseBonus, int healthBonus,
                     float speedBonus, float critBonus, String desc, int visualVariant) {
+            this(id, name, slot, rarity, damageBonus, defenseBonus, healthBonus, speedBonus, critBonus, desc, visualVariant, null);
+        }
+
+        public Item(String id, String name, String slot, int rarity,
+                    int damageBonus, int defenseBonus, int healthBonus,
+                    float speedBonus, float critBonus, String desc, int visualVariant, String setName) {
             this.id = id;
             this.name = name;
             this.slot = slot;
@@ -54,6 +61,7 @@ public class Game {
             this.critBonus = critBonus;
             this.desc = desc;
             this.visualVariant = visualVariant;
+            this.setName = setName;
         }
 
         public String getRarityName() {
@@ -66,9 +74,38 @@ public class Game {
         }
     }
 
+    public static class Perk {
+        public String id;
+        public String title;
+        public String desc;
+        public String badge;
+        public int color;
+
+        public Perk(String id, String title, String desc, String badge, int color) {
+            this.id = id;
+            this.title = title;
+            this.desc = desc;
+            this.badge = badge;
+            this.color = color;
+        }
+    }
+
+    public static final List<Perk> ALL_PERKS = new ArrayList<>();
+    static {
+        ALL_PERKS.add(new Perk("perk_pierce", "Arpione Perforante", "L'arpione trapassa fino a 3 nemici in linea retta.", "ARPIONE", 0xFF38BDF8));
+        ALL_PERKS.add(new Perk("perk_rapid", "Tiro Rapido", "Cadenza di fuoco +35% e velocità proiettile aumentata.", "CADENZA", 0xFFFBBF24));
+        ALL_PERKS.add(new Perk("perk_vortex", "Marea Vorticosa", "L'onda d'urto attira i mostri e infligge +25% di danno.", "MAREA", 0xFF60A5FA));
+        ALL_PERKS.add(new Perk("perk_electric_dash", "Scatto Elettrico", "Lo scatto rilascia una scia elettrica che fulmina i nemici.", "SCATTO", 0xFFFCD34D));
+        ALL_PERKS.add(new Perk("perk_armor", "Guscio Corazzato", "Difesa aumentata di +6 e immunità al contraccolpo.", "DIFESA", 0xFF34D399));
+        ALL_PERKS.add(new Perk("perk_tide_surge", "Flusso Marino", "Rigenerazione passiva della Marea aumentata del +60%.", "RIGENERO", 0xFF06B6D4));
+        ALL_PERKS.add(new Perk("perk_alchemy", "Elisir Abissale", "Pozioni curano +40% PV e danno velocità bonus per 5s.", "POZIONI", 0xFFA78BFA));
+        ALL_PERKS.add(new Perk("perk_crit", "Occhio di Falco", "+15% probabilità di colpo critico e danno critico 2.2x.", "CRITICO", 0xFFF43F5E));
+    }
+
     public static class Drop {
         public float x, y;
         public Item item;
+        public int shellAmount = 0;
         public float bobPhase;
         public float life = 90f;
 
@@ -76,7 +113,20 @@ public class Game {
             this.x = x;
             this.y = y;
             this.item = item;
+            this.shellAmount = 0;
             this.bobPhase = (float) (Math.random() * Math.PI * 2);
+        }
+
+        public Drop(float x, float y, int shells) {
+            this.x = x;
+            this.y = y;
+            this.item = null;
+            this.shellAmount = shells;
+            this.bobPhase = (float) (Math.random() * Math.PI * 2);
+        }
+
+        public boolean isShell() {
+            return shellAmount > 0;
         }
     }
 
@@ -124,6 +174,8 @@ public class Game {
         public boolean playerOwned;
         public float life;
         public int color;
+        public int pierceCount = 1;
+        public final java.util.Set<String> hitEnemyIds = new java.util.HashSet<>();
 
         public Projectile(float x, float y, float vx, float vy, float radius, int damage, boolean playerOwned, float life, int color) {
             this.x = x;
@@ -204,6 +256,19 @@ public class Game {
     public float maxTide = 100f;
     public int potions = 3;
     public int maxPotions = 5;
+    public int shells = 15; // Conchiglie d'oro (valuta abissale)
+    public float speedBoostTimer = 0f;
+
+    // Talenti e Perk al Level Up
+    public final java.util.Set<String> activePerks = new java.util.HashSet<>();
+    public final List<Perk> pendingPerkChoices = new ArrayList<>();
+    public boolean perkChoicePending = false;
+
+    // Bottegaio Mastro Paguro
+    public float merchantX = 260f;
+    public float merchantY = 260f;
+    public boolean merchantPresent = true;
+    public boolean merchantShopOpen = false;
 
     // Cooldowns
     public float attackCooldown = 0f;
@@ -260,41 +325,66 @@ public class Game {
         xp = 0;
         xpNext = 60;
         potions = 3;
-        tide = maxTide;
+        shells = 15;
+        speedBoostTimer = 0f;
+        activePerks.clear();
+        pendingPerkChoices.clear();
+        perkChoicePending = false;
+        merchantShopOpen = false;
+        tide = getMaxTide();
 
-        // Starting Equipment (Copper set)
+        // Starting Equipment (con Set Corallino iniziale per apprendere i bonus)
         equippedWeapon = new Item("w_harpoon_copper", "Arpione di Rame", "weapon", RARITY_COMMON,
-                16, 0, 0, 0f, 0.05f, "Asta di ottone bilanciata con arpione scanalato.", 0);
+                16, 0, 0, 0f, 0.05f, "Asta di ottone bilanciata con arpione scanalato.", 0, null);
         equippedArmor = new Item("a_diver_suit", "Scafandro Esploratore", "armor", RARITY_COMMON,
-                0, 6, 40, 0f, 0f, "Tuta impermeabile con rinforzi alle giunture.", 0);
+                0, 6, 40, 0f, 0f, "Tuta impermeabile con rinforzi alle giunture.", 0, "Corallo");
         equippedRelic = new Item("r_coral_pebble", "Frammento di Madreperla", "relic", RARITY_COMMON,
-                0, 0, 0, 15f, 0.05f, "Un frammento levigato che risuona con la marea.", 0);
+                0, 0, 0, 15f, 0.05f, "Un frammento levigato che risuona con la marea.", 0, "Corallo");
 
         hp = getMaxHp();
         backpack.clear();
     }
 
+    // Calcolo Set di Equipaggiamento
+    public int countSetPieces(String setName) {
+        if (setName == null) return 0;
+        int count = 0;
+        if (equippedWeapon != null && setName.equals(equippedWeapon.setName)) count++;
+        if (equippedArmor != null && setName.equals(equippedArmor.setName)) count++;
+        if (equippedRelic != null && setName.equals(equippedRelic.setName)) count++;
+        return count;
+    }
+
+    public boolean isSetBonusActive(String setName) {
+        return countSetPieces(setName) >= 2;
+    }
+
     public int getMaxHp() {
         int base = 80 + (level * 15);
         if (equippedArmor != null) base += equippedArmor.healthBonus;
+        if (isSetBonusActive("Corallo")) base += 35; // Set Corallo (2pz): +35 PV
         return base;
     }
 
     public int getAttackDamage() {
         int base = 10 + (level * 4);
         if (equippedWeapon != null) base += equippedWeapon.damageBonus;
+        if (isSetBonusActive("Abisso")) base += (int) (base * 0.22f); // Set Abisso (2pz): +22% Danno
         return base;
     }
 
     public int getDefense() {
         int base = 2 + (level * 2);
         if (equippedArmor != null) base += equippedArmor.defenseBonus;
+        if (isSetBonusActive("Corallo")) base += 5; // Set Corallo (2pz): +5 Difesa
+        if (hasPerk("perk_armor")) base += 6; // Talento Guscio Corazzato: +6 Difesa
         return base;
     }
 
     public float getMoveSpeed() {
         float speed = 190f;
         if (equippedRelic != null) speed += equippedRelic.speedBonus;
+        if (speedBoostTimer > 0f) speed += 60f; // Buff velocità da pozione alchemica
         return speed;
     }
 
@@ -302,7 +392,84 @@ public class Game {
         float crit = 0.08f;
         if (equippedWeapon != null) crit += equippedWeapon.critBonus;
         if (equippedRelic != null) crit += equippedRelic.critBonus;
+        if (isSetBonusActive("Abisso")) crit += 0.12f; // Set Abisso (2pz): +12% Critico
+        if (hasPerk("perk_crit")) crit += 0.15f; // Talento Occhio di Falco: +15% Critico
         return crit;
+    }
+
+    public float getMaxTide() {
+        float base = 100f;
+        if (isSetBonusActive("Marea")) base += 30f; // Set Marea (2pz): +30 Marea
+        return base;
+    }
+
+    // Gestione Talenti / Perk
+    public void generatePerkChoices() {
+        pendingPerkChoices.clear();
+        List<Perk> available = new ArrayList<>();
+        for (Perk p : ALL_PERKS) {
+            if (!activePerks.contains(p.id)) {
+                available.add(p);
+            }
+        }
+        if (available.isEmpty()) return;
+        java.util.Collections.shuffle(available, rng);
+        int count = Math.min(3, available.size());
+        for (int i = 0; i < count; i++) {
+            pendingPerkChoices.add(available.get(i));
+        }
+        perkChoicePending = true;
+    }
+
+    public boolean selectPerk(String perkId) {
+        if (!perkChoicePending) return false;
+        for (Perk p : pendingPerkChoices) {
+            if (p.id.equals(perkId)) {
+                activePerks.add(perkId);
+                perkChoicePending = false;
+                pendingPerkChoices.clear();
+                floaters.add(new Floater(playerX, playerY - 60f, "TALENTO: " + p.title, p.color, true, 1.5f));
+                if (soundListener != null) soundListener.onLevelUp();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean hasPerk(String perkId) {
+        return activePerks.contains(perkId);
+    }
+
+    // Bottega di Mastro Paguro
+    public boolean buyPotionFromMerchant() {
+        if (shells < 15 || potions >= maxPotions) return false;
+        shells -= 15;
+        potions++;
+        floaters.add(new Floater(playerX, playerY - 45f, "+1 POZIONE", 0xFF4ADE80, true, 1.2f));
+        if (soundListener != null) soundListener.onPotion();
+        return true;
+    }
+
+    public boolean buyTideBlessing() {
+        if (shells < 25) return false;
+        shells -= 25;
+        tide = getMaxTide();
+        hp = Math.min(getMaxHp(), hp + 30);
+        floaters.add(new Floater(playerX, playerY - 45f, "BENEDIZIONE DELLA MAREA!", 0xFF38BDF8, true, 1.4f));
+        if (soundListener != null) soundListener.onWave();
+        return true;
+    }
+
+    public boolean buyMysteryCoffer() {
+        if (shells < 55 || backpack.size() >= 8) return false;
+        shells -= 55;
+        int targetRarity = rng.nextBoolean() ? RARITY_RARE : RARITY_ABYSSAL;
+        Item cofferItem = generateRandomItem(zone + 1, true);
+        cofferItem.rarity = targetRarity;
+        backpack.add(cofferItem);
+        floaters.add(new Floater(playerX, playerY - 45f, "+ " + cofferItem.name + "!", getRarityColor(targetRarity), true, 1.5f));
+        if (soundListener != null) soundListener.onLoot(targetRarity);
+        return true;
     }
 
     public void setSoundListener(SoundListener listener) {
@@ -503,9 +670,11 @@ public class Game {
     }
 
     public boolean performAttack(float targetWorldX, float targetWorldY) {
-        if (attackCooldown > 0f || gameOver || victory) return false;
+        if (attackCooldown > 0f || gameOver || victory || perkChoicePending) return false;
 
-        attackCooldown = attackRate;
+        float effectiveRate = attackRate;
+        if (hasPerk("perk_rapid")) effectiveRate = 0.28f;
+        attackCooldown = effectiveRate;
         attackAnim = 1.0f;
         playerSquash = 0.5f;
 
@@ -539,13 +708,14 @@ public class Game {
         }
 
         float angle = playerFacingAngle;
-        float speed = 520f;
+        float speed = hasPerk("perk_rapid") ? 640f : 520f;
         float vx = (float) Math.cos(angle) * speed;
         float vy = (float) Math.sin(angle) * speed;
 
         int dmg = getAttackDamage();
         boolean isCrit = rng.nextFloat() < getCritChance();
-        if (isCrit) dmg = (int) (dmg * 1.8f);
+        float critMult = hasPerk("perk_crit") ? 2.2f : 1.8f;
+        if (isCrit) dmg = (int) (dmg * critMult);
 
         int pColor = 0xFF38BDF8; // Aqua spear
         if (equippedWeapon != null) {
@@ -553,23 +723,41 @@ public class Game {
             else if (equippedWeapon.rarity == RARITY_ABYSSAL) pColor = 0xFFC084FC; // Purple
         }
 
-        // Shoot harpoon spear projectile
-        projectiles.add(new Projectile(playerX, playerY, vx, vy, 8f, dmg, true, 0.45f, pColor));
+        // Shoot harpoon spear projectile (with piercing if perk active)
+        Projectile proj = new Projectile(playerX, playerY, vx, vy, 8f, dmg, true, 0.45f, pColor);
+        if (hasPerk("perk_pierce")) {
+            proj.pierceCount = 3;
+        }
+        projectiles.add(proj);
 
         if (soundListener != null) soundListener.onHit();
         return true;
     }
 
     public boolean performWave() {
-        if (waveCooldown > 0f || tide < 30f || gameOver || victory) return false;
+        if (waveCooldown > 0f || tide < 30f || gameOver || victory || perkChoicePending) return false;
 
         tide -= 30f;
-        waveCooldown = waveMaxCooldown;
+        float cd = isSetBonusActive("Marea") ? (waveMaxCooldown * 0.80f) : waveMaxCooldown;
+        waveCooldown = cd;
         trauma = Math.min(1.0f, trauma + 0.45f);
+
+        // Vortex perk: attrae i nemici verso il palombaro
+        if (hasPerk("perk_vortex")) {
+            for (Enemy e : enemies) {
+                float dx = playerX - e.x;
+                float dy = playerY - e.y;
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                if (dist > 10f && dist < 380f) {
+                    e.x += (dx / dist) * 45f;
+                    e.y += (dy / dist) * 45f;
+                }
+            }
+        }
 
         // Spawn outward wave projectiles
         int waveCount = 14;
-        int dmg = (int) (getAttackDamage() * 1.6f);
+        int dmg = (int) (getAttackDamage() * (hasPerk("perk_vortex") ? 1.95f : 1.6f));
         for (int i = 0; i < waveCount; i++) {
             double angle = (2.0 * Math.PI / waveCount) * i;
             float vx = (float) (Math.cos(angle) * 380.0);
@@ -591,9 +779,10 @@ public class Game {
     }
 
     public boolean performDash() {
-        if (dashCooldown > 0f || gameOver || victory) return false;
+        if (dashCooldown > 0f || gameOver || victory || perkChoicePending) return false;
 
-        dashCooldown = dashMaxCooldown;
+        float cd = isSetBonusActive("Marea") ? (dashMaxCooldown * 0.80f) : dashMaxCooldown;
+        dashCooldown = cd;
         dashAnim = 1.0f;
 
         // Thrust toward facing direction or target
@@ -602,6 +791,22 @@ public class Game {
         playerTargetX = playerX + dx * 180f;
         playerTargetY = playerY + dy * 180f;
         playerMoving = true;
+
+        // Talento Scatto Elettrico: scarica d'urto che folgora i nemici vicini
+        if (hasPerk("perk_electric_dash")) {
+            for (Enemy e : enemies) {
+                float edx = e.x - playerX;
+                float edy = e.y - playerY;
+                if (edx * edx + edy * edy < 125f * 125f) {
+                    damageEnemy(e, (int) (getAttackDamage() * 0.8f), e.x, e.y);
+                }
+            }
+            for (int i = 0; i < 20; i++) {
+                particles.add(new Particle(playerX, playerY,
+                        (float) (Math.random() * 160 - 80), (float) (Math.random() * 160 - 80),
+                        5f, 0xFFFCD34D, 0.5f));
+            }
+        }
 
         for (int i = 0; i < 15; i++) {
             particles.add(new Particle(playerX, playerY,
@@ -615,11 +820,17 @@ public class Game {
     }
 
     public boolean usePotion() {
-        if (potions <= 0 || hp >= getMaxHp() || potionCooldown > 0f || gameOver || victory) return false;
+        if (potions <= 0 || hp >= getMaxHp() || potionCooldown > 0f || gameOver || victory || perkChoicePending) return false;
 
         potions--;
         potionCooldown = 1.2f;
+
         int heal = (int) (getMaxHp() * 0.45f);
+        if (hasPerk("perk_alchemy")) {
+            heal = (int) (getMaxHp() * 0.65f); // +40% cura aumentata
+            speedBoostTimer = 5.0f; // Buff di velocita
+            floaters.add(new Floater(playerX, playerY - 60f, "VELOCITÀ ALCHEMICA!", 0xFFA78BFA, true, 1.2f));
+        }
         hp = Math.min(getMaxHp(), hp + heal);
 
         floaters.add(new Floater(playerX, playerY - 30f, "+" + heal + " PV", 0xFF22C55E, false, 0.9f));
@@ -650,20 +861,21 @@ public class Game {
             }
 
             if (p.playerOwned) {
-                // Check collision against enemies
-                boolean hit = false;
+                // Check collision against enemies (supporta perforazione con perk_pierce)
                 for (Enemy e : enemies) {
+                    if (p.hitEnemyIds.contains(e.id)) continue;
                     float dx = e.x - p.x;
                     float dy = e.y - p.y;
                     float combinedR = e.radius + p.radius;
                     if (dx * dx + dy * dy < combinedR * combinedR) {
-                        hit = true;
+                        p.hitEnemyIds.add(e.id);
                         damageEnemy(e, p.damage, p.x, p.y);
-                        break;
+                        p.pierceCount--;
+                        if (p.pierceCount <= 0) {
+                            it.remove();
+                            break;
+                        }
                     }
-                }
-                if (hit) {
-                    it.remove();
                 }
             } else {
                 // Check collision against player
@@ -701,7 +913,7 @@ public class Game {
         e.hp -= damage;
         e.hitSquash = 0.6f;
 
-        // Knockback
+        // Knockback (attenuato dal talento perk_armor se applicato a player, qui e' su nemici)
         float kx = e.x - hitX;
         float ky = e.y - hitY;
         float len = (float) Math.sqrt(kx * kx + ky * ky);
@@ -750,11 +962,15 @@ public class Game {
                     5f + (float)(Math.random()*5), 0xEE38BDF8, 0.8f));
         }
 
+        // Drop di Conchiglie d'oro sempre garantito!
+        int shellReward = "boss".equals(e.type) ? (25 + rng.nextInt(15)) : (3 + rng.nextInt(5));
+        drops.add(new Drop(e.x + rng.nextInt(24) - 12, e.y + rng.nextInt(24) - 12, shellReward));
+
         // Floor Loot Drop!
         rollLootDrop(e);
     }
 
-    private void addXp(int amount) {
+    public void addXp(int amount) {
         xp += amount;
         floaters.add(new Floater(playerX, playerY - 55f, "+" + amount + " ESP", 0xFF60A5FA, false, 0.9f));
 
@@ -765,6 +981,7 @@ public class Game {
             hp = getMaxHp(); // Full heal on level up
             floaters.add(new Floater(playerX, playerY - 75f, "LIVELLO " + level + "!", 0xFFFCD34D, true, 1.4f));
             if (soundListener != null) soundListener.onLevelUp();
+            generatePerkChoices();
         }
     }
 
@@ -806,6 +1023,15 @@ public class Game {
             }
         }
 
+        // Determinazione Set di Appartenenza (solo per oggetti non comuni)
+        String setName = null;
+        if (rarity >= RARITY_MAGIC) {
+            int setRoll = rng.nextInt(100);
+            if (setRoll < 38) setName = "Corallo";
+            else if (setRoll < 72) setName = "Marea";
+            else setName = "Abisso";
+        }
+
         int slotType = rng.nextInt(3); // 0=weapon, 1=armor, 2=relic
         String id = "loot_" + System.nanoTime();
         int variant = rng.nextInt(3);
@@ -819,7 +1045,7 @@ public class Game {
             int dmg = 18 + (zoneLevel * 8) + (rarity * 12) + rng.nextInt(6);
             float crit = 0.05f + (rarity * 0.04f);
             return new Item(id, name, "weapon", rarity, dmg, 0, 0, 0f, crit,
-                    "Un'arma marina pesante che penetra le corazze nemiche.", variant);
+                    "Un'arma marina pesante che penetra le corazze nemiche.", variant, setName);
         } else if (slotType == 1) {
             String[] names = {
                     "Scafandro Rinforzato", "Corazza di Chitina", "Piastra del Nautilus",
@@ -829,7 +1055,7 @@ public class Game {
             int def = 6 + (zoneLevel * 4) + (rarity * 5) + rng.nextInt(3);
             int hpBonus = 30 + (zoneLevel * 25) + (rarity * 35) + rng.nextInt(20);
             return new Item(id, name, "armor", rarity, 0, def, hpBonus, 0f, 0f,
-                    "Resiste alla tremenda pressione idrostatica dell'abisso.", variant);
+                    "Resiste alla tremenda pressione idrostatica dell'abisso.", variant, setName);
         } else {
             String[] names = {
                     "Cuore di Corallo", "Occhio del Kraken", "Perla Nera",
@@ -839,7 +1065,7 @@ public class Game {
             float spd = 10f + (rarity * 10f);
             float crit = 0.04f + (rarity * 0.03f);
             return new Item(id, name, "relic", rarity, 0, 0, 0, spd, crit,
-                    "Un manufatto misterioso che incrementa marea e rapidita.", variant);
+                    "Un manufatto misterioso che incrementa marea e rapidita.", variant, setName);
         }
     }
 
@@ -858,7 +1084,12 @@ public class Game {
             float dx = playerX - d.x;
             float dy = playerY - d.y;
             if (dx * dx + dy * dy < 45f * 45f) {
-                if (backpack.size() < 8) {
+                if (d.isShell()) {
+                    shells += d.shellAmount;
+                    floaters.add(new Floater(playerX, playerY - 40f, "+" + d.shellAmount + " CONCHIGLIE", 0xFFFBBF24, true, 1.1f));
+                    if (soundListener != null) soundListener.onClick();
+                    it.remove();
+                } else if (d.item != null && backpack.size() < 8) {
                     backpack.add(d.item);
                     floaters.add(new Floater(playerX, playerY - 40f, "+ " + d.item.name,
                             getRarityColor(d.item.rarity), true, 1.2f));
