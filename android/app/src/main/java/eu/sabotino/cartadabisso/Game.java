@@ -183,7 +183,7 @@ public class Game {
     public float playerTargetY = 600f;
     public boolean playerMoving = false;
     public float playerFacingAngle = 0f;
-    public float playerRadius = 24f;
+    public float playerRadius = 18f;
 
     // Movement Beacon (Diablo golden click ring)
     public float beaconX = -100f;
@@ -328,29 +328,29 @@ public class Game {
         if (zone == 1) {
             zoneName = "Barriera Corallina";
             depthMeters = 220;
-            // Spawn 8 enemies (Crabs and light Jellies)
-            spawnEnemy("crab", "Granchio di Scoglio", 500f, 400f, 75, 12, 28f, 75f);
-            spawnEnemy("crab", "Granchio Corazzato", 1100f, 420f, 90, 14, 30f, 70f);
-            spawnEnemy("crab", "Granchio Tagliatore", 800f, 480f, 70, 13, 26f, 80f);
-            spawnEnemy("jelly", "Medusa Elettrica", 650f, 320f, 60, 15, 24f, 55f);
-            spawnEnemy("jelly", "Medusa Fluttuante", 950f, 300f, 65, 15, 24f, 55f);
-            spawnEnemy("crab", "Granchio Gigante", 800f, 260f, 130, 18, 34f, 65f);
+            // Spawn 6 enemies (Crabs and light Jellies) with balanced, compact radii
+            spawnEnemy("crab", "Granchio di Scoglio", 500f, 400f, 75, 12, 16f, 75f);
+            spawnEnemy("crab", "Granchio Corazzato", 1100f, 420f, 90, 14, 18f, 70f);
+            spawnEnemy("crab", "Granchio Tagliatore", 800f, 480f, 70, 13, 16f, 80f);
+            spawnEnemy("jelly", "Medusa Elettrica", 650f, 320f, 60, 15, 15f, 55f);
+            spawnEnemy("jelly", "Medusa Fluttuante", 950f, 300f, 65, 15, 15f, 55f);
+            spawnEnemy("crab", "Granchio Gigante", 800f, 260f, 130, 18, 20f, 65f);
         } else if (zone == 2) {
             zoneName = "Fossa delle Tenebre";
             depthMeters = 680;
-            // Spawn 9 tougher enemies (Crabs, electric Jellies, Abyssal Eels)
-            spawnEnemy("crab", "Granchio Abissale", 450f, 450f, 160, 22, 32f, 80f);
-            spawnEnemy("crab", "Granchio di Zolfo", 1150f, 450f, 170, 24, 32f, 80f);
-            spawnEnemy("jelly", "Medusa dei Fulmini", 600f, 350f, 120, 25, 26f, 65f);
-            spawnEnemy("jelly", "Medusa dei Fulmini", 1000f, 350f, 120, 25, 26f, 65f);
-            spawnEnemy("eel", "Murena dei Fondali", 800f, 380f, 140, 28, 26f, 120f);
-            spawnEnemy("eel", "Murena Zannuta", 700f, 260f, 145, 28, 26f, 120f);
-            spawnEnemy("crab", "Corazza Nera", 900f, 250f, 220, 28, 36f, 75f);
+            // Spawn 7 tougher enemies (Crabs, electric Jellies, Abyssal Eels)
+            spawnEnemy("crab", "Granchio Abissale", 450f, 450f, 160, 22, 17f, 80f);
+            spawnEnemy("crab", "Granchio di Zolfo", 1150f, 450f, 170, 24, 17f, 80f);
+            spawnEnemy("jelly", "Medusa dei Fulmini", 600f, 350f, 120, 25, 15f, 65f);
+            spawnEnemy("jelly", "Medusa dei Fulmini", 1000f, 350f, 120, 25, 15f, 65f);
+            spawnEnemy("eel", "Murena dei Fondali", 800f, 380f, 140, 28, 16f, 120f);
+            spawnEnemy("eel", "Murena Zannuta", 700f, 260f, 145, 28, 16f, 120f);
+            spawnEnemy("crab", "Corazza Nera", 900f, 250f, 220, 28, 20f, 75f);
         } else {
             zoneName = "Santuario del Kraken";
             depthMeters = 1350;
             // Boss Arena!
-            spawnBoss("Leviatano Primordiale", MAP_W / 2f, 360f, 750, 36, 68f, 50f);
+            spawnBoss("Leviatano Primordiale", MAP_W / 2f, 360f, 750, 36, 52f, 50f);
         }
 
         // Refill half tide
@@ -554,7 +554,7 @@ public class Game {
         }
 
         // Shoot harpoon spear projectile
-        projectiles.add(new Projectile(playerX, playerY, vx, vy, 14f, dmg, true, 0.45f, pColor));
+        projectiles.add(new Projectile(playerX, playerY, vx, vy, 8f, dmg, true, 0.45f, pColor));
 
         if (soundListener != null) soundListener.onHit();
         return true;
@@ -574,7 +574,7 @@ public class Game {
             double angle = (2.0 * Math.PI / waveCount) * i;
             float vx = (float) (Math.cos(angle) * 380.0);
             float vy = (float) (Math.sin(angle) * 380.0);
-            projectiles.add(new Projectile(playerX, playerY, vx, vy, 18f, dmg, true, 0.65f, 0xFF0284C7));
+            projectiles.add(new Projectile(playerX, playerY, vx, vy, 11f, dmg, true, 0.65f, 0xFF0284C7));
         }
 
         // Wave particles
@@ -939,7 +939,7 @@ public class Game {
             float spd = 200f;
             float vx = (dx / dist) * spd;
             float vy = (dy / dist) * spd;
-            projectiles.add(new Projectile(e.x, e.y, vx, vy, 11f, e.attackDamage, false, 2.5f, 0xFF38BDF8));
+            projectiles.add(new Projectile(e.x, e.y, vx, vy, 8f, e.attackDamage, false, 2.5f, 0xFF38BDF8));
         }
     }
 

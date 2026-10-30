@@ -474,14 +474,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawPaperCoralsAndRuins(Canvas canvas) {
-        drawCartoonCoral(canvas, 420f, 360f, 0, 1.0f, 0.5f);
-        drawCartoonCoral(canvas, 750f, 190f, 1, 1.0f, 1.2f);
-        drawCartoonCoral(canvas, 1150f, 320f, 0, 0.9f, 2.0f);
-        drawCartoonCoral(canvas, 600f, 820f, 1, 1.0f, 3.1f);
-        drawCartoonCoral(canvas, 1220f, 780f, 0, 1.05f, 4.4f);
+        // Decorative perimeter corals only — combat arena (x: 250..1350, y: 220..900) remains completely clear
+        drawCartoonCoral(canvas, 160f, 160f, 0, 0.30f, 0.5f);
+        drawCartoonCoral(canvas, 520f, 130f, 1, 0.28f, 1.2f);
+        drawCartoonCoral(canvas, 1080f, 130f, 0, 0.30f, 2.0f);
+        drawCartoonCoral(canvas, 1440f, 160f, 1, 0.28f, 3.1f);
+        drawCartoonCoral(canvas, 160f, 960f, 1, 0.30f, 4.4f);
+        drawCartoonCoral(canvas, 1440f, 960f, 0, 0.28f, 1.8f);
 
-        drawStorybookColumn(canvas, 240f, 220f, 1.0f);
-        drawStorybookColumn(canvas, 1380f, 240f, 0.95f);
+        drawStorybookColumn(canvas, 200f, 200f, 0.65f);
+        drawStorybookColumn(canvas, 1400f, 200f, 0.65f);
     }
 
     private void drawCartoonCoral(Canvas canvas, float x, float y, int type, float scale, float phase) {
@@ -491,7 +493,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.rotate(sway);
         canvas.scale(scale, scale);
 
-        drawFloorShadow(canvas, 0f, 4f, 30f, 10f);
+        drawFloorShadow(canvas, 0f, 3f, 18f, 6f);
 
         Bitmap coralBmp = (type == 0) ? bmpCoralRed : bmpCoralGreen;
         if (coralBmp != null) {
@@ -510,7 +512,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.save();
         canvas.translate(x, y);
         canvas.scale(s, s);
-        drawFloorShadow(canvas, 0f, 0f, 38f, 11f);
+        drawFloorShadow(canvas, 0f, 0f, 24f, 8f);
 
         float[][] pts = {
                 {-29,0}, {-32,-13}, {-24,-18}, {-21,-111}, {-31,-121},
@@ -567,33 +569,33 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.save();
         canvas.translate(px, py);
 
-        drawFloorShadow(canvas, 0f, 6f, 38f, 12f);
+        drawFloorShadow(canvas, 0f, 2f, 20f, 7f);
 
         canvas.translate(0f, hopY);
         canvas.rotate(tilt);
         canvas.scale(flip * sqX, sqY);
 
         if (bmpDiver != null) {
-            float s = 0.42f;
+            float s = 0.21f;
             canvas.scale(s, s);
-            canvas.drawBitmap(bmpDiver, -bmpDiver.getWidth() / 2f, -bmpDiver.getHeight() / 2f - 40f, null);
+            canvas.drawBitmap(bmpDiver, -bmpDiver.getWidth() / 2f, -220f, null);
         } else {
             // Procedural fallback with white sticker border
-            float[][] suit = {{-28,-60}, {-19,-78}, {18,-78}, {30,-57}, {23,-24}, {4,-15}, {-23,-23}};
+            float[][] suit = {{-15,-30}, {-10,-40}, {10,-40}, {16,-28}, {12,-12}, {2,-8}, {-12,-12}};
             drawPaperCutout(canvas, suit, COL_CANVAS, true);
 
             paintStroke.setStyle(Paint.Style.STROKE);
             paintStroke.setColor(COL_STICKER);
-            paintStroke.setStrokeWidth(8f);
-            canvas.drawCircle(0f, -82f, 34f, paintStroke);
+            paintStroke.setStrokeWidth(5f);
+            canvas.drawCircle(0f, -44f, 18f, paintStroke);
 
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(0xFFF59E0B);
-            canvas.drawCircle(0f, -82f, 34f, paintFill);
+            canvas.drawCircle(0f, -44f, 18f, paintFill);
 
             paintStroke.setColor(COL_INK);
-            paintStroke.setStrokeWidth(3.5f);
-            canvas.drawCircle(0f, -82f, 34f, paintStroke);
+            paintStroke.setStrokeWidth(2.5f);
+            canvas.drawCircle(0f, -44f, 18f, paintStroke);
         }
 
         canvas.restore();
@@ -636,90 +638,91 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         // Cartoon Health Bar
         if (e.hp < e.maxHp && !"boss".equals(e.type)) {
-            float barW = 48f;
+            float barW = 34f;
+            float barY = -46f;
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(COL_STICKER);
-            canvas.drawRoundRect(-barW / 2f - 2f, -86f, barW / 2f + 2f, -76f, 3f, 3f, paintFill);
+            canvas.drawRoundRect(-barW / 2f - 2f, barY - 5f, barW / 2f + 2f, barY + 5f, 3f, 3f, paintFill);
 
             paintFill.setColor(COL_INK);
-            canvas.drawRect(-barW / 2f, -84f, barW / 2f, -78f, paintFill);
+            canvas.drawRect(-barW / 2f, barY - 3f, barW / 2f, barY + 3f, paintFill);
 
             float hpPct = (float) e.hp / e.maxHp;
             paintFill.setColor(COL_CORAL);
-            canvas.drawRect(-barW / 2f, -84f, -barW / 2f + barW * hpPct, -78f, paintFill);
+            canvas.drawRect(-barW / 2f, barY - 3f, -barW / 2f + barW * hpPct, barY + 3f, paintFill);
         }
 
         canvas.restore();
     }
 
     private void drawPaperCrab(Canvas canvas, Game.Enemy e) {
-        drawFloorShadow(canvas, 0f, 4f, 35f, 11f);
+        drawFloorShadow(canvas, 0f, 2f, 18f, 6f);
 
         if (bmpCrab != null) {
-            float s = 0.45f;
+            float s = 0.18f;
             canvas.scale(s, s);
-            canvas.drawBitmap(bmpCrab, -bmpCrab.getWidth() / 2f, -bmpCrab.getHeight() / 2f - 20f, null);
+            canvas.drawBitmap(bmpCrab, -bmpCrab.getWidth() / 2f, -200f, null);
         } else {
-            float[][] shell = {{-28,-10}, {-31,-30}, {-18,-45}, {7,-48}, {29,-32}, {29,-10}, {6,0}};
+            float[][] shell = {{-16,-6}, {-18,-18}, {-10,-26}, {4,-28}, {16,-18}, {16,-6}, {4,0}};
             drawPaperCutout(canvas, shell, COL_CORAL, true);
         }
     }
 
     private void drawPaperJellyfish(Canvas canvas, Game.Enemy e) {
-        float bob = (float) Math.sin(animTime * 2.2 + e.animTimer) * 8f;
-        drawFloorShadow(canvas, 0f, 6f, 30f, 9f);
+        float bob = (float) Math.sin(animTime * 2.2 + e.animTimer) * 5f;
+        drawFloorShadow(canvas, 0f, 2f, 15f, 5f);
 
         canvas.save();
-        canvas.translate(0f, -24f + bob);
+        canvas.translate(0f, -14f + bob);
 
         if (bmpJelly != null) {
-            float s = 0.44f;
+            float s = 0.18f;
             canvas.scale(s, s);
-            canvas.drawBitmap(bmpJelly, -bmpJelly.getWidth() / 2f, -bmpJelly.getHeight() / 2f, null);
+            canvas.drawBitmap(bmpJelly, -bmpJelly.getWidth() / 2f, -150f, null);
         } else {
-            float[][] bell = {{-36,-6}, {-33,-29}, {-18,-45}, {0,-50}, {20,-44}, {33,-27}, {37,-6}, {25,2}, {13,-3}, {1,4}, {-11,-3}, {-24,3}};
+            float[][] bell = {{-20,-4}, {-18,-16}, {-10,-25}, {0,-28}, {11,-24}, {18,-15}, {20,-4}, {14,1}, {7,-2}, {0,2}, {-6,-2}, {-13,2}};
             drawPaperCutout(canvas, bell, COL_AQUA, true);
         }
         canvas.restore();
     }
 
     private void drawPaperAbyssalEel(Canvas canvas, Game.Enemy e) {
-        drawFloorShadow(canvas, 0f, 5f, 38f, 9f);
+        drawFloorShadow(canvas, 0f, 4f, 24f, 7f);
 
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
-        paintStroke.setStrokeWidth(22f);
+        paintStroke.setStrokeWidth(16f);
         paintStroke.setStrokeCap(Paint.Cap.ROUND);
 
         tempPath.reset();
         tempPath.moveTo(-e.radius * 1.3f, 0f);
-        float s1 = (float) Math.sin(animTime * 6.5 + e.animTimer) * 18f;
+        float s1 = (float) Math.sin(animTime * 6.5 + e.animTimer) * 12f;
         tempPath.quadTo(0f, s1, e.radius * 1.3f, 0f);
         canvas.drawPath(tempPath, paintStroke);
 
         paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(16f);
+        paintStroke.setStrokeWidth(11f);
         canvas.drawPath(tempPath, paintStroke);
 
         paintStroke.setColor(COL_AQUA);
-        paintStroke.setStrokeWidth(10f);
+        paintStroke.setStrokeWidth(7f);
         canvas.drawPath(tempPath, paintStroke);
         paintStroke.setStrokeCap(Paint.Cap.BUTT);
     }
 
     private void drawPaperBossLeviathan(Canvas canvas, Game.Enemy e) {
         float sway = (float) Math.sin(animTime * 1.8) * 5f;
-        drawFloorShadow(canvas, 0f, 10f, 115f, 28f);
+        drawFloorShadow(canvas, 0f, 6f, 65f, 18f);
 
         canvas.save();
         canvas.translate(0f, sway);
 
         if (bmpBoss != null) {
-            float s = 0.72f;
+            float s = 0.40f;
             canvas.scale(s, s);
-            canvas.drawBitmap(bmpBoss, -bmpBoss.getWidth() / 2f, -bmpBoss.getHeight() / 2f - 30f, null);
+            canvas.drawBitmap(bmpBoss, -bmpBoss.getWidth() / 2f, -280f, null);
         } else {
-            float[][] head = {{-86,-33}, {-95,-90}, {-70,-150}, {-19,-176}, {45,-162}, {86,-118}, {95,-55}, {52,-13}, {-24,-9}};
+            float[][] head = {{-50,-20}, {-55,-54}, {-40,-90}, {-11,-105}, {27,-97}, {51,-70}, {57,-33}, {31,-8}, {-14,-5}};
             drawPaperCutout(canvas, head, COL_GOLD, true);
         }
         canvas.restore();

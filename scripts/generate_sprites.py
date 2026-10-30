@@ -15,214 +15,206 @@ COL_AQUA = (56, 189, 248, 255)
 COL_CANVAS = (253, 224, 71, 255)
 COL_BOOT = (120, 53, 15, 255)
 
-def apply_sticker_outline(im, stroke_width=6, stroke_color=(255, 255, 255, 255)):
-    """Creates the signature Paper Mario thick white die-cut sticker border."""
-    # Alpha mask dilation
-    alpha = im.split()[-1]
-    w, h = im.size
+def apply_smooth_sticker(im_hi, stroke_width=12, target_size=(256, 256)):
+    """Applies anti-aliased, rounded Paper Mario white die-cut sticker outline and downsamples with Lanczos."""
+    alpha = im_hi.split()[-1]
+    w, h = im_hi.size
+
+    # Dilation for sticker margin
     dilated = alpha.filter(ImageFilter.MaxFilter(stroke_width * 2 + 1))
-    
-    border = Image.new('RGBA', (w, h), stroke_color)
+    # Gaussian blur to round sharp/jagged boxy corners
+    dilated = dilated.filter(ImageFilter.GaussianBlur(radius=stroke_width * 0.42))
+    # Sharpen edge while keeping subpixel anti-aliasing gradient
+    dilated = dilated.point(lambda p: 255 if p > 72 else int((p / 72.0) ** 1.6 * 255))
+
+    border = Image.new('RGBA', (w, h), COL_WHITE)
     border.putalpha(dilated)
-    
-    # Composite original on top of border
-    result = Image.alpha_composite(border, im)
-    return result
+
+    composited = Image.alpha_composite(border, im_hi)
+    return composited.resize(target_size, Image.Resampling.LANCZOS)
 
 def gen_palombaro():
-    w, h = 256, 256
+    w, h = 512, 512
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
 
-    # Oxygen tanks on back
-    draw.rounded_rectangle([45, 90, 85, 175], radius=16, fill=(52, 211, 153, 255), outline=COL_INK, width=4)
-    draw.rounded_rectangle([52, 105, 78, 118], radius=4, fill=(16, 185, 129, 255), outline=COL_INK, width=3)
-    draw.ellipse([58, 80, 72, 94], fill=COL_GOLD, outline=COL_INK, width=3)
+    # Oxygen tanks on back (scaled 2x)
+    draw.rounded_rectangle([90, 180, 170, 350], radius=32, fill=(52, 211, 153, 255), outline=COL_INK, width=8)
+    draw.rounded_rectangle([104, 210, 156, 236], radius=8, fill=(16, 185, 129, 255), outline=COL_INK, width=6)
+    draw.ellipse([116, 160, 144, 188], fill=COL_GOLD, outline=COL_INK, width=6)
 
-    # Boots
-    draw.rounded_rectangle([70, 190, 115, 230], radius=10, fill=COL_BOOT, outline=COL_INK, width=4)
-    draw.rounded_rectangle([135, 190, 180, 230], radius=10, fill=(146, 64, 14, 255), outline=COL_INK, width=4)
+    # Heavy diver boots
+    draw.rounded_rectangle([140, 380, 230, 460], radius=20, fill=COL_BOOT, outline=COL_INK, width=8)
+    draw.rounded_rectangle([270, 380, 360, 460], radius=20, fill=(146, 64, 14, 255), outline=COL_INK, width=8)
 
-    # Diving suit body
-    draw.rounded_rectangle([75, 115, 175, 200], radius=24, fill=COL_CANVAS, outline=COL_INK, width=5)
+    # Canvas diving suit body
+    draw.rounded_rectangle([150, 230, 350, 400], radius=48, fill=COL_CANVAS, outline=COL_INK, width=10)
     # Chest harness & brass badge
-    draw.line([75, 150, 175, 155], fill=COL_INK, width=5)
-    draw.ellipse([115, 142, 135, 162], fill=COL_GOLD, outline=COL_INK, width=4)
-    draw.ellipse([122, 149, 128, 155], fill=COL_WHITE)
+    draw.line([150, 300, 350, 310], fill=COL_INK, width=10)
+    draw.ellipse([230, 284, 270, 324], fill=COL_GOLD, outline=COL_INK, width=8)
+    draw.ellipse([244, 298, 256, 310], fill=COL_WHITE)
 
     # Harpoon weapon in hand
-    draw.line([165, 185, 215, 60], fill=(120, 53, 15, 255), width=7)
-    draw.line([165, 185, 215, 60], fill=COL_INK, width=3)
-    # Harpoon head (triangle)
-    draw.polygon([(215, 60), (200, 78), (228, 70)], fill=(241, 245, 249, 255), outline=COL_INK)
-    # Shiny star glint on harpoon tip
-    draw.ellipse([212, 54, 222, 64], fill=COL_WHITE)
+    draw.line([330, 370, 430, 120], fill=(120, 53, 15, 255), width=14)
+    draw.line([330, 370, 430, 120], fill=COL_INK, width=6)
+    # Harpoon head
+    draw.polygon([(430, 120), (400, 156), (456, 140)], fill=(241, 245, 249, 255), outline=COL_INK)
+    draw.ellipse([424, 108, 444, 128], fill=COL_WHITE)
 
     # Big round Paper Mario brass diving helmet
-    draw.ellipse([70, 35, 180, 145], fill=(245, 158, 11, 255), outline=COL_INK, width=6)
-    
-    # Helmet rivets
+    draw.ellipse([140, 70, 360, 290], fill=(245, 158, 11, 255), outline=COL_INK, width=12)
+
+    # Rivets around helmet
     for angle in [math.pi * 0.8, math.pi, math.pi * 1.2, math.pi * 1.4, math.pi * 1.6]:
-        rx = 125 + math.cos(angle) * 50
-        ry = 90 + math.sin(angle) * 50
-        draw.ellipse([rx-4, ry-4, rx+4, ry+4], fill=COL_GOLD, outline=COL_INK, width=2)
+        rx = 250 + math.cos(angle) * 100
+        ry = 180 + math.sin(angle) * 100
+        draw.ellipse([rx - 8, ry - 8, rx + 8, ry + 8], fill=COL_GOLD, outline=COL_INK, width=4)
 
     # Porthole visor bezel
-    draw.ellipse([92, 57, 158, 123], fill=(30, 41, 59, 255), outline=COL_INK, width=5)
-    draw.ellipse([98, 63, 152, 117], fill=(56, 189, 248, 255), outline=COL_INK, width=3)
+    draw.ellipse([184, 114, 316, 246], fill=(30, 41, 59, 255), outline=COL_INK, width=10)
+    draw.ellipse([196, 126, 304, 234], fill=(56, 189, 248, 255), outline=COL_INK, width=6)
 
-    # Protective visor crossbars
-    draw.line([98, 90, 152, 90], fill=COL_GOLD, width=4)
-    draw.line([125, 63, 125, 117], fill=COL_GOLD, width=4)
+    # Crossbars
+    draw.line([196, 180, 304, 180], fill=COL_GOLD, width=8)
+    draw.line([250, 126, 250, 234], fill=COL_GOLD, width=8)
 
-    # Double comic glare reflections
-    draw.polygon([(104, 76), (116, 74), (108, 96), (98, 96)], fill=COL_WHITE)
-    draw.polygon([(136, 74), (144, 73), (140, 86), (132, 86)], fill=COL_WHITE)
+    # Glare highlights
+    draw.polygon([(208, 152), (232, 148), (216, 192), (196, 192)], fill=COL_WHITE)
+    draw.polygon([(272, 148), (288, 146), (280, 172), (264, 172)], fill=COL_WHITE)
 
-    # Apply signature thick white Paper Mario die-cut sticker border!
-    sticker = apply_sticker_outline(im, stroke_width=7, stroke_color=COL_WHITE)
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
     sticker.save(out_dir / 'palombaro.png')
-    print('Salvato palombaro.png')
+    print('Generato palombaro.png (supersampled Lanczos)')
 
 def gen_granchio():
-    w, h = 256, 256
+    w, h = 512, 512
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
 
     # Jointed legs
     for side in [-1, 1]:
-        cx = 128 + side * 40
-        draw.line([cx, 160, cx + side * 40, 170], fill=COL_INK, width=8)
-        draw.line([cx + side * 40, 170, cx + side * 60, 205], fill=COL_INK, width=8)
-        draw.line([cx, 160, cx + side * 40, 170], fill=COL_CORAL, width=4)
-        draw.line([cx + side * 40, 170, cx + side * 60, 205], fill=COL_CORAL, width=4)
+        cx = 256 + side * 80
+        draw.line([cx, 320, cx + side * 80, 340], fill=COL_INK, width=16)
+        draw.line([cx + side * 80, 340, cx + side * 120, 410], fill=COL_INK, width=16)
+        draw.line([cx, 320, cx + side * 80, 340], fill=COL_CORAL, width=8)
+        draw.line([cx + side * 80, 340, cx + side * 120, 410], fill=COL_CORAL, width=8)
 
-    # Big snip-snip claws
+    # Snip-snip claws
     for side in [-1, 1]:
-        cx = 128 + side * 65
-        # Claw arm
-        draw.line([128 + side * 45, 140, cx, 110], fill=COL_INK, width=8)
-        draw.line([128 + side * 45, 140, cx, 110], fill=COL_CORAL, width=4)
-        # Snapping claw head
-        pts = [(cx, 110), (cx + side * 25, 80), (cx + side * 35, 115), (cx + side * 15, 125)]
+        cx = 256 + side * 130
+        draw.line([256 + side * 90, 280, cx, 220], fill=COL_INK, width=16)
+        draw.line([256 + side * 90, 280, cx, 220], fill=COL_CORAL, width=8)
+        pts = [(cx, 220), (cx + side * 50, 160), (cx + side * 70, 230), (cx + side * 30, 250)]
         draw.polygon(pts, fill=(239, 68, 68, 255), outline=COL_INK)
-        # Inner pincer
-        draw.line([cx + side * 15, 95, cx + side * 30, 95], fill=COL_INK, width=4)
+        draw.line([cx + side * 30, 190, cx + side * 60, 190], fill=COL_INK, width=8)
 
     # Carapace (Round Paper Mario crab body)
-    draw.ellipse([65, 120, 191, 195], fill=COL_CORAL, outline=COL_INK, width=6)
-    draw.ellipse([80, 135, 176, 175], fill=(252, 165, 165, 255))
+    draw.ellipse([130, 240, 382, 390], fill=COL_CORAL, outline=COL_INK, width=12)
+    draw.ellipse([160, 270, 352, 350], fill=(252, 165, 165, 255))
 
-    # Big Goofy Cartoon Eyes with white eyeballs & black pupils!
+    # Goofy Cartoon Eyes with white eyeballs & black pupils
     for side in [-1, 1]:
-        ex = 128 + side * 28
-        # Eye stalk
-        draw.line([ex, 125, ex, 90], fill=COL_INK, width=6)
-        # Eyeball
-        draw.ellipse([ex - 18, 65, ex + 18, 101], fill=COL_WHITE, outline=COL_INK, width=5)
-        # Pupil
-        draw.ellipse([ex - 8, 75, ex + 8, 91], fill=COL_INK)
-        # Twinkle
-        draw.ellipse([ex - 4, 77, ex + 2, 83], fill=COL_WHITE)
+        ex = 256 + side * 56
+        draw.line([ex, 250, ex, 180], fill=COL_INK, width=12)
+        draw.ellipse([ex - 36, 130, ex + 36, 202], fill=COL_WHITE, outline=COL_INK, width=10)
+        draw.ellipse([ex - 16, 150, ex + 16, 182], fill=COL_INK)
+        draw.ellipse([ex - 8, 154, ex + 4, 166], fill=COL_WHITE)
 
-    # Happy little crab smile
-    draw.arc([110, 155, 146, 175], start=0, end=180, fill=COL_INK, width=4)
+    # Crab smile
+    draw.arc([220, 310, 292, 350], start=0, end=180, fill=COL_INK, width=8)
 
-    sticker = apply_sticker_outline(im, stroke_width=7, stroke_color=COL_WHITE)
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
     sticker.save(out_dir / 'granchio.png')
-    print('Salvato granchio.png')
+    print('Generato granchio.png (supersampled Lanczos)')
 
 def gen_medusa():
-    w, h = 256, 256
+    w, h = 512, 512
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
 
-    # Fluttering crepe-paper tentacles
+    # Crepe-paper fluttering tentacles
     for i in range(5):
-        tx = 80 + i * 24
-        points = [(tx, 145), (tx + 8, 175), (tx - 8, 205), (tx + 5, 235)]
-        draw.line(points, fill=COL_INK, width=8)
-        draw.line(points, fill=(186, 230, 253, 255), width=4)
+        tx = 160 + i * 48
+        points = [(tx, 290), (tx + 16, 350), (tx - 16, 410), (tx + 10, 470)]
+        draw.line(points, fill=COL_INK, width=16)
+        draw.line(points, fill=(186, 230, 253, 255), width=8)
 
     # Scalloped Paper Mario Blooper/Jelly Bell
-    draw.ellipse([55, 60, 201, 155], fill=COL_AQUA, outline=COL_INK, width=6)
-    draw.ellipse([70, 75, 186, 135], fill=(125, 211, 252, 255))
+    draw.ellipse([110, 120, 402, 310], fill=COL_AQUA, outline=COL_INK, width=12)
+    draw.ellipse([140, 150, 372, 270], fill=(125, 211, 252, 255))
 
     # Cute cartoon eyes
     for side in [-1, 1]:
-        ex = 128 + side * 24
-        draw.ellipse([ex - 12, 100, ex + 12, 126], fill=COL_WHITE, outline=COL_INK, width=4)
-        draw.ellipse([ex - 5, 107, ex + 5, 119], fill=COL_INK)
-        draw.ellipse([ex - 2, 109, ex + 2, 113], fill=COL_WHITE)
+        ex = 256 + side * 48
+        draw.ellipse([ex - 24, 200, ex + 24, 252], fill=COL_WHITE, outline=COL_INK, width=8)
+        draw.ellipse([ex - 10, 214, ex + 10, 238], fill=COL_INK)
+        draw.ellipse([ex - 4, 218, ex + 4, 226], fill=COL_WHITE)
 
-    sticker = apply_sticker_outline(im, stroke_width=7, stroke_color=COL_WHITE)
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
     sticker.save(out_dir / 'medusa.png')
-    print('Salvato medusa.png')
+    print('Generato medusa.png (supersampled Lanczos)')
 
 def gen_boss_leviatano():
-    w, h = 320, 320
+    w, h = 640, 640
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
 
     # 7 Layered Cardboard Tentacles
     for i in range(7):
-        angle = (i - 3) * 0.3
-        tx = 160 + (i - 3) * 28
-        pts = [(tx, 170), (tx + 12, 220), (tx - 10, 270), (tx + int(math.sin(i) * 15), 305)]
-        draw.line(pts, fill=COL_INK, width=14)
-        draw.line(pts, fill=(52, 211, 153, 255) if i % 2 == 0 else (16, 185, 129, 255), width=8)
-        # Suction cup rings
-        draw.ellipse([pts[1][0] - 8, pts[1][1] - 8, pts[1][0] + 8, pts[1][1] + 8], fill=COL_GOLD, outline=COL_INK, width=3)
+        tx = 320 + (i - 3) * 56
+        pts = [(tx, 340), (tx + 24, 440), (tx - 20, 540), (tx + int(math.sin(i) * 30), 610)]
+        draw.line(pts, fill=COL_INK, width=28)
+        draw.line(pts, fill=(52, 211, 153, 255) if i % 2 == 0 else (16, 185, 129, 255), width=16)
+        draw.ellipse([pts[1][0] - 16, pts[1][1] - 16, pts[1][0] + 16, pts[1][1] + 16], fill=COL_GOLD, outline=COL_INK, width=6)
 
-    # Monumental Cardboard Boss Head
-    draw.ellipse([60, 50, 260, 195], fill=COL_GOLD, outline=COL_INK, width=7)
-    draw.ellipse([80, 65, 240, 175], fill=(245, 158, 11, 255))
+    # Boss Head
+    draw.ellipse([120, 100, 520, 390], fill=COL_GOLD, outline=COL_INK, width=14)
+    draw.ellipse([160, 130, 480, 350], fill=(245, 158, 11, 255))
 
     # Ancient spiral shell carving
     for a in range(25):
         rad = a * 0.25
-        r = 10 + a * 3.5
-        sx = 135 + math.cos(rad) * r
-        sy = 120 + math.sin(rad) * r
+        r = 20 + a * 7.0
+        sx = 270 + math.cos(rad) * r
+        sy = 240 + math.sin(rad) * r
         draw.point((sx, sy), fill=COL_INK)
 
     # Giant Cyclopean Cartoon Boss Eye
-    draw.ellipse([160, 85, 230, 155], fill=COL_WHITE, outline=COL_INK, width=6)
-    draw.ellipse([175, 98, 218, 142], fill=(249, 115, 22, 255), outline=COL_INK, width=3) # Amber iris
-    draw.ellipse([190, 105, 205, 135], fill=COL_INK) # Cat slit pupil
-    draw.ellipse([180, 102, 188, 110], fill=COL_WHITE) # Shiny glint
+    draw.ellipse([320, 170, 460, 310], fill=COL_WHITE, outline=COL_INK, width=12)
+    draw.ellipse([350, 196, 436, 284], fill=(249, 115, 22, 255), outline=COL_INK, width=6)
+    draw.ellipse([380, 210, 410, 270], fill=COL_INK)
+    draw.ellipse([360, 204, 376, 220], fill=COL_WHITE)
 
-    # Spiky Cardboard Crest Fin
-    draw.polygon([(110, 55), (130, 15), (150, 52), (170, 18), (190, 54)], fill=COL_CORAL, outline=COL_INK, width=4)
+    # Spiky Crest Fin
+    draw.polygon([(220, 110), (260, 30), (300, 104), (340, 36), (380, 108)], fill=COL_CORAL, outline=COL_INK, width=8)
 
-    sticker = apply_sticker_outline(im, stroke_width=8, stroke_color=COL_WHITE)
+    sticker = apply_smooth_sticker(im, stroke_width=16, target_size=(320, 320))
     sticker.save(out_dir / 'boss_leviatano.png')
-    print('Salvato boss_leviatano.png')
+    print('Generato boss_leviatano.png (supersampled Lanczos)')
 
 def gen_coralli():
-    # Coral 1: Pink Staghorn
-    im1 = Image.new('RGBA', (180, 180), (0, 0, 0, 0))
+    # Coral 1: Pink Staghorn (rendered at 360x360 -> downsampled to 180x180)
+    im1 = Image.new('RGBA', (360, 360), (0, 0, 0, 0))
     d1 = ImageDraw.Draw(im1)
-    pts1 = [(90, 160), (70, 110), (40, 90), (35, 55), (55, 60), (75, 85),
-            (85, 30), (105, 25), (105, 75), (125, 55), (145, 60), (130, 95), (105, 160)]
-    d1.polygon(pts1, fill=COL_CORAL, outline=COL_INK, width=4)
-    # White decorative polka dots
-    d1.ellipse([70, 70, 80, 80], fill=COL_WHITE)
-    d1.ellipse([115, 75, 125, 85], fill=COL_WHITE)
-    d1.ellipse([92, 45, 100, 53], fill=COL_WHITE)
-    s1 = apply_sticker_outline(im1, stroke_width=6, stroke_color=COL_WHITE)
+    pts1 = [(180, 320), (140, 220), (80, 180), (70, 110), (110, 120), (150, 170),
+            (170, 60), (210, 50), (210, 150), (250, 110), (290, 120), (260, 190), (210, 320)]
+    d1.polygon(pts1, fill=COL_CORAL, outline=COL_INK, width=8)
+    d1.ellipse([140, 140, 160, 160], fill=COL_WHITE)
+    d1.ellipse([230, 150, 250, 170], fill=COL_WHITE)
+    d1.ellipse([184, 90, 200, 106], fill=COL_WHITE)
+    s1 = apply_smooth_sticker(im1, stroke_width=12, target_size=(180, 180))
     s1.save(out_dir / 'corallo_rosso.png')
 
-    # Coral 2: Mint Sea Fan
-    im2 = Image.new('RGBA', (180, 180), (0, 0, 0, 0))
+    # Coral 2: Mint Sea Fan (rendered at 360x360 -> downsampled to 180x180)
+    im2 = Image.new('RGBA', (360, 360), (0, 0, 0, 0))
     d2 = ImageDraw.Draw(im2)
-    pts2 = [(90, 160), (65, 120), (45, 80), (60, 45), (80, 70), (90, 30),
-            (105, 30), (115, 65), (135, 45), (150, 75), (130, 115), (105, 160)]
-    d2.polygon(pts2, fill=COL_MINT, outline=COL_INK, width=4)
-    d2.line([90, 160, 97, 45], fill=(34, 197, 94, 255), width=3)
-    s2 = apply_sticker_outline(im2, stroke_width=6, stroke_color=COL_WHITE)
+    pts2 = [(180, 320), (130, 240), (90, 160), (120, 90), (160, 140), (180, 60),
+            (210, 60), (230, 130), (270, 90), (300, 150), (260, 230), (210, 320)]
+    d2.polygon(pts2, fill=COL_MINT, outline=COL_INK, width=8)
+    d2.line([180, 320, 194, 90], fill=(34, 197, 94, 255), width=6)
+    s2 = apply_smooth_sticker(im2, stroke_width=12, target_size=(180, 180))
     s2.save(out_dir / 'corallo_verde.png')
-    print('Salvati coralli PNG.')
+    print('Generati coralli PNG (supersampled Lanczos)')
 
 if __name__ == '__main__':
     gen_palombaro()
@@ -230,5 +222,4 @@ if __name__ == '__main__':
     gen_medusa()
     gen_boss_leviatano()
     gen_coralli()
-    print('Tutti gli asset grafici Paper Mario PNG generati con successo!')
-
+    print('Tutti gli asset grafici Paper Mario PNG generati con successo e anti-aliasing liscio!')
