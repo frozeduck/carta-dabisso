@@ -358,23 +358,50 @@ def gen_stella_marina():
     print('Generata stella_marina.png (supersampled Lanczos)')
 
 def gen_anemone():
-    # Bioluminescent sea anemone cluster
+    # Charming Paper Mario style soft sea anemone cluster
     w, h = 360, 360
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
 
-    # Base rock / pedestal
-    draw.ellipse([100, 280, 260, 340], fill=(71, 85, 105, 255), outline=COL_INK, width=8)
+    # Rounded sandy base rock
+    draw.ellipse([90, 270, 270, 335], fill=(217, 119, 6, 255), outline=COL_INK, width=7)
+    draw.ellipse([110, 280, 250, 325], fill=(251, 191, 36, 255))
 
-    # Swaying tentacles
-    for i in range(9):
-        tx = 120 + i * 15
-        curve_x = tx + (i - 4) * 8
-        pts = [(tx, 290), (curve_x, 220), (curve_x + (i - 4) * 6, 140)]
-        draw.line(pts, fill=COL_INK, width=16)
-        draw.line(pts, fill=(236, 72, 153, 255) if i % 2 == 0 else (192, 132, 252, 255), width=10)
-        # Glowing tip bulb
-        draw.ellipse([pts[-1][0] - 10, pts[-1][1] - 10, pts[-1][0] + 10, pts[-1][1] + 10], fill=COL_GOLD, outline=COL_INK, width=4)
+    # Stitches on rock
+    for sx in range(120, 240, 16):
+        draw.line([(sx, 305), (sx + 8, 305)], fill=COL_INK, width=3)
+
+    # Layered petal-like tentacles (back layer then front layer)
+    tentacle_colors = [
+        (244, 114, 182, 255), # Coral Pink
+        (192, 132, 252, 255), # Lavender
+        (56, 189, 248, 255),  # Cyan
+        (74, 222, 128, 255),  # Mint
+        (251, 146, 60, 255)   # Peach
+    ]
+
+    # Back petals
+    for i, angle in enumerate([-45, -25, 0, 25, 45]):
+        rad = math.radians(angle)
+        base_x = 180 + math.sin(rad) * 40
+        tip_x = 180 + math.sin(rad) * 110
+        tip_y = 190 - math.cos(rad) * 85
+        col = tentacle_colors[i % len(tentacle_colors)]
+        # Petal polygon
+        pts = [(base_x - 12, 280), (tip_x - 14, tip_y + 15), (tip_x, tip_y), (tip_x + 14, tip_y + 15), (base_x + 12, 280)]
+        draw.polygon(pts, fill=col, outline=COL_INK)
+        draw.ellipse([tip_x - 8, tip_y - 8, tip_x + 8, tip_y + 8], fill=COL_WHITE, outline=COL_INK, width=3)
+
+    # Front petals
+    for i, angle in enumerate([-35, -15, 15, 35]):
+        rad = math.radians(angle)
+        base_x = 180 + math.sin(rad) * 35
+        tip_x = 180 + math.sin(rad) * 95
+        tip_y = 215 - math.cos(rad) * 75
+        col = tentacle_colors[(i + 2) % len(tentacle_colors)]
+        pts = [(base_x - 10, 285), (tip_x - 12, tip_y + 12), (tip_x, tip_y), (tip_x + 12, tip_y + 12), (base_x + 10, 285)]
+        draw.polygon(pts, fill=col, outline=COL_INK)
+        draw.ellipse([tip_x - 6, tip_y - 6, tip_x + 6, tip_y + 6], fill=COL_GOLD, outline=COL_INK, width=3)
 
     sticker = apply_smooth_sticker(im, stroke_width=12, target_size=(180, 180))
     sticker.save(out_dir / 'anemone.png')

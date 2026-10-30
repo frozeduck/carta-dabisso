@@ -101,42 +101,43 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private boolean joyTouched = false;
 
     // Mobile Action Button Cluster (Right Thumb)
-    private final float btnAttackX = 855f, btnAttackY = 425f, btnAttackRadius = 44f;
-    private final float btnWaveX = 750f, btnWaveY = 455f, btnWaveRadius = 28f;
-    private final float btnDashX = 855f, btnDashY = 315f, btnDashRadius = 28f;
-    private final float btnPotionX = 760f, btnPotionY = 365f, btnPotionRadius = 26f;
-    private final float btnInventoryX = 685f, btnInventoryY = 475f, btnInventoryRadius = 24f;
-    private final float btnSkillTreeX = 615f, btnSkillTreeY = 475f, btnSkillTreeRadius = 24f;
+    private final float btnAttackX = 860f, btnAttackY = 420f, btnAttackRadius = 44f;
+    private final float btnWaveX = 750f, btnWaveY = 440f, btnWaveRadius = 28f;
+    private final float btnDashX = 860f, btnDashY = 300f, btnDashRadius = 28f;
+    private final float btnPotionX = 750f, btnPotionY = 330f, btnPotionRadius = 26f;
+    private final float btnInventoryX = 655f, btnInventoryY = 460f, btnInventoryRadius = 24f;
+    private final float btnSkillTreeX = 575f, btnSkillTreeY = 460f, btnSkillTreeRadius = 24f;
 
     // Diablo Spheres (Upper Corners)
     private final float globeHpX = 55f, globeHpY = 55f, globeHpRadius = 34f;
     private final float globeTideX = 905f, globeTideY = 55f, globeTideRadius = 34f;
 
     // Sound button (Top center-right)
-    private final RectF btnSound = new RectF(740f, 14f, 795f, 44f);
+    private final RectF btnSound = new RectF(810f, 12f, 860f, 44f);
 
-    // Skill Tree Modal Rectangles & Classes
+    // Skill Tree Modal Rectangles & Classes (Completely non-overlapping geometry)
     public boolean skillTreeOpen = false;
     public String selectedSkillId = "hunt_pierce";
-    private final RectF modalSkillTreeRect = new RectF(55f, 25f, 905f, 515f);
-    private final RectF btnCloseSkillTree = new RectF(860f, 35f, 895f, 68f);
-    private final RectF btnRespec = new RectF(660f, 35f, 845f, 68f);
-    private final RectF tabHunter = new RectF(70f, 35f, 245f, 68f);
-    private final RectF tabJuggernaut = new RectF(255f, 35f, 435f, 68f);
-    private final RectF tabMystic = new RectF(445f, 35f, 615f, 68f);
+    private final RectF modalSkillTreeRect = new RectF(50f, 20f, 910f, 520f);
+    private final RectF btnCloseSkillTree = new RectF(845f, 26f, 885f, 64f);
+    private final RectF btnRespec = new RectF(670f, 28f, 825f, 62f);
+    private final RectF tabHunter = new RectF(65f, 28f, 195f, 62f);
+    private final RectF tabJuggernaut = new RectF(205f, 28f, 335f, 62f);
+    private final RectF tabMystic = new RectF(345f, 28f, 475f, 62f);
+    private final RectF spPillRect = new RectF(490f, 28f, 655f, 62f);
 
-    // Tree coordinates (genuine visual tree topology)
-    private final float treeRootX = 480f, treeRootY = 320f, treeRootRadius = 26f;
-    private final float[] treeB1X = new float[]{270f, 200f, 200f};
-    private final float[] treeB1Y = new float[]{255f, 170f, 85f};
-    private final float[] treeB2X = new float[]{690f, 760f, 760f};
-    private final float[] treeB2Y = new float[]{255f, 170f, 85f};
-    private final float treeNodeRadius = 23f;
-    private final RectF btnUpgradeSelectedSkill = new RectF(680f, 395f, 885f, 490f);
-    private final RectF skillInspectRect = new RectF(70f, 385f, 890f, 500f);
+    // Tree coordinates (genuine visual tree topology with branch banners)
+    private final float treeRootX = 480f, treeRootY = 325f, treeRootRadius = 24f;
+    private final float[] treeB1X = new float[]{340f, 250f, 180f};
+    private final float[] treeB1Y = new float[]{250f, 190f, 135f};
+    private final float[] treeB2X = new float[]{620f, 710f, 780f};
+    private final float[] treeB2Y = new float[]{250f, 190f, 135f};
+    private final float treeNodeRadius = 22f;
+    private final RectF btnUpgradeSelectedSkill = new RectF(670f, 395f, 880f, 485f);
+    private final RectF skillInspectRect = new RectF(65f, 375f, 895f, 505f);
 
-    // Merchant interact HUD button (when near Mastro Paguro)
-    private final RectF btnMerchantInteract = new RectF(575f, 14f, 730f, 46f);
+    // Merchant interact HUD button (when near Mastro Paguro - dedicated slot)
+    private final RectF btnMerchantInteract = new RectF(635f, 12f, 795f, 44f);
 
     // Inventory Modal Rectangles
     private final RectF modalRect = new RectF(100f, 45f, 860f, 495f);
@@ -151,7 +152,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final RectF btnDropSelected = new RectF(705f, 385f, 825f, 425f);
 
     // Game Over / Victory Buttons
-    private final RectF btnRestart = new RectF(380f, 340f, 580f, 395f);
+    private final RectF btnRestart = new RectF(330f, 375f, 630f, 430f);
 
     public GameView(Context context) {
         this(context, null);
@@ -422,8 +423,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         drawWorld(canvas);
         canvas.restore();
 
-        // 2. Diablo HUD + Mobile Controls Layer
-        drawHudAndControls(canvas);
+        boolean anyModalOpen = skillTreeOpen || game.perkChoicePending ||
+                game.merchantShopOpen || inventoryOpen || game.gameOver || game.victory || paused;
+
+        // 2. Diablo HUD + Mobile Controls Layer (disegnati SOLO durante l'esplorazione attiva!)
+        if (!anyModalOpen) {
+            drawHudAndControls(canvas);
+        }
 
         // 3. Modals & Overlays
         if (skillTreeOpen) {
@@ -671,33 +677,32 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawSeabedDecorations(Canvas canvas, float seabedTop) {
-        // Starfish scattered naturally across sandy dunes
+        // Starfish scattered naturally across sandy dunes (non affollano il centro)
         if (bmpStarfish != null) {
             float[][] starPositions = {
-                    {140f, seabedTop + 130f, 0.32f, 0.3f},
-                    {460f, seabedTop + 160f, 0.35f, 1.2f},
-                    {880f, seabedTop + 120f, 0.30f, 2.1f},
-                    {1240f, seabedTop + 170f, 0.36f, 0.8f},
-                    {1620f, seabedTop + 140f, 0.32f, 3.4f}
+                    {220f, seabedTop + 140f, 0.26f, 0.3f},
+                    {540f, seabedTop + 160f, 0.28f, 1.2f},
+                    {1260f, seabedTop + 160f, 0.28f, 2.1f},
+                    {1580f, seabedTop + 140f, 0.26f, 3.4f}
             };
             for (float[] sp : starPositions) {
                 canvas.save();
                 canvas.translate(sp[0], sp[1]);
                 canvas.rotate((float) Math.sin(animTime * 0.5 + sp[3]) * 6f);
                 canvas.scale(sp[2], sp[2]);
-                drawFloorShadow(canvas, 0f, 4f, 28f, 10f);
+                drawFloorShadow(canvas, 0f, 4f, 24f, 8f);
                 canvas.drawBitmap(bmpStarfish, -bmpStarfish.getWidth() / 2f, -bmpStarfish.getHeight() / 2f, null);
                 canvas.restore();
             }
         }
 
-        // Bioluminescent Swaying Anemones
+        // Bioluminescent Swaying Anemones (Paper Mario garden perimeter framing)
         if (bmpAnemone != null) {
             float[][] anemPositions = {
-                    {280f, seabedTop + 85f, 0.34f, 0.5f},
-                    {690f, seabedTop + 110f, 0.38f, 1.7f},
-                    {1050f, seabedTop + 95f, 0.35f, 2.8f},
-                    {1480f, seabedTop + 105f, 0.38f, 0.2f}
+                    {240f, seabedTop + 95f, 0.22f, 0.5f},
+                    {450f, seabedTop + 115f, 0.24f, 1.7f},
+                    {1350f, seabedTop + 115f, 0.24f, 2.8f},
+                    {1560f, seabedTop + 95f, 0.22f, 0.2f}
             };
             for (float[] ap : anemPositions) {
                 canvas.save();
@@ -705,8 +710,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 float sway = (float) Math.sin(animTime * 1.8 + ap[3]) * 4f;
                 canvas.rotate(sway);
                 canvas.scale(ap[2], ap[2]);
-                drawFloorShadow(canvas, 0f, 4f, 24f, 8f);
-                canvas.drawBitmap(bmpAnemone, -bmpAnemone.getWidth() / 2f, -bmpAnemone.getHeight() + 15f, null);
+                drawFloorShadow(canvas, 0f, 4f, 20f, 7f);
+                canvas.drawBitmap(bmpAnemone, -bmpAnemone.getWidth() / 2f, -bmpAnemone.getHeight() + 25f, null);
                 canvas.restore();
             }
         }
@@ -714,16 +719,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // Spiral Seashells
         if (bmpShell != null) {
             float[][] shellPositions = {
-                    {360f, seabedTop + 145f, 0.22f, 25f},
-                    {790f, seabedTop + 155f, 0.20f, -15f},
-                    {1360f, seabedTop + 135f, 0.24f, 40f}
+                    {340f, seabedTop + 155f, 0.18f, 25f},
+                    {750f, seabedTop + 165f, 0.16f, -15f},
+                    {1150f, seabedTop + 165f, 0.16f, 15f},
+                    {1460f, seabedTop + 150f, 0.18f, 40f}
             };
             for (float[] shp : shellPositions) {
                 canvas.save();
                 canvas.translate(shp[0], shp[1]);
                 canvas.rotate(shp[3]);
                 canvas.scale(shp[2], shp[2]);
-                drawFloorShadow(canvas, 0f, 3f, 16f, 6f);
+                drawFloorShadow(canvas, 0f, 3f, 14f, 5f);
                 canvas.drawBitmap(bmpShell, -bmpShell.getWidth() / 2f, -bmpShell.getHeight() / 2f, null);
                 canvas.restore();
             }
@@ -1147,7 +1153,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (bmpCrab != null) {
             float s = 0.18f;
             canvas.scale(s, s);
-            canvas.drawBitmap(bmpCrab, -bmpCrab.getWidth() / 2f, -200f, null);
+            canvas.drawBitmap(bmpCrab, -bmpCrab.getWidth() / 2f, -bmpCrab.getHeight() + 25f, null);
         } else {
             float[][] shell = {{-16,-6}, {-18,-18}, {-10,-26}, {4,-28}, {16,-18}, {16,-6}, {4,0}};
             drawPaperCutout(canvas, shell, COL_CORAL, true);
@@ -1333,17 +1339,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // HUD & MOBILE CONTROLS
     // =========================================================================
     private void drawHudAndControls(Canvas canvas) {
-        // Conchiglie counter (Golden Shell currency badge)
+        // Conchiglie counter (Golden Shell currency badge - Slot 110f .. 215f)
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
-        canvas.drawRoundRect(165f - 2f, 8f, 260f + 2f, 46f, 10f, 10f, paintFill);
+        canvas.drawRoundRect(108f, 10f, 217f, 46f, 8f, 8f, paintFill);
         paintFill.setColor(0xFF0F172A);
-        canvas.drawRoundRect(165f, 10f, 260f, 44f, 8f, 8f, paintFill);
+        canvas.drawRoundRect(110f, 12f, 215f, 44f, 7f, 7f, paintFill);
 
         if (bmpShell != null) {
             float s = 0.16f;
             canvas.save();
-            canvas.translate(182f, 27f);
+            canvas.translate(130f, 28f);
             canvas.scale(s, s);
             canvas.drawBitmap(bmpShell, -bmpShell.getWidth() / 2f, -bmpShell.getHeight() / 2f, null);
             canvas.restore();
@@ -1353,22 +1359,24 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setColor(COL_GOLD);
         paintText.setTextSize(13f);
         paintText.setFakeBoldText(true);
-        canvas.drawText(String.valueOf(game.shells), 198f, 32f, paintText);
+        canvas.drawText(String.valueOf(game.shells), 150f, 33f, paintText);
 
+        // Zone Title Banner (Centrato nello slot 340f .. 620f)
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
-        canvas.drawRoundRect(Game.SCREEN_W / 2f - 182f, 8f, Game.SCREEN_W / 2f + 182f, 46f, 10f, 10f, paintFill);
+        canvas.drawRoundRect(338f, 10f, 622f, 46f, 8f, 8f, paintFill);
 
         paintFill.setColor(0xFF0F172A);
-        canvas.drawRoundRect(Game.SCREEN_W / 2f - 180f, 10f, Game.SCREEN_W / 2f + 180f, 44f, 8f, 8f, paintFill);
+        canvas.drawRoundRect(340f, 12f, 620f, 44f, 7f, 7f, paintFill);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_GOLD);
-        paintText.setTextSize(14f);
+        paintText.setTextSize(13.5f);
         paintText.setFakeBoldText(true);
         canvas.drawText(game.zoneName.toUpperCase() + "  -  " + game.depthMeters + "m",
-                Game.SCREEN_W / 2f, 32f, paintText);
+                Game.SCREEN_W / 2f, 33f, paintText);
 
+        // Sound Toggle Button (Slot 810f .. 860f)
         paintFill.setColor(COL_STICKER);
         canvas.drawRoundRect(btnSound.left - 2f, btnSound.top - 2f, btnSound.right + 2f, btnSound.bottom + 2f, 8f, 8f, paintFill);
         paintFill.setColor(0xFF1E293B);
@@ -1801,8 +1809,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintStroke.setStrokeWidth(3.5f);
         canvas.drawRoundRect(r, 16f, 16f, paintStroke);
 
-        // 4. Warm Antique Storybook Parchment Background
+        // 4. Warm Antique Storybook Parchment Background (100% solida e opaca, zero trasparenze indesiderate)
         paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFFFEF3C7);
+        canvas.drawRoundRect(r, 15f, 15f, paintFill);
+
         paintFill.setShader(new LinearGradient(r.left, r.top, r.right, r.bottom,
                 new int[]{0xFFFFFDF5, 0xFFFEF3C7, 0xFFFDE68A},
                 new float[]{0f, 0.7f, 1f}, Shader.TileMode.CLAMP));
@@ -2177,33 +2188,58 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawGameOverOverlay(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xCC020617);
+        paintFill.setColor(0xEE020617);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        RectF goBox = new RectF(220f, 130f, 740f, 410f);
+        RectF goBox = new RectF(180f, 75f, 780f, 465f);
         drawStorybookParchment(canvas, goBox, "SPEDIZIONE CONCLUSA", null);
 
+        // Titolo Sconfitta ad alto contrasto
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(0xFFDC2626);
         paintText.setTextSize(26f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("INGHIOTTITO DAGLI ABISSI", Game.SCREEN_W / 2f, 215f, paintText);
+        canvas.drawText("INGHIOTTITO DAGLI ABISSI", Game.SCREEN_W / 2f, 160f, paintText);
 
-        paintText.setColor(0xFF78350F);
+        // Testo descrittivo in inchiostro scuro ultra-leggibile
+        paintText.setColor(COL_INK);
         paintText.setTextSize(13f);
         paintText.setFakeBoldText(false);
-        canvas.drawText("La pressione oceanica ha avuto la meglio sul tuo scafandro...", Game.SCREEN_W / 2f, 248f, paintText);
-        canvas.drawText("Le tue conchiglie e reliquie riposano sul fondale.", Game.SCREEN_W / 2f, 270f, paintText);
+        canvas.drawText("La pressione oceanica ha avuto la meglio sul tuo scafandro.", Game.SCREEN_W / 2f, 195f, paintText);
+        canvas.drawText("Le tue conchiglie e i tesori raccolti giacciono nel fondale marino.", Game.SCREEN_W / 2f, 218f, paintText);
 
-        // Restart button in warm driftwood
+        // Cartellino riepilogo spedizione
+        float cardL = 230f, cardT = 245f, cardR = 730f, cardB = 350f;
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFFFEF3C7);
+        canvas.drawRoundRect(cardL, cardT, cardR, cardB, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0xFFD97706);
+        paintStroke.setStrokeWidth(1.8f);
+        canvas.drawRoundRect(cardL, cardT, cardR, cardB, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(12f);
+        paintText.setColor(0xFF78350F);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("RIEPILOGO DELLA DISCESA", Game.SCREEN_W / 2f, cardT + 26f, paintText);
+
+        paintText.setTextSize(13f);
+        paintText.setColor(COL_INK);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Profondità Raggiunta: " + game.depthMeters + "m  •  " + game.zoneName, Game.SCREEN_W / 2f, cardT + 55f, paintText);
+        canvas.drawText("Livello Palombaro: " + game.level + "  •  Conchiglie Totali: " + game.shells, Game.SCREEN_W / 2f, cardT + 80f, paintText);
+
+        // Tasto Riavvio Verde Smeraldo
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFF16A34A);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
-        paintStroke.setStrokeWidth(2f);
+        paintStroke.setStrokeWidth(2.5f);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintStroke);
 
+        paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
         paintText.setTextSize(15f);
         paintText.setFakeBoldText(true);
@@ -2212,32 +2248,55 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawVictoryOverlay(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xCC020617);
+        paintFill.setColor(0xEE020617);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        RectF vicBox = new RectF(220f, 130f, 740f, 410f);
+        RectF vicBox = new RectF(180f, 75f, 780f, 465f);
         drawStorybookParchment(canvas, vicBox, "VITTORIA LEGGENDARIA", null);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(0xFFD97706);
         paintText.setTextSize(26f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("DOMINATORE DEGLI ABISSI!", Game.SCREEN_W / 2f, 215f, paintText);
+        canvas.drawText("DOMINATORE DEGLI ABISSI!", Game.SCREEN_W / 2f, 160f, paintText);
 
-        paintText.setColor(0xFF78350F);
+        paintText.setColor(COL_INK);
         paintText.setTextSize(13f);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Hai sconfitto il Leviatano e conquistato i segreti del fondale!", Game.SCREEN_W / 2f, 248f, paintText);
-        canvas.drawText("La tua leggenda è incisa sulla Carta d'Abisso.", Game.SCREEN_W / 2f, 270f, paintText);
+        canvas.drawText("Hai sconfitto il Leviatano e conquistato i segreti del fondale!", Game.SCREEN_W / 2f, 195f, paintText);
+        canvas.drawText("La tua leggenda è incisa sulla Carta d'Abisso.", Game.SCREEN_W / 2f, 218f, paintText);
+
+        // Cartellino trionfo
+        float cardL = 230f, cardT = 245f, cardR = 730f, cardB = 350f;
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFFFEF3C7);
+        canvas.drawRoundRect(cardL, cardT, cardR, cardB, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0xFFD97706);
+        paintStroke.setStrokeWidth(1.8f);
+        canvas.drawRoundRect(cardL, cardT, cardR, cardB, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(12f);
+        paintText.setColor(0xFF78350F);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("IMPRESA DEGLI ABISSI COMPLETATA", Game.SCREEN_W / 2f, cardT + 26f, paintText);
+
+        paintText.setTextSize(13f);
+        paintText.setColor(COL_INK);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Profondità Finale: " + game.depthMeters + "m  •  Tutte le Zone Ripulite", Game.SCREEN_W / 2f, cardT + 55f, paintText);
+        canvas.drawText("Palombaro Livello " + game.level + "  •  Conchiglie Raccolte: " + game.shells, Game.SCREEN_W / 2f, cardT + 80f, paintText);
 
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFFD97706);
+        paintFill.setColor(0xFF16A34A);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
-        paintStroke.setStrokeWidth(2f);
+        paintStroke.setStrokeWidth(2.5f);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintStroke);
 
+        paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
         paintText.setTextSize(15f);
         paintText.setFakeBoldText(true);
@@ -2284,16 +2343,31 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // =========================================================================
     private void drawSkillTreeModal(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xB3020B14);
+        paintFill.setColor(0xDE020B14);
         canvas.drawRect(0f, 0f, Game.SCREEN_W, Game.SCREEN_H, paintFill);
 
-        // Storybook Nautical Chart Parchment
+        // Storybook Nautical Chart Parchment (Solida, opaca e die-cut)
         drawStorybookParchment(canvas, modalSkillTreeRect, "MAPPA DELLE ABILITÀ & ARCHETIPI", btnCloseSkillTree);
 
-        // Header Class Tabs (Hunter, Juggernaut, Mystic)
+        // Header Class Tabs (Hunter, Juggernaut, Mystic) - coordinate pulite non sovrapposte
         drawClassTab(canvas, tabHunter, "CACCIATORE", Game.CLASS_HUNTER.equals(game.playerClass), 0xFF0284C7);
         drawClassTab(canvas, tabJuggernaut, "CUSTODE", Game.CLASS_JUGGERNAUT.equals(game.playerClass), 0xFFD97706);
         drawClassTab(canvas, tabMystic, "MISTICO", Game.CLASS_MYSTIC.equals(game.playerClass), 0xFF7E22CE);
+
+        // Skill points pill at top center (Golden wax seal badge)
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(game.skillPoints > 0 ? 0xFF16A34A : 0xFF78350F);
+        canvas.drawRoundRect(spPillRect, 6f, 6f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(spPillRect, 6f, 6f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(10.5f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(COL_STICKER);
+        canvas.drawText("PUNTI ABILITÀ: " + game.skillPoints, spPillRect.centerX(), spPillRect.centerY() + 4f, paintText);
 
         // Respec button (Wax seal style)
         paintFill.setStyle(Paint.Style.FILL);
@@ -2305,42 +2379,43 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRoundRect(btnRespec, 6f, 6f, paintStroke);
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
-        paintText.setTextSize(11f);
+        paintText.setTextSize(10.5f);
         paintText.setFakeBoldText(true);
         canvas.drawText("RESET (RESPEC)", btnRespec.centerX(), btnRespec.centerY() + 4f, paintText);
 
-        // Subheader: Branch Titles
+        // Subheader: Branch Titles in Dedicated Decorative Banners (sotto le tab, zero collisioni!)
         String b1Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 1: BALISTICA PESANTE"
                 : (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? "RAMO 1: BASTIONE DI CORALLO" : "RAMO 1: SIGNORE DELLE TEMPESTE");
         String b2Title = Game.CLASS_HUNTER.equals(game.playerClass) ? "RAMO 2: AGILITÀ IDRODINAMICA"
                 : (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? "RAMO 2: MAGLIO SISMICO" : "RAMO 2: DRENAGGIO OSCURO");
 
+        // Ramo 1 Banner (Sinistra)
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0x330284C7);
+        canvas.drawRoundRect(100f, 76f, 380f, 102f, 6f, 6f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0xFF0284C7);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(100f, 76f, 380f, 102f, 6f, 6f, paintStroke);
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setTextSize(11f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(0xFF0284C7);
-        canvas.drawText(b1Title, 220f, 66f, paintText);
-        paintText.setColor(0xFFB45309);
-        canvas.drawText(b2Title, 740f, 66f, paintText);
+        paintText.setColor(0xFF0369A1);
+        canvas.drawText(b1Title, 240f, 93f, paintText);
 
-        // Skill points pill at top center (Golden wax seal badge)
-        float spPillW = 150f;
-        float spPillH = 22f;
-        float spPillX = 480f - spPillW / 2f;
-        float spPillY = 46f;
+        // Ramo 2 Banner (Destra)
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(game.skillPoints > 0 ? 0xFF16A34A : 0xFF78350F);
-        canvas.drawRoundRect(spPillX, spPillY, spPillX + spPillW, spPillY + spPillH, 6f, 6f, paintFill);
+        paintFill.setColor(0x33D97706);
+        canvas.drawRoundRect(580f, 76f, 860f, 102f, 6f, 6f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(COL_STICKER);
+        paintStroke.setColor(0xFFD97706);
         paintStroke.setStrokeWidth(1.5f);
-        canvas.drawRoundRect(spPillX, spPillY, spPillX + spPillW, spPillY + spPillH, 6f, 6f, paintStroke);
-
+        canvas.drawRoundRect(580f, 76f, 860f, 102f, 6f, 6f, paintStroke);
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setTextSize(10.5f);
+        paintText.setTextSize(11f);
         paintText.setFakeBoldText(true);
-        paintText.setColor(COL_STICKER);
-        canvas.drawText("PUNTI ABILITÀ: " + game.skillPoints, 480f, spPillY + 15f, paintText);
+        paintText.setColor(0xFFB45309);
+        canvas.drawText(b2Title, 720f, 93f, paintText);
 
         // Retrieve Skills
         List<Game.Skill> skills = game.getSkillsForClass(game.playerClass);
