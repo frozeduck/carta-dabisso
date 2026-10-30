@@ -2,7 +2,7 @@ import pathlib
 import zipfile
 
 project = pathlib.Path(__file__).resolve().parent.parent
-apk = project / 'downloads/carta-dabisso-0.1.0-debug.apk'
+apk = project / 'downloads/carta-dabisso-0.2.0-debug.apk'
 with zipfile.ZipFile(apk) as archive:
     assert archive.testzip() is None, 'APK danneggiato'
     for name in ['index.html', 'game.js', 'core.js']:

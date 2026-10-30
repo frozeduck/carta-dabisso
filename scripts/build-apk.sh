@@ -13,7 +13,8 @@ if [ ! -f android/app/debug.keystore ]; then
 fi
 android/gradlew -p android --offline --no-daemon assembleDebug
 mkdir -p downloads
-cp android/app/build/outputs/apk/debug/app-debug.apk downloads/carta-dabisso-0.1.0-debug.apk
+cp android/app/build/outputs/apk/debug/app-debug.apk downloads/carta-dabisso-0.2.0-debug.apk
+cp downloads/carta-dabisso-0.2.0-debug.apk downloads/carta-dabisso-0.1.0-debug.apk
 python3 scripts/check-apk.py
-sha256sum downloads/carta-dabisso-0.1.0-debug.apk > downloads/carta-dabisso-0.1.0-debug.apk.sha256
-cat downloads/carta-dabisso-0.1.0-debug.apk.sha256
+sha256sum downloads/carta-dabisso-0.2.0-debug.apk > downloads/carta-dabisso-0.2.0-debug.apk.sha256
+cat downloads/carta-dabisso-0.2.0-debug.apk.sha256
