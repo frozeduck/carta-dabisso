@@ -1,23 +1,50 @@
 # Carta d’Abisso
 
-Prototipo originale di action RPG subacqueo con scenari e personaggi di carta disegnati in Canvas. Tre aree collegate, combattimenti in tempo reale, combo di arpione, marea, scatto invulnerabile, cure, bottino, scelte di potenziamento e un boss finale. Tutti i testi sono in italiano.
+ARPG isometrico subacqueo in **Android nativo** (SurfaceView + Canvas a 60 FPS) in **orientamento orizzontale (Landscape)**, progettato con feeling e dinamiche **Diablo-like**.
 
-**[Scarica l’APK Android v0.2.0](https://github.com/frozeduck/carta-dabisso/releases/download/v0.2.0/carta-dabisso-0.2.0-debug.apk)** · [Release e checksum](https://github.com/frozeduck/carta-dabisso/releases/latest)
+**[Scarica l’APK Android v0.3.0](https://github.com/frozeduck/carta-dabisso/releases/download/v0.3.0/carta-dabisso-0.3.0-debug.apk)** · [Release e checksum](https://github.com/frozeduck/carta-dabisso/releases/latest)
 
-L’app funziona offline e richiede Android 8.0 o successivo. Scaricare l’APK dal telefono, aprirlo e, se richiesto, consentire al browser di installare app da questa fonte. È una build debug firmata per il testing. Firma, contenuto del pacchetto e asset offline sono stati verificati; manca ancora la prova su un dispositivo Android reale. La partita non viene salvata chiudendo l’app.
+---
 
-Il progetto risiede su Debian in `/opt/docker/carta-dabisso`.
+## Caratteristiche Tecniche e Gameplay
 
-APK Android offline: `npm run android:debug`. Il pacchetto firmato di testing viene scritto in `downloads/carta-dabisso-0.2.0-debug.apk`. Richiede Android 8.0 o successivo e usa lo schermo verticale. Gli asset sono inclusi nel pacchetto, senza font online o permesso Internet. La chiave debug locale va conservata per installare gli aggiornamenti senza disinstallare l’app. `node tests/browser.mjs --android` verifica gli asset Android nel browser con rete disattivata, incluso il layout touch a 360 px; non sostituisce una prova sul dispositivo Android.
+- **Architettura Android 100% Nativa**: Nessun vincolo o dipendenza Web/DOM/WebView; ciclo di gioco hardware-accelerated a 60 FPS direttamente su `SurfaceView` e `Canvas` Android in Java (`GameView`, `Game`, `AudioHelper`, `MainActivity`).
+- **Orientamento Orizzontale (Landscape)**: Layout a 16:9 (`960x540` virtuale) con scaling automatico e immersive sticky fullscreen.
+- **HUD Diablo-like (Senza Emoji)**:
+  - **Sfera della Vita (Rossa)** in basso a sinistra con rendering dei fluidi, rifrazione di vetro e lettura numerica PV.
+  - **Sfera della Marea (Blu)** in basso a destra con rigenerazione dinamica e livello di energia/mana.
+  - **Cintura delle Abilità** centrale con icone vettoriali procedurali:
+    - `Arpione` (Attacco primario balistico con proiettili direzionali).
+    - `Marea` (Onda d'urto ad anello a 360° che respinge e distrugge i proiettili).
+    - `Scatto` (Balzo di propulsione rapida con frame di invulnerabilità).
+    - `Pozione` (Fiala di cura curativa immediata).
+    - `Zaino / Inventario` (Pannello paperdoll e gestione bottino).
+- **Sistema di Navigazione Point & Click**:
+  - Tocco singolo o trascinamento continuo per muovere il palombaro.
+  - Beacon dorato concentrico a scomparsa sul punto cliccato.
+  - Puntamento diretto dei nemici: toccando un bersaglio si attiva l'attacco primario con l'arpione.
+- **Loot Drop con Rarity Beams & Inventario**:
+  - Raggi di luce verticali colorati dal fondale marino:
+    - *Comune* (Ardesia/Bianco)
+    - *Magico* (Azzurro cobalto)
+    - *Raro* (Oro ambrato)
+    - *Abissale* (Ametista/Viola profondo)
+  - Pannello inventario in pietra intagliata: slot `Arma`, `Corazza`, `Reliquia` e griglia di 8 slot zaino.
+  - Cambiamenti cosmetici in tempo reale sul palombaro: colore scafandro in base alla corazza, lama/tridente in base all'arma ed aura orbitante in base alla reliquia.
+- **Game Feel & Juice (gamedev-skills)**:
+  - Screen shake basato su trauma quadratico (`trauma^2`).
+  - Hit-stop (micro-pause sui colpi critici).
+  - Squash & stretch sui modelli colpiti.
+  - Numeri di danno fluttuanti con ingrandimento dorato per i colpi critici.
+  - Telegrafi visivi circolari rossi ad espansione per gli attacchi pesanti del Boss.
+  - Sintesi audio procedurale a bassa latenza su `AudioTrack` PCM a 16-bit.
+- **Zero Emoji**: Tutta l'interfaccia, icone, fiale, glifi e mostri sono generati proceduralmente via `android.graphics.Path` e primitive geometriche.
 
-La build riusa JDK 21, Android SDK 36 in `/usr/lib/android-sdk` e la cache Gradle presenti su Debian. Su un altro host impostare `android/local.properties` con il percorso del proprio SDK; per il primo download delle dipendenze omettere `--offline` dallo script. L’APK viene verificato con `scripts/check-apk.py`.
+---
 
-Download in LAN: `docker compose up -d`, quindi http://192.168.1.200:8142/. APK diretto: http://192.168.1.200:8142/carta-dabisso-0.2.0-debug.apk.
+## Compilazione e Test
 
-Avvio della versione browser locale: `npm start`, quindi aprire http://127.0.0.1:8143. Verifica della logica: `npm test`. Nessuna dipendenza npm o build richiesta per la versione browser. Il test browser `node tests/browser.mjs` usa il server sulla porta 8143 e la copia Playwright già installata su questo host.
-
-Comandi: Click sul fondale o WASD per muoversi (supporto completo point-and-click stile Diablo con navigazione continua tenendo premuto il mouse). Click sui nemici o J per attaccare con l’arpione, click destro o Shift+Click per attaccare sul posto senza muoversi. I o C per aprire l’inventario (slot arma, corazza, reliquia, zaino reperti, scheda statistiche e cambio visivo dello sprite). E per marea, spazio per scatto, Q per cura, Esc per pausa. Su touchscreen: tocca per muoverti o usa il joystick sinistro e i pulsanti a destra. Le aree rosse anticipano gli attacchi nemici; le maree cancellano i proiettili vicini. Dopo aver sconfitto tutti i nemici, attraversare l’arco luminoso a est.
-
-Il prototipo dura circa 5–10 minuti. Non salva i progressi tra le visite. Il suono sintetizzato è facoltativo. I font di Google sono facoltativi e hanno fallback locali; il gioco funziona senza risorse grafiche o librerie esterne.
-
-`dist/` contiene tutti i file pubblicabili. `.openai/hosting.json` identifica il Site privato. I personaggi e gli scenari sono originali.
+- Esecuzione test unitari nativi: `npm test`
+- Compilazione APK di debug firmato: `npm run android:debug`
+- Output APK: `downloads/carta-dabisso-0.3.0-debug.apk`
+- Verifica APK: `python3 scripts/check-apk.py`

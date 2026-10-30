@@ -1,1 +1,10 @@
-{"name":"carta-dabisso","version":"0.2.0","private":true,"type":"module","scripts":{"test":"node --test tests/core.test.js","start":"python3 -m http.server 8143 --bind 127.0.0.1 --directory dist","android:debug":"scripts/build-apk.sh"}}
+{
+  "name": "carta-dabisso",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "javac android/app/src/main/java/eu/sabotino/cartadabisso/Game.java android/app/src/main/java/eu/sabotino/cartadabisso/GameTest.java && java -ea -cp android/app/src/main/java eu.sabotino.cartadabisso.GameTest && rm -f android/app/src/main/java/eu/sabotino/cartadabisso/*.class",
+    "android:debug": "scripts/build-apk.sh"
+  }
+}
