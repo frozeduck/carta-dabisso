@@ -1,6 +1,8 @@
 package eu.sabotino.cartadabisso;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -39,10 +41,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // Paper Mario Smooth 2D Flip Animation
     private float diverFlipScale = 1f;
 
+    // Generated Paper Mario PNG Bitmaps
+    private Bitmap bmpDiver;
+    private Bitmap bmpCrab;
+    private Bitmap bmpJelly;
+    private Bitmap bmpBoss;
+    private Bitmap bmpCoralRed;
+    private Bitmap bmpCoralGreen;
+
     // Cartoon Paper Mario Palette
     private static final int COL_STICKER = 0xFFFFFFFF; // Iconic white sticker die-cut border
     private static final int COL_INK = 0xFF18181B;     // Thick comic ink contour
     private static final int COL_CREAM = 0xFFFDFBF7;   // Warm paper sheet
+    private static final int COL_CANVAS = 0xFFFDE047;  // Warm canvas/gold
     private static final int COL_SHADOW = 0x40020617;  // Soft cardboard floor drop shadow
     private static final int COL_GOLD = 0xFFFBBF24;
     private static final int COL_CORAL = 0xFFF87171;   // Cartoon bright red/coral
@@ -54,7 +65,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final Paint paintStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path tempPath = new Path();
-    private final Path stickerPath = new Path();
     private final Path shadowPath = new Path();
     private final RectF tempRect = new RectF();
 
@@ -107,6 +117,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         game = new Game();
         setupSoundBridge();
         initBackpackSlotRects();
+        loadBitmaps(context);
+    }
+
+    private void loadBitmaps(Context context) {
+        try {
+            bmpDiver = BitmapFactory.decodeResource(context.getResources(), R.drawable.palombaro);
+            bmpCrab = BitmapFactory.decodeResource(context.getResources(), R.drawable.granchio);
+            bmpJelly = BitmapFactory.decodeResource(context.getResources(), R.drawable.medusa);
+            bmpBoss = BitmapFactory.decodeResource(context.getResources(), R.drawable.boss_leviatano);
+            bmpCoralRed = BitmapFactory.decodeResource(context.getResources(), R.drawable.corallo_rosso);
+            bmpCoralGreen = BitmapFactory.decodeResource(context.getResources(), R.drawable.corallo_verde);
+        } catch (Exception ignored) {
+        }
     }
 
     private void setupSoundBridge() {
@@ -259,9 +282,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
-    // =========================================================================
-    // PAPER MARIO STICKER CUTOUT RENDERERS
-    // =========================================================================
     private void drawPaperCutout(Canvas canvas, float[][] pts, int fillColor, boolean whiteStickerBorder) {
         if (pts == null || pts.length < 3) return;
 
@@ -272,7 +292,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
         tempPath.close();
 
-        // 1. Paper drop shadow on floor
         shadowPath.reset();
         shadowPath.moveTo(pts[0][0] + 3f, pts[0][1] + 5f);
         for (int i = 1; i < pts.length; i++) {
@@ -283,7 +302,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintFill.setColor(COL_SHADOW);
         canvas.drawPath(shadowPath, paintFill);
 
-        // 2. White Paper Mario Sticker Die-Cut Border (Outer Thick White Lip)
         if (whiteStickerBorder) {
             paintStroke.setStyle(Paint.Style.STROKE);
             paintStroke.setColor(COL_STICKER);
@@ -293,16 +311,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawPath(tempPath, paintStroke);
         }
 
-        // 3. Crisp Cartoon Black Ink Outline
         paintStroke.setColor(COL_INK);
         paintStroke.setStrokeWidth(3f);
         canvas.drawPath(tempPath, paintStroke);
 
-        // 4. Vibrant Cartoon Paper Fill
         paintFill.setColor(fillColor);
         canvas.drawPath(tempPath, paintFill);
 
-        // 5. Subtle Origami Paper Fold Highlight
         if (pts.length >= 4) {
             paintStroke.setColor(0x44FFFFFF);
             paintStroke.setStrokeWidth(1.8f);
@@ -319,7 +334,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private void drawGame(Canvas canvas) {
         updateCamera();
 
-        // Dark oceanic border
         canvas.drawColor(0xFF020B14);
 
         canvas.save();
@@ -351,7 +365,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawWorld(Canvas canvas) {
-        // Pop-Up Storybook Ocean Stage (Cardboard Gradient)
+        // Pop-Up Storybook Ocean Stage
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setShader(new LinearGradient(0, 0, 0, Game.MAP_H,
                 new int[]{0xFF0E4A59, 0xFF082D38, 0xFF031620},
@@ -359,10 +373,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRect(0f, 0f, Game.MAP_W, Game.MAP_H, paintFill);
         paintFill.setShader(null);
 
-        // Paper Mario Layered Cardboard Waves in background
         drawStorybookWaves(canvas);
 
-        // Soft God Rays filtering down like theatre spotlights
+        // Soft God Rays
         for (int i = 0; i < 5; i++) {
             float x = Game.MAP_W * (0.18f + i * 0.18f) + (float) Math.sin(animTime * 0.2f + i) * 30f;
             tempPath.reset();
@@ -378,52 +391,43 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
         paintFill.setShader(null);
 
-        // Main Cardboard Seabed Plateau (with white sticker seam)
+        // Cardboard Seabed Plateau
         float[][] seabed = {
                 {50f, 50f}, {Game.MAP_W - 50f, 50f},
                 {Game.MAP_W - 50f, Game.MAP_H - 50f}, {50f, Game.MAP_H - 50f}
         };
         drawPaperCutout(canvas, seabed, 0xFF11323B, false);
 
-        // Corrugated paper edge stitches
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(0x334ADE80);
         paintStroke.setStrokeWidth(2.5f);
         canvas.drawRect(65f, 65f, Game.MAP_W - 65f, Game.MAP_H - 65f, paintStroke);
 
-        // Cardboard Corals & Pop-up Scenery
         drawPaperCoralsAndRuins(canvas);
 
-        // Click Beacon (Diablo gold star ring)
         if (game.beaconTimer > 0f) {
             drawClickBeacon(canvas, game.beaconX, game.beaconY, game.beaconTimer);
         }
 
-        // Pop-up Archway Portal
         if (game.portalOpen) {
             drawStorybookPortalArch(canvas, game.portalX, game.portalY);
         }
 
-        // Floor Drops with Paper Mario Rarity Beams
         for (Game.Drop drop : game.drops) {
             drawDrop(canvas, drop);
         }
 
-        // Paper Mario Enemies (Crabs, Jellies, Eels, Leviathan)
         for (Game.Enemy enemy : game.enemies) {
             drawEnemy(canvas, enemy);
         }
 
-        // Paper Mario Palombaro
         drawPaperDiver(canvas);
 
-        // Projectiles (Cartoon Harpoon & Energy bubbles)
         for (Game.Projectile p : game.projectiles) {
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(p.color);
             canvas.drawCircle(p.x, p.y, p.radius, paintFill);
 
-            // White cartoon shine
             paintFill.setColor(0xCCFFFFFF);
             canvas.drawCircle(p.x - p.radius * 0.3f, p.y - p.radius * 0.3f, p.radius * 0.4f, paintFill);
 
@@ -433,12 +437,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawCircle(p.x, p.y, p.radius, paintStroke);
         }
 
-        // Comic-style floating damage numbers & popups
         for (Game.Floater f : game.floaters) {
             drawComicFloater(canvas, f);
         }
 
-        // Paper bubbles
         for (Game.Particle p : game.particles) {
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(p.color);
@@ -454,7 +456,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawStorybookWaves(Canvas canvas) {
-        // Scalloped cardboard wave strips in background
         float waveOffset = (float) Math.sin(animTime * 0.8) * 20f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0x221E40AF);
@@ -473,14 +474,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawPaperCoralsAndRuins(Canvas canvas) {
-        // Pop-up Cardboard Corals with white die-cut sticker borders
-        drawCartoonCoral(canvas, 420f, 360f, 0, 1.15f, 0.5f); // Red staghorn
-        drawCartoonCoral(canvas, 750f, 190f, 1, 1.25f, 1.2f); // Sage origami fan
-        drawCartoonCoral(canvas, 1150f, 320f, 2, 1.05f, 2.0f); // Pipe sponge
-        drawCartoonCoral(canvas, 600f, 820f, 0, 1.1f, 3.1f);
-        drawCartoonCoral(canvas, 1220f, 780f, 1, 1.15f, 4.4f);
+        drawCartoonCoral(canvas, 420f, 360f, 0, 1.0f, 0.5f);
+        drawCartoonCoral(canvas, 750f, 190f, 1, 1.0f, 1.2f);
+        drawCartoonCoral(canvas, 1150f, 320f, 0, 0.9f, 2.0f);
+        drawCartoonCoral(canvas, 600f, 820f, 1, 1.0f, 3.1f);
+        drawCartoonCoral(canvas, 1220f, 780f, 0, 1.05f, 4.4f);
 
-        // Sunken cardboard columns
         drawStorybookColumn(canvas, 240f, 220f, 1.0f);
         drawStorybookColumn(canvas, 1380f, 240f, 0.95f);
     }
@@ -492,30 +491,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.rotate(sway);
         canvas.scale(scale, scale);
 
-        drawFloorShadow(canvas, 0f, 2f, 28f, 9f);
+        drawFloorShadow(canvas, 0f, 4f, 30f, 10f);
 
-        if (type == 0) { // Staghorn coral in bright cartoon coral pink with white sticker border
-            float[][] pts = {
-                    {-9,0}, {-13,-31}, {-34,-46}, {-38,-69}, {-30,-72}, {-25,-53},
+        Bitmap coralBmp = (type == 0) ? bmpCoralRed : bmpCoralGreen;
+        if (coralBmp != null) {
+            canvas.drawBitmap(coralBmp, -coralBmp.getWidth() / 2f, -coralBmp.getHeight() + 10f, null);
+        } else {
+            float[][] pts = {{-9,0}, {-13,-31}, {-34,-46}, {-38,-69}, {-30,-72}, {-25,-53},
                     {-13,-47}, {-16,-90}, {-7,-100}, {-4,-70}, {7,-57}, {21,-65},
                     {25,-88}, {33,-90}, {33,-60}, {13,-44}, {11,-20}, {25,-32},
-                    {38,-31}, {21,-14}, {10,1}
-            };
-            drawPaperCutout(canvas, pts, COL_CORAL, true);
-        } else if (type == 1) { // Sea fan in Paper Mario mint
-            float[][] pts = {
-                    {-13,0}, {-18,-23}, {-28,-43}, {-24,-74}, {-15,-48}, {-6,-42},
-                    {-13,-80}, {-1,-105}, {3,-69}, {11,-80}, {20,-103}, {23,-73},
-                    {12,-48}, {17,-22}, {7,0}
-            };
-            drawPaperCutout(canvas, pts, COL_MINT, true);
-        } else { // Pipe sponge in golden yellow
-            for (int i = 0; i < 4; i++) {
-                float ox = (i - 1.5f) * 14f;
-                float h = 28f + (i % 2) * 18f;
-                float[][] pts = {{-8 + ox, 0}, {-9 + ox, -h}, {ox, -h - 5}, {8 + ox, -h}, {6 + ox, 0}};
-                drawPaperCutout(canvas, pts, COL_GOLD, true);
-            }
+                    {38,-31}, {21,-14}, {10,1}};
+            drawPaperCutout(canvas, pts, (type == 0) ? COL_CORAL : COL_MINT, true);
         }
         canvas.restore();
     }
@@ -540,7 +526,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.translate(x, y);
         drawFloorShadow(canvas, 0f, 0f, 95f, 24f);
 
-        // Glowing comic spiral portal
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setShader(new RadialGradient(0, -70, 110, 0x996EE7B7, 0x006EE7B7, Shader.TileMode.CLAMP));
         canvas.drawCircle(0f, -70f, 110f, paintFill);
@@ -565,183 +550,60 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     // =========================================================================
-    // DIVER (CARTOON PAPER MARIO DIVER CUTOUT)
+    // PALOMBARO (PAPER MARIO STICKER CUTOUT SPRITE)
     // =========================================================================
     private void drawPaperDiver(Canvas canvas) {
         float px = game.playerX;
         float py = game.playerY;
         boolean moving = game.playerMoving;
 
-        // Paper Mario Bouncing Walk Hop & Tilt
         float hopY = moving ? -Math.abs((float) Math.sin(animTime * 14.0)) * 7f : (float) Math.sin(animTime * 2.2) * 2f;
         float tilt = moving ? (float) Math.sin(animTime * 14.0) * 5f : 0f;
-
-        // Smooth 2D Paper-Flip
         float flip = diverFlipScale;
 
-        // Attack & Dash Squash/Stretch
         float sqX = game.attackAnim > 0 ? 1f + (float) Math.sin(game.attackAnim * Math.PI) * 0.25f : (game.dashAnim > 0 ? 1.25f : 1f);
         float sqY = game.attackAnim > 0 ? 1f - (float) Math.sin(game.attackAnim * Math.PI) * 0.18f : (game.dashAnim > 0 ? 0.82f : 1f);
-
-        int suitColor = 0xFFFBBF24; // Classic bright Paper Mario gold/canvas
-        int helmetColor = 0xFFF59E0B;
-        if (game.equippedArmor != null) {
-            if (game.equippedArmor.rarity == Game.RARITY_MAGIC) {
-                suitColor = 0xFF38BDF8; helmetColor = 0xFF0284C7; // Cyan Cobalt
-            } else if (game.equippedArmor.rarity == Game.RARITY_RARE) {
-                suitColor = 0xFFF97316; helmetColor = 0xFFEA580C; // Fiery Amber
-            } else if (game.equippedArmor.rarity == Game.RARITY_ABYSSAL) {
-                suitColor = 0xFFC084FC; helmetColor = 0xFF9333EA; // Amethyst Abyssal
-            }
-        }
 
         canvas.save();
         canvas.translate(px, py);
 
-        // Ground Drop Shadow
         drawFloorShadow(canvas, 0f, 6f, 38f, 12f);
 
         canvas.translate(0f, hopY);
         canvas.rotate(tilt);
         canvas.scale(flip * sqX, sqY);
 
-        // Oxygen Cylinders on back with white sticker border
-        canvas.save();
-        canvas.translate(-20f, -56f);
-        canvas.rotate(-0.25f);
-        float[][] tank = {{-16,22}, {-18,-12}, {-9,-22}, {10,-22}, {17,-8}, {12,23}};
-        drawPaperCutout(canvas, tank, 0xFF34D399, true);
-        canvas.restore();
+        if (bmpDiver != null) {
+            float s = 0.42f;
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpDiver, -bmpDiver.getWidth() / 2f, -bmpDiver.getHeight() / 2f - 40f, null);
+        } else {
+            // Procedural fallback with white sticker border
+            float[][] suit = {{-28,-60}, {-19,-78}, {18,-78}, {30,-57}, {23,-24}, {4,-15}, {-23,-23}};
+            drawPaperCutout(canvas, suit, COL_CANVAS, true);
 
-        // Oversized Paper Mario Diver Boots (Stepping animation)
-        float step = moving ? (float) Math.sin(animTime * 14.0) * 10f : 0f;
-        canvas.save();
-        canvas.translate(-14f, step * 0.3f);
-        float[][] bootL = {{-12,-20}, {-10,0}, {-22,6}, {-18,14}, {4,14}, {8,-18}};
-        drawPaperCutout(canvas, bootL, 0xFF78350F, true);
-        canvas.restore();
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(8f);
+            canvas.drawCircle(0f, -82f, 34f, paintStroke);
 
-        canvas.save();
-        canvas.translate(16f, -step * 0.3f);
-        float[][] bootR = {{-10,-20}, {-8,2}, {-12,9}, {-8,14}, {18,14}, {20,6}, {10,0}, {12,-22}};
-        drawPaperCutout(canvas, bootR, 0xFF92400E, true);
-        canvas.restore();
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFF59E0B);
+            canvas.drawCircle(0f, -82f, 34f, paintFill);
 
-        // Chubby Cartoon Diver Torso with white sticker border
-        float[][] suit = {{-28,-60}, {-19,-78}, {18,-78}, {30,-57}, {23,-24}, {4,-15}, {-23,-23}};
-        drawPaperCutout(canvas, suit, suitColor, true);
-
-        // Chest harness and shiny brass button
-        paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(3f);
-        canvas.drawLine(-25f, -37f, 20f, -32f, paintStroke);
-        paintFill.setColor(COL_GOLD);
-        canvas.drawCircle(0f, -35f, 5f, paintFill);
-        canvas.drawCircle(0f, -35f, 5f, paintStroke);
-
-        // Cute Held Weapon (Paper Mario Hammer/Spear style)
-        drawPaperDiverWeapon(canvas);
-
-        // Big Round Cartoon Diving Helmet (Mario-proportions!)
-        // 1. Thick white sticker border around helmet
-        paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(COL_STICKER);
-        paintStroke.setStrokeWidth(8f);
-        canvas.drawCircle(0f, -82f, 34f, paintStroke);
-
-        paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(helmetColor);
-        canvas.drawCircle(0f, -82f, 34f, paintFill);
-
-        paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(3.5f);
-        canvas.drawCircle(0f, -82f, 34f, paintStroke);
-
-        // Helmet Rivets / Screws (Cartoon Paper craft style)
-        for (int i = 0; i < 5; i++) {
-            float angle = (float) (-Math.PI * 0.8 + i * Math.PI * 0.4);
-            float rx = (float) Math.cos(angle) * 30f;
-            float ry = -82f + (float) Math.sin(angle) * 30f;
-            paintFill.setColor(COL_GOLD);
-            canvas.drawCircle(rx, ry, 3f, paintFill);
-            canvas.drawCircle(rx, ry, 3f, paintStroke);
-        }
-
-        // Oversized Porthole Visor
-        paintFill.setColor(0xFF1E293B);
-        canvas.drawCircle(6f, -82f, 22f, paintFill);
-        canvas.drawCircle(6f, -82f, 22f, paintStroke);
-
-        paintFill.setColor(0xFF38BDF8);
-        canvas.drawCircle(8f, -84f, 17f, paintFill);
-
-        // Protective Crossbar Grill
-        paintStroke.setColor(COL_GOLD);
-        paintStroke.setStrokeWidth(2.5f);
-        canvas.drawLine(-8f, -82f, 22f, -82f, paintStroke);
-        canvas.drawLine(7f, -100f, 7f, -65f, paintStroke);
-
-        // Comic-style White Glare Streaks on Visor
-        paintFill.setColor(COL_STICKER);
-        tempPath.reset();
-        tempPath.moveTo(0f, -92f);
-        tempPath.lineTo(8f, -92f);
-        tempPath.lineTo(2f, -76f);
-        tempPath.lineTo(-6f, -76f);
-        tempPath.close();
-        canvas.drawPath(tempPath, paintFill);
-
-        canvas.restore();
-    }
-
-    private void drawPaperDiverWeapon(Canvas canvas) {
-        canvas.save();
-        canvas.translate(34f, -38f);
-
-        float rot = game.attackAnim > 0 ?
-                -1.15f + (float) Math.sin(game.attackAnim * Math.PI) * 1.6f : -0.6f;
-        canvas.rotate((float) Math.toDegrees(rot));
-
-        int bladeCol = 0xFFF1F5F9;
-        if (game.equippedWeapon != null) {
-            bladeCol = game.getRarityColor(game.equippedWeapon.rarity);
-        }
-
-        // Thick Cartoon Shaft
-        paintStroke.setColor(COL_STICKER);
-        paintStroke.setStrokeWidth(9f);
-        canvas.drawLine(0f, 18f, 0f, -62f, paintStroke);
-
-        paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(4.5f);
-        canvas.drawLine(0f, 18f, 0f, -62f, paintStroke);
-
-        paintStroke.setColor(COL_GOLD);
-        paintStroke.setStrokeWidth(3f);
-        canvas.drawLine(0f, 18f, 0f, -62f, paintStroke);
-
-        // Cartoon Spearhead / Trident with white die-cut sticker
-        if (game.equippedWeapon != null && game.equippedWeapon.rarity == Game.RARITY_RARE) { // Trident
-            float[][] b1 = {{-16,-52}, {-13,-80}, {-9,-55}};
-            drawPaperCutout(canvas, b1, bladeCol, true);
-            float[][] b2 = {{-7,-55}, {0,-88}, {7,-55}};
-            drawPaperCutout(canvas, b2, bladeCol, true);
-            float[][] b3 = {{9,-55}, {13,-80}, {16,-52}};
-            drawPaperCutout(canvas, b3, bladeCol, true);
-        } else { // Classic Oversized Cartoon Harpoon
-            float[][] head = {{-9,-54}, {0,-82}, {9,-54}, {0,-62}};
-            drawPaperCutout(canvas, head, bladeCol, true);
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(3.5f);
+            canvas.drawCircle(0f, -82f, 34f, paintStroke);
         }
 
         canvas.restore();
     }
 
     // =========================================================================
-    // PAPER MARIO ENEMIES (CARTOON STICKER CRABS, JELLIES, LEVIATHAN)
+    // ENEMIES (PAPER MARIO CUTOUT SPRITES)
     // =========================================================================
     private void drawEnemy(Canvas canvas, Game.Enemy e) {
         if (e.isWindingUp) {
-            // Comic Rubber-Stamp Warning Circle
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(0x35EF4444);
             canvas.drawCircle(e.windupX, e.windupY, e.windupRadius, paintFill);
@@ -791,63 +653,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawPaperCrab(Canvas canvas, Game.Enemy e) {
-        drawFloorShadow(canvas, 0f, 3f, 35f, 11f);
+        drawFloorShadow(canvas, 0f, 4f, 35f, 11f);
 
-        // Goofy Cartoon Paper Mario Crab!
-        float wobble = (float) Math.sin(animTime * 8.0 + e.animTimer) * 5f;
-        int fill = e.hitSquash > 0.05f ? 0xFFFEF08A : COL_CORAL; // Flash bright yellow on hit
-
-        // Claws (Scissors snip-snip with white sticker border)
-        for (int side : new int[]{-1, 1}) {
-            canvas.save();
-            canvas.scale(side, 1f);
-
-            // Jointed legs
-            paintStroke.setColor(COL_STICKER);
-            paintStroke.setStrokeWidth(8f);
-            canvas.drawLine(16f, -9f, 33f, -4f, paintStroke);
-            canvas.drawLine(33f, -4f, 41f, 5f, paintStroke);
-
-            paintStroke.setColor(COL_INK);
-            paintStroke.setStrokeWidth(3.5f);
-            canvas.drawLine(16f, -9f, 33f, -4f, paintStroke);
-            canvas.drawLine(33f, -4f, 41f, 5f, paintStroke);
-
-            // Snapping cartoon pincer claws
-            canvas.save();
-            canvas.translate(31f, -31f);
-            canvas.rotate(0.12f + wobble * 0.03f);
-            float[][] claw = {{-10,10}, {-18,-4}, {-15,-22}, {-6,-30}, {-3,-12}, {6,-14}, {11,-30}, {19,-18}, {16,-2}, {4,13}};
-            drawPaperCutout(canvas, claw, fill, true);
-            canvas.restore();
-
-            canvas.restore();
-        }
-
-        // Crab Carapace with white sticker border
-        float[][] shell = {{-28,-10}, {-31,-30}, {-18,-45}, {7,-48}, {29,-32}, {29,-10}, {6,0}};
-        drawPaperCutout(canvas, shell, fill, true);
-
-        // Big Goofy Cartoon Eyes with white eyeballs and black pupils!
-        for (int x : new int[]{-11, 13}) {
-            // Stalk
-            paintStroke.setColor(COL_INK);
-            paintStroke.setStrokeWidth(4f);
-            canvas.drawLine(x, -36f, x - 2f, -50f, paintStroke);
-
-            // Big White Cartoon Eyeball
-            paintFill.setColor(COL_STICKER);
-            canvas.drawCircle(x - 2f, -52f, 7f, paintFill);
-            paintStroke.setStrokeWidth(2.5f);
-            canvas.drawCircle(x - 2f, -52f, 7f, paintStroke);
-
-            // Black pupil looking toward player
-            paintFill.setColor(COL_INK);
-            canvas.drawCircle(x - 2f, -52f, 3.5f, paintFill);
-
-            // Cute white twinkle highlight
-            paintFill.setColor(COL_STICKER);
-            canvas.drawCircle(x - 3f, -54f, 1.5f, paintFill);
+        if (bmpCrab != null) {
+            float s = 0.45f;
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpCrab, -bmpCrab.getWidth() / 2f, -bmpCrab.getHeight() / 2f - 20f, null);
+        } else {
+            float[][] shell = {{-28,-10}, {-31,-30}, {-18,-45}, {7,-48}, {29,-32}, {29,-10}, {6,0}};
+            drawPaperCutout(canvas, shell, COL_CORAL, true);
         }
     }
 
@@ -858,44 +672,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.save();
         canvas.translate(0f, -24f + bob);
 
-        // 5 fluttering crepe-paper tentacles
-        for (int i = 0; i < 5; i++) {
-            float ox = (i - 2) * 10f;
-            float s = (float) Math.sin(animTime * 3.0 + e.animTimer + i) * 8f;
-
-            paintStroke.setColor(COL_STICKER);
-            paintStroke.setStrokeWidth(7f);
-            canvas.drawLine(ox, -2f, ox + s, 18f, paintStroke);
-            canvas.drawLine(ox + s, 18f, ox - s * 0.3f, 36f, paintStroke);
-
-            paintStroke.setColor(COL_INK);
-            paintStroke.setStrokeWidth(3f);
-            canvas.drawLine(ox, -2f, ox + s, 18f, paintStroke);
-            canvas.drawLine(ox + s, 18f, ox - s * 0.3f, 36f, paintStroke);
+        if (bmpJelly != null) {
+            float s = 0.44f;
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpJelly, -bmpJelly.getWidth() / 2f, -bmpJelly.getHeight() / 2f, null);
+        } else {
+            float[][] bell = {{-36,-6}, {-33,-29}, {-18,-45}, {0,-50}, {20,-44}, {33,-27}, {37,-6}, {25,2}, {13,-3}, {1,4}, {-11,-3}, {-24,3}};
+            drawPaperCutout(canvas, bell, COL_AQUA, true);
         }
-
-        // Scalloped Blooper/Jelly Bell with white die-cut sticker border
-        float[][] bell = {{-36,-6}, {-33,-29}, {-18,-45}, {0,-50}, {20,-44}, {33,-27}, {37,-6}, {25,2}, {13,-3}, {1,4}, {-11,-3}, {-24,3}};
-        int fill = e.hitSquash > 0.05f ? 0xFFFEF08A : COL_AQUA;
-        drawPaperCutout(canvas, bell, fill, true);
-
-        // Cute cartoon eyes on the jellyfish
-        for (int x : new int[]{-10, 10}) {
-            paintFill.setColor(COL_STICKER);
-            canvas.drawCircle(x, -18f, 5f, paintFill);
-            paintStroke.setStrokeWidth(2f);
-            canvas.drawCircle(x, -18f, 5f, paintStroke);
-            paintFill.setColor(COL_INK);
-            canvas.drawCircle(x, -18f, 2.5f, paintFill);
-        }
-
         canvas.restore();
     }
 
     private void drawPaperAbyssalEel(Canvas canvas, Game.Enemy e) {
         drawFloorShadow(canvas, 0f, 5f, 38f, 9f);
 
-        // Accordion Paper Eel
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(22f);
@@ -924,48 +714,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.save();
         canvas.translate(0f, sway);
 
-        // 7 multi-layered pop-up tentacles with corrugated cardboard suction cups
-        for (int i = 0; i < 7; i++) {
-            float angle = (i - 3) * 0.32f;
-            float tip = (float) Math.sin(animTime * 2.2 + i) * 16f;
-            canvas.save();
-            canvas.translate((i - 3) * 18f, -22f);
-            canvas.rotate((float) Math.toDegrees(angle));
-            float[][] tent = {{-11,0}, {-17,32}, {-9,65}, {tip,86}, {tip+15,81}, {4,51}, {14,10}};
-            drawPaperCutout(canvas, tent, (i % 2 == 0) ? 0xFF34D399 : 0xFF10B981, true);
-            canvas.restore();
+        if (bmpBoss != null) {
+            float s = 0.72f;
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpBoss, -bmpBoss.getWidth() / 2f, -bmpBoss.getHeight() / 2f - 30f, null);
+        } else {
+            float[][] head = {{-86,-33}, {-95,-90}, {-70,-150}, {-19,-176}, {45,-162}, {86,-118}, {95,-55}, {52,-13}, {-24,-9}};
+            drawPaperCutout(canvas, head, COL_GOLD, true);
         }
-
-        // Giant Cardboard Monster Head with white sticker die-cut border
-        float[][] head = {{-86,-33}, {-95,-90}, {-70,-150}, {-19,-176}, {45,-162}, {86,-118}, {95,-55}, {52,-13}, {-24,-9}};
-        int fill = e.hitSquash > 0.05f ? 0xFFFEF08A : COL_GOLD;
-        drawPaperCutout(canvas, head, fill, true);
-
-        // Hypnotic spiral markings
-        paintStroke.setColor(COL_INK);
-        paintStroke.setStrokeWidth(4.5f);
-        tempPath.reset();
-        for (float a = 0; a < Math.PI * 4; a += 0.1f) {
-            float r = 5f + a * 4.4f;
-            float sx = 6f + (float) Math.cos(a) * r;
-            float sy = -92f + (float) Math.sin(a) * r;
-            if (a == 0) tempPath.moveTo(sx, sy); else tempPath.lineTo(sx, sy);
-        }
-        canvas.drawPath(tempPath, paintStroke);
-
-        // Big Menacing Cartoon Eye with white eyeball & yellow iris
-        paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(COL_STICKER);
-        canvas.drawCircle(22f, -82f, 26f, paintFill);
-        paintStroke.setStrokeWidth(3.5f);
-        canvas.drawCircle(22f, -82f, 26f, paintStroke);
-
-        paintFill.setColor(0xFFF97316); // Amber iris
-        canvas.drawCircle(25f, -82f, 17f, paintFill);
-
-        paintFill.setColor(COL_INK); // Cat slit pupil
-        canvas.drawOval(26f, -94f, 32f, -70f, paintFill);
-
         canvas.restore();
     }
 
@@ -973,7 +729,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float radius = (1.0f - timer) * 45f;
         int alpha = (int) (timer * 255);
 
-        // Paper Mario Star Beacon
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(6f);
@@ -990,7 +745,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         int rColor = game.getRarityColor(drop.item.rarity);
         float cy = drop.y + (float) Math.sin(drop.bobPhase) * 6f;
 
-        // Cartoon Rarity Beam
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setShader(new LinearGradient(drop.x, cy, drop.x, cy - 220f,
                 rColor & 0x77FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
@@ -1000,11 +754,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         drawFloorShadow(canvas, drop.x, drop.y, 18f, 6f);
 
-        // Paper Badge with white sticker border
         float[][] badge = {{drop.x, cy - 15f}, {drop.x + 12f, cy}, {drop.x, cy + 15f}, {drop.x - 12f, cy}};
         drawPaperCutout(canvas, badge, rColor, true);
 
-        // Pop-up Comic Name Plaque
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setTextSize(12f);
         paintText.setFakeBoldText(true);
@@ -1021,33 +773,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawComicFloater(Canvas canvas, Game.Floater f) {
-        // Comic-book pop typography: thick sticker border + shadow
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setTextSize(f.isCrit ? 26f : 18f);
         paintText.setFakeBoldText(true);
 
-        // Outer white comic outline
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(f.isCrit ? 7f : 5f);
         canvas.drawText(f.text, f.x, f.y, paintStroke);
 
-        // Dark ink stroke
         paintStroke.setColor(COL_INK);
         paintStroke.setStrokeWidth(f.isCrit ? 4f : 3f);
         canvas.drawText(f.text, f.x, f.y, paintStroke);
 
-        // Bright comic fill
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(f.color);
         canvas.drawText(f.text, f.x, f.y, paintFill);
     }
 
     // =========================================================================
-    // HUD & MOBILE CONTROLS (CLASSIC ACTION DUAL-THUMB)
+    // HUD & MOBILE CONTROLS
     // =========================================================================
     private void drawHudAndControls(Canvas canvas) {
-        // Top Storybook Banner
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
         canvas.drawRoundRect(Game.SCREEN_W / 2f - 182f, 8f, Game.SCREEN_W / 2f + 182f, 46f, 10f, 10f, paintFill);
@@ -1062,7 +809,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText(game.zoneName.toUpperCase() + "  -  " + game.depthMeters + "m",
                 Game.SCREEN_W / 2f, 32f, paintText);
 
-        // Sound Toggle
         paintFill.setColor(COL_STICKER);
         canvas.drawRoundRect(btnSound.left - 2f, btnSound.top - 2f, btnSound.right + 2f, btnSound.bottom + 2f, 8f, 8f, paintFill);
         paintFill.setColor(0xFF1E293B);
@@ -1072,21 +818,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText(AudioHelper.isSoundEnabled() ? "AUDIO" : "MUTO",
                 btnSound.centerX(), btnSound.centerY() + 4f, paintText);
 
-        // 1. DIABLO RED LIFE GLOBE (Upper-Left)
         drawRedLifeGlobe(canvas, globeHpX, globeHpY, globeHpRadius);
-
-        // 2. DIABLO BLUE TIDE GLOBE (Upper-Right)
         drawBlueTideGlobe(canvas, globeTideX, globeTideY, globeTideRadius);
 
-        // 3. VIRTUAL ANALOG MOVEMENT JOYSTICK (Left Thumb)
         drawVirtualJoystick(canvas);
-
-        // 4. MOBILE ACTION BUTTON CLUSTER (Right Thumb)
         drawMobileActionButtons(canvas);
     }
 
     private void drawVirtualJoystick(Canvas canvas) {
-        // Outer Base Ring with white sticker rim
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(5f);
@@ -1100,12 +839,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintStroke.setStrokeWidth(2.5f);
         canvas.drawCircle(joyBaseX, joyBaseY, joyBaseRadius, paintStroke);
 
-        // Directional cross notches
         paintStroke.setColor(0x4438BDF8);
         canvas.drawLine(joyBaseX - 35f, joyBaseY, joyBaseX + 35f, joyBaseY, paintStroke);
         canvas.drawLine(joyBaseX, joyBaseY - 35f, joyBaseX, joyBaseY + 35f, paintStroke);
 
-        // Movable Knob
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(5f);
         canvas.drawCircle(joyKnobX, joyKnobY, joyKnobRadius, paintStroke);
@@ -1122,8 +859,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawMobileActionButtons(Canvas canvas) {
-        // --- 1. BIG MAIN ATTACK BUTTON [ARPIONE] ---
-        // White Sticker Border
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
         paintStroke.setStrokeWidth(7f);
@@ -1137,7 +872,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintStroke.setStrokeWidth(3.5f);
         canvas.drawCircle(btnAttackX, btnAttackY, btnAttackRadius, paintStroke);
 
-        // Spearhead Icon inside attack button
         tempPath.reset();
         tempPath.moveTo(btnAttackX - 10f, btnAttackY + 12f);
         tempPath.lineTo(btnAttackX + 12f, btnAttackY - 10f);
@@ -1157,7 +891,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setColor(COL_GOLD);
         canvas.drawText("ATTACCO", btnAttackX, btnAttackY + 28f, paintText);
 
-        // --- 2. SKILL [MAREA] (AoE Wave) ---
         float waveCd = game.waveCooldown / game.waveMaxCooldown;
         drawActionButton(canvas, btnWaveX, btnWaveY, btnWaveRadius, "MAREA", waveCd, 0xFF0284C7, () -> {
             tempPath.reset();
@@ -1169,7 +902,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawPath(tempPath, paintStroke);
         });
 
-        // --- 3. SKILL [SCATTO] (Dash) ---
         float dashCd = game.dashCooldown / game.dashMaxCooldown;
         drawActionButton(canvas, btnDashX, btnDashY, btnDashRadius, "SCATTO", dashCd, 0xFFD97706, () -> {
             paintStroke.setColor(COL_GOLD);
@@ -1179,7 +911,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawLine(btnDashX + 2f, btnDashY + 7f, btnDashX + 10f, btnDashY, paintStroke);
         });
 
-        // --- 4. SKILL [POZIONE] (Cura) ---
         drawActionButton(canvas, btnPotionX, btnPotionY, btnPotionRadius, "CURA", 0f, 0xFF15803D, () -> {
             paintStroke.setColor(0xFF4ADE80);
             paintStroke.setStrokeWidth(2f);
@@ -1192,7 +923,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawText("x" + game.potions, btnPotionX + 10f, btnPotionY + 8f, paintText);
         });
 
-        // --- 5. INVENTARIO [ZAINO] ---
         drawActionButton(canvas, btnInventoryX, btnInventoryY, btnInventoryRadius, "ZAINO", 0f, 0xFF475569, () -> {
             paintStroke.setColor(COL_GOLD);
             paintStroke.setStrokeWidth(2f);
@@ -1493,9 +1223,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText("PAUSA", Game.SCREEN_W / 2f, 260f, paintText);
     }
 
-    // =========================================================================
-    // MULTI-TOUCH (Dual-Thumb classic mobile controls)
-    // =========================================================================
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
@@ -1564,14 +1291,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
-        // Left half: Movement Joystick
         if (vx < 420f && vy > 120f) {
             joyPointerId = pointerId;
             updateJoystick(vx, vy);
             return;
         }
 
-        // Right side: Action Button Cluster
         float dAttack = distSq(vx, vy, btnAttackX, btnAttackY);
         if (dAttack < btnAttackRadius * btnAttackRadius * 1.5f) {
             game.performAttack(-1f, -1f);
@@ -1602,7 +1327,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
-        // Tap in world (Target enemy or point & click move)
         float wx = vx + camX;
         float wy = vy + camY;
 

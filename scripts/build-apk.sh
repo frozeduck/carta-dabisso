@@ -5,6 +5,10 @@ cd "$project_dir"
 mkdir -p /tmp/.android
 export ANDROID_USER_HOME=/tmp/.android
 
+# Genera gli asset grafici Paper Mario PNG se non presenti
+echo "Generazione e verifica sprite Paper Mario PNG..."
+python3 scripts/generate_sprites.py
+
 # Esegui la suite di test nativa Java
 echo "Esecuzione test unitari modello nativo..."
 javac android/app/src/main/java/eu/sabotino/cartadabisso/Game.java android/app/src/main/java/eu/sabotino/cartadabisso/GameTest.java
