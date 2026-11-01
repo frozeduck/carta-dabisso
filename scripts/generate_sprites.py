@@ -467,6 +467,141 @@ def gen_pesce_lanterna():
     sticker.save(out_dir / 'pesce_lanterna.png')
     print('Generato pesce_lanterna.png (supersampled Lanczos)')
 
+def gen_fabbro_astice():
+    # Mastro Astice: Cartoon Lobster Blacksmith
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Anvil on right
+    anvil_pts = [(300, 360), (460, 360), (440, 460), (320, 460)]
+    draw.polygon(anvil_pts, fill=(71, 85, 105, 255), outline=COL_INK, width=8)
+    draw.polygon([(280, 340), (480, 340), (460, 370), (300, 370)], fill=(148, 163, 184, 255), outline=COL_INK, width=8)
+
+    # Sparks above anvil
+    for spx, spy in [(360, 310), (400, 290), (430, 320), (380, 270)]:
+        draw.polygon([(spx, spy - 15), (spx + 5, spy - 5), (spx + 15, spy), (spx + 5, spy + 5), (spx, spy + 15), (spx - 5, spy + 5), (spx - 15, spy), (spx - 5, spy - 5)], fill=COL_GOLD, outline=COL_INK)
+
+    # Lobster body (red/orange)
+    draw.ellipse([140, 200, 320, 420], fill=(225, 29, 72, 255), outline=COL_INK, width=12)
+    # Apron (leather brown)
+    draw.polygon([(170, 260), (290, 260), (310, 410), (150, 410)], fill=(180, 83, 9, 255), outline=COL_INK, width=8)
+    draw.line([(200, 200), (200, 260)], fill=COL_INK, width=8)
+    draw.line([(260, 200), (260, 260)], fill=COL_INK, width=8)
+
+    # Left claw resting
+    draw.ellipse([60, 240, 160, 340], fill=(244, 63, 94, 255), outline=COL_INK, width=10)
+    # Right arm holding iron hammer raised over anvil
+    draw.line([(280, 250), (380, 200)], fill=(225, 29, 72, 255), width=24)
+    # Hammer handle & head
+    draw.line([(360, 240), (420, 140)], fill=(120, 53, 15, 255), width=14)
+    draw.polygon([(390, 120), (450, 150), (430, 180), (370, 150)], fill=(100, 116, 139, 255), outline=COL_INK, width=6)
+
+    # Head & big friendly eyes
+    draw.ellipse([170, 150, 290, 250], fill=(225, 29, 72, 255), outline=COL_INK, width=10)
+    draw.ellipse([190, 140, 225, 185], fill=COL_WHITE, outline=COL_INK, width=6)
+    draw.ellipse([235, 140, 270, 185], fill=COL_WHITE, outline=COL_INK, width=6)
+    draw.ellipse([200, 150, 220, 175], fill=COL_INK)
+    draw.ellipse([245, 150, 265, 175], fill=COL_INK)
+    draw.arc([205, 195, 255, 235], start=0, end=180, fill=COL_INK, width=6)
+
+    # Antennae
+    draw.line([(200, 150), (140, 70)], fill=(225, 29, 72, 255), width=8)
+    draw.line([(260, 150), (320, 70)], fill=(225, 29, 72, 255), width=8)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'fabbro_astice.png')
+    print('Generato fabbro_astice.png (supersampled Lanczos)')
+
+def gen_cassa_tesoro():
+    # Shared Expedition Stash Chest
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Chest Base
+    draw.rounded_rectangle([90, 220, 422, 420], radius=16, fill=(146, 64, 14, 255), outline=COL_INK, width=12)
+    # Brass bands
+    draw.rectangle([140, 220, 180, 420], fill=COL_GOLD, outline=COL_INK, width=6)
+    draw.rectangle([332, 220, 372, 420], fill=COL_GOLD, outline=COL_INK, width=6)
+    # Lock plate & keyhole
+    draw.ellipse([236, 260, 276, 300], fill=COL_GOLD, outline=COL_INK, width=6)
+    draw.ellipse([250, 272, 262, 284], fill=COL_INK)
+    draw.polygon([(252, 280), (260, 280), (258, 292), (254, 292)], fill=COL_INK)
+
+    # Open/Arched Lid with treasure glow
+    draw.polygon([(70, 220), (100, 130), (412, 130), (442, 220)], fill=(180, 83, 9, 255), outline=COL_INK, width=12)
+    draw.polygon([(140, 130), (180, 130), (180, 220), (140, 220)], fill=COL_GOLD, outline=COL_INK, width=6)
+    draw.polygon([(332, 130), (372, 130), (372, 220), (332, 220)], fill=COL_GOLD, outline=COL_INK, width=6)
+
+    # Glowing gems / pearls spilling over edge
+    draw.ellipse([200, 200, 240, 240], fill=(56, 189, 248, 255), outline=COL_INK, width=6)
+    draw.ellipse([260, 190, 310, 235], fill=(234, 179, 8, 255), outline=COL_INK, width=6)
+    draw.ellipse([320, 205, 355, 240], fill=(168, 85, 247, 255), outline=COL_INK, width=6)
+    # Sparkles
+    for spx, spy in [(170, 170), (250, 150), (360, 160)]:
+        draw.polygon([(spx, spy - 12), (spx + 4, spy - 4), (spx + 12, spy), (spx + 4, spy + 4), (spx, spy + 12), (spx - 4, spy + 4), (spx - 12, spy), (spx - 4, spy - 4)], fill=COL_WHITE)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'cassa_tesoro.png')
+    print('Generata cassa_tesoro.png (supersampled Lanczos)')
+
+def gen_portale_citta():
+    # Diablo Town Portal Rune
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    cx, cy = 256, 256
+    draw.ellipse([70, 70, 442, 442], fill=(2, 132, 199, 120), outline=COL_INK, width=14)
+    draw.ellipse([110, 110, 402, 402], fill=(56, 189, 248, 180), outline=COL_GOLD, width=10)
+    draw.ellipse([160, 160, 352, 352], fill=(186, 230, 253, 255), outline=COL_WHITE, width=8)
+    draw.ellipse([210, 210, 302, 302], fill=COL_WHITE)
+
+    for arm in range(4):
+        angle_offset = arm * (math.pi / 2.0)
+        pts = []
+        for step in range(25):
+            t = step / 24.0
+            rad = angle_offset + t * 4.0
+            r = 30 + t * 150
+            pts.append((cx + int(math.cos(rad) * r), cy + int(math.sin(rad) * r)))
+        draw.line(pts, fill=COL_WHITE, width=8)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'portale_citta.png')
+    print('Generato portale_citta.png (supersampled Lanczos)')
+
+def gen_anziano_tartaruga():
+    # Elder Sage Sea Turtle (Lore & Questgiver)
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Shell
+    draw.ellipse([110, 180, 410, 430], fill=(22, 101, 52, 255), outline=COL_INK, width=12)
+    for scx, scy in [(210, 260), (310, 260), (260, 340)]:
+        draw.polygon([(scx, scy - 30), (scx + 28, scy - 12), (scx + 28, scy + 20), (scx, scy + 35), (scx - 28, scy + 20), (scx - 28, scy - 12)], fill=(34, 197, 94, 255), outline=COL_INK, width=6)
+
+    # Head
+    draw.ellipse([210, 90, 310, 210], fill=(74, 222, 128, 255), outline=COL_INK, width=10)
+    # Round brass spectacles
+    draw.ellipse([215, 125, 255, 165], fill=(255, 255, 255, 200), outline=COL_GOLD, width=6)
+    draw.ellipse([265, 125, 305, 165], fill=(255, 255, 255, 200), outline=COL_GOLD, width=6)
+    draw.line([(255, 145), (265, 145)], fill=COL_GOLD, width=6)
+    draw.ellipse([230, 140, 242, 152], fill=COL_INK)
+    draw.ellipse([280, 140, 292, 152], fill=COL_INK)
+    draw.arc([235, 165, 285, 190], start=0, end=180, fill=COL_INK, width=5)
+
+    # Parchment scroll held in front
+    draw.rounded_rectangle([190, 360, 330, 460], radius=8, fill=(254, 243, 199, 255), outline=COL_INK, width=6)
+    draw.line([(210, 390), (310, 390)], fill=COL_INK, width=4)
+    draw.line([(210, 415), (290, 415)], fill=COL_INK, width=4)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'anziano_tartaruga.png')
+    print('Generato anziano_tartaruga.png (supersampled Lanczos)')
+
 def gen_app_icon():
     # Builds both standard squircle and round adaptive Paper Mario app icons
     w, h = 1024, 1024
@@ -689,5 +824,9 @@ if __name__ == '__main__':
     gen_stella_marina()
     gen_anemone()
     gen_pesce_lanterna()
+    gen_fabbro_astice()
+    gen_cassa_tesoro()
+    gen_portale_citta()
+    gen_anziano_tartaruga()
     gen_app_icon()
     print('Tutti gli asset grafici Paper Mario PNG generati con successo e anti-aliasing liscio!')

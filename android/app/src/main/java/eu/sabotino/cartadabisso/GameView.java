@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -55,6 +57,63 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private Bitmap bmpStarfish;
     private Bitmap bmpAnemone;
     private Bitmap bmpAngler;
+    private Bitmap bmpBlacksmith;
+    private Bitmap bmpStash;
+    private Bitmap bmpTownPortal;
+    private Bitmap bmpSage;
+
+    // Modals: Stash, Blacksmith, Quest, Waypoint
+    public boolean stashModalOpen = false;
+    public boolean blacksmithModalOpen = false;
+    public boolean questModalOpen = false;
+    public boolean waypointMapModalOpen = false;
+    public int blacksmithTab = 0; // 0 = Smantella, 1 = Potenzia, 2 = Forgia
+    public int selectedStashIndex = -1;
+    public String selectedUpgradeSlot = "weapon"; // "weapon", "armor", "relic"
+
+    // Character Creation UI
+    public String tempCharName = "Nereus";
+    public String tempCharClass = Game.CLASS_HUNTER;
+    public int tempSuitColorIndex = 0;
+    private int nameIndex = 0;
+    private static final String[] RANDOM_NAMES = {
+            "Nereus", "Thalassa", "Corallio", "Vanguard", "Abyssor", "Nautila", "Poseidon", "Glauco", "Sirena", "Maris"
+    };
+
+    // Modal Rects
+    private final RectF stashModalRect = new RectF(70f, 20f, 890f, 520f);
+    private final RectF btnCloseStash = new RectF(835f, 15f, 885f, 65f);
+    private final RectF blacksmithModalRect = new RectF(70f, 20f, 890f, 520f);
+    private final RectF btnCloseBlacksmith = new RectF(835f, 15f, 885f, 65f);
+    private final RectF questModalRect = new RectF(90f, 25f, 870f, 515f);
+    private final RectF btnCloseQuest = new RectF(815f, 20f, 865f, 70f);
+    private final RectF waypointModalRect = new RectF(80f, 25f, 880f, 515f);
+    private final RectF btnCloseWaypoint = new RectF(825f, 20f, 875f, 70f);
+
+    // Character Creation UI Rects
+    private final RectF btnConfirmChar = new RectF();
+    private final RectF btnDiceName = new RectF();
+    private final RectF[] classCardRects = new RectF[]{new RectF(), new RectF(), new RectF()};
+    private final RectF[] colorCircleRects = new RectF[]{new RectF(), new RectF(), new RectF(), new RectF(), new RectF()};
+
+    // HUD Buttons
+    private final RectF btnHudTownPortal = new RectF();
+    private final RectF btnNewCharacter = new RectF();
+
+    // Blacksmith & Waypoint & Stash Rects
+    private final RectF tabSmantella = new RectF();
+    private final RectF tabPotenzia = new RectF();
+    private final RectF tabForgia = new RectF();
+    private final RectF upSlotWeapon = new RectF();
+    private final RectF upSlotArmor = new RectF();
+    private final RectF upSlotRelic = new RectF();
+    private final RectF btnUpgradeAction = new RectF();
+    private final RectF btnForgeRare = new RectF();
+    private final RectF btnForgeAbyssal = new RectF();
+    private final RectF[] waypointActCards = new RectF[]{new RectF(), new RectF(), new RectF(), new RectF()};
+    private final RectF[] waypointDiveBtns = new RectF[]{new RectF(), new RectF(), new RectF(), new RectF()};
+    private final RectF[] stashSlots = new RectF[16];
+    private final RectF[] stashBackpackSlots = new RectF[8];
 
     // Modals: Perk Selection Card Rects (3 cards)
     private final RectF[] perkCardRects = new RectF[]{
@@ -182,7 +241,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         game = new Game();
         setupSoundBridge();
         initBackpackSlotRects();
+        initStashSlotRects();
         loadBitmaps(context);
+        if (!game.saveDelegate.getBoolean("char_created", false)) {
+            game.gameState = Game.STATE_CHAR_CREATE;
+        } else {
+            game.enterHub();
+        }
     }
 
     private void loadBitmaps(Context context) {
@@ -199,6 +264,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             bmpStarfish = BitmapFactory.decodeResource(context.getResources(), R.drawable.stella_marina);
             bmpAnemone = BitmapFactory.decodeResource(context.getResources(), R.drawable.anemone);
             bmpAngler = BitmapFactory.decodeResource(context.getResources(), R.drawable.pesce_lanterna);
+            bmpBlacksmith = BitmapFactory.decodeResource(context.getResources(), R.drawable.fabbro_astice);
+            bmpStash = BitmapFactory.decodeResource(context.getResources(), R.drawable.cassa_tesoro);
+            bmpTownPortal = BitmapFactory.decodeResource(context.getResources(), R.drawable.portale_citta);
+            bmpSage = BitmapFactory.decodeResource(context.getResources(), R.drawable.anziano_tartaruga);
         } catch (Exception ignored) {
         }
     }
@@ -229,6 +298,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             float left = startX + col * (slotW + gap);
             float top = startY + row * (slotH + gap);
             backpackSlots[i] = new RectF(left, top, left + slotW, top + slotH);
+        }
+    }
+
+    private void initStashSlotRects() {
+        for (int i = 0; i < 16; i++) {
+            stashSlots[i] = new RectF();
+        }
+        for (int i = 0; i < 8; i++) {
+            stashBackpackSlots[i] = new RectF();
         }
     }
 
@@ -425,18 +503,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     public void restartGame() {
-        game.initPlayer();
-        game.loadZone(1);
+        game.enterHub();
         game.gameOver = false;
         game.victory = false;
         inventoryOpen = false;
+        stashModalOpen = false;
+        blacksmithModalOpen = false;
+        questModalOpen = false;
+        waypointMapModalOpen = false;
         resetJoystick();
         AudioHelper.playClick();
     }
 
     public void startEndlessDive() {
         game.victory = false;
-        game.loadZone(5);
+        game.startActExpedition(4);
         inventoryOpen = false;
         resetJoystick();
         AudioHelper.playClick();
@@ -484,11 +565,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void updateCamera() {
+        float mapMaxW = game.gameState == Game.STATE_HUB ? Game.HUB_W : Game.MAP_W;
+        float mapMaxH = game.gameState == Game.STATE_HUB ? Game.HUB_H : Game.MAP_H;
+
         float targetCamX = game.playerX - screenW / 2f;
         float targetCamY = game.playerY - screenH / 2f;
 
-        targetCamX = Math.max(0f, Math.min(Game.MAP_W - screenW, targetCamX));
-        targetCamY = Math.max(0f, Math.min(Game.MAP_H - screenH, targetCamY));
+        targetCamX = Math.max(0f, Math.min(mapMaxW - screenW, targetCamX));
+        targetCamY = Math.max(0f, Math.min(mapMaxH - screenH, targetCamY));
 
         camX += (targetCamX - camX) * 0.16f;
         camY += (targetCamY - camY) * 0.16f;
@@ -550,6 +634,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawGame(Canvas canvas) {
+        if (game.gameState == Game.STATE_CHAR_CREATE) {
+            canvas.drawColor(0xFF020B14);
+            canvas.save();
+            canvas.scale(viewScale, viewScale);
+            canvas.clipRect(0f, 0f, screenW, screenH);
+            drawCharacterCreation(canvas);
+            canvas.restore();
+            return;
+        }
+
         updateCamera();
 
         canvas.drawColor(0xFF020B14);
@@ -565,7 +659,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.restore();
 
         boolean anyModalOpen = skillTreeOpen || game.perkChoicePending ||
-                game.merchantShopOpen || inventoryOpen || game.gameOver || game.victory || paused;
+                game.merchantShopOpen || inventoryOpen || game.gameOver || game.victory || paused ||
+                stashModalOpen || blacksmithModalOpen || questModalOpen || waypointMapModalOpen;
 
         // 2. Diablo HUD + Mobile Controls Layer (disegnati SOLO durante l'esplorazione attiva!)
         if (!anyModalOpen) {
@@ -579,6 +674,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawPerkSelectionModal(canvas);
         } else if (game.merchantShopOpen) {
             drawMerchantShopModal(canvas);
+        } else if (stashModalOpen) {
+            drawStashModal(canvas);
+        } else if (blacksmithModalOpen) {
+            drawBlacksmithModal(canvas);
+        } else if (questModalOpen) {
+            drawQuestModal(canvas);
+        } else if (waypointMapModalOpen) {
+            drawWaypointMapModal(canvas);
         } else if (inventoryOpen) {
             drawInventoryModal(canvas);
         } else if (game.gameOver) {
@@ -593,6 +696,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawWorld(Canvas canvas) {
+        if (game.gameState == Game.STATE_HUB) {
+            drawHubWorld(canvas);
+            return;
+        }
         // 1. Zone-Themed Watercolor Ocean Gradients
         int colTop, colMid, colBot;
         if (game.zone == 2) {
@@ -681,6 +788,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawComicFloater(canvas, f);
         }
 
+        drawParticles(canvas);
+    }
+
+    private void drawParticles(Canvas canvas) {
         for (Game.Particle p : game.particles) {
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(p.color);
@@ -992,7 +1103,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (bmpDiver != null) {
             float s = 0.21f;
             canvas.scale(s, s);
-            canvas.drawBitmap(bmpDiver, -bmpDiver.getWidth() / 2f, -220f, null);
+            Paint diverPaint = null;
+            if (game.suitColorIndex > 0 && game.suitColorIndex < Game.SUIT_COLORS.length) {
+                diverPaint = new Paint();
+                int col = Game.SUIT_COLORS[game.suitColorIndex];
+                diverPaint.setColorFilter(new PorterDuffColorFilter(col, PorterDuff.Mode.SRC_ATOP));
+            }
+            canvas.drawBitmap(bmpDiver, -bmpDiver.getWidth() / 2f, -220f, diverPaint);
             drawDiverEquipment(canvas);
         } else {
             // Procedural fallback with white sticker border
@@ -1553,8 +1670,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setFakeBoldText(true);
         canvas.drawText(String.valueOf(game.shells), 150f, 33f, paintText);
 
+        // Frammenti Abissali counter (Slot 225f .. 335f)
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_STICKER);
+        canvas.drawRoundRect(223f, 10f, 337f, 46f, 8f, 8f, paintFill);
+        paintFill.setColor(0xFF0F172A);
+        canvas.drawRoundRect(225f, 12f, 335f, 44f, 7f, 7f, paintFill);
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(0xFFC084FC);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("💎 " + game.abyssalShards + " FRAMM.", 235f, 33f, paintText);
+
         // Zone Title Banner (Centrato dinamicamente rispetto a screenW)
-        float bannerHalfW = 140f;
+        float bannerHalfW = 150f;
         float bCenter = screenW / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(COL_STICKER);
@@ -1565,10 +1695,36 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_GOLD);
-        paintText.setTextSize(13.5f);
+        paintText.setTextSize(13f);
         paintText.setFakeBoldText(true);
-        canvas.drawText(game.zoneName.toUpperCase() + "  -  " + game.depthMeters + "m",
-                bCenter, 33f, paintText);
+        if (game.gameState == Game.STATE_HUB) {
+            canvas.drawText("AVAMPOSTO NAUTILUS — SANTUARIO", bCenter, 33f, paintText);
+        } else {
+            canvas.drawText(game.zoneName.toUpperCase() + "  -  " + game.depthMeters + "m", bCenter, 33f, paintText);
+        }
+
+        // Action Button in HUD: Town Portal during Expedition, or New Hero button in Hub
+        if (game.gameState == Game.STATE_EXPEDITION) {
+            btnHudTownPortal.set(btnSound.left - 75f, 10f, btnSound.left - 8f, 46f);
+            paintFill.setColor(COL_STICKER);
+            canvas.drawRoundRect(btnHudTownPortal.left - 2f, btnHudTownPortal.top - 2f, btnHudTownPortal.right + 2f, btnHudTownPortal.bottom + 2f, 8f, 8f, paintFill);
+            paintFill.setColor(0xFF0284C7);
+            canvas.drawRoundRect(btnHudTownPortal, 6f, 6f, paintFill);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(9.5f);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText("PORTALE", btnHudTownPortal.centerX(), btnHudTownPortal.centerY() + 4f, paintText);
+        } else if (game.gameState == Game.STATE_HUB) {
+            btnNewCharacter.set(btnSound.left - 85f, 10f, btnSound.left - 8f, 46f);
+            paintFill.setColor(COL_STICKER);
+            canvas.drawRoundRect(btnNewCharacter.left - 2f, btnNewCharacter.top - 2f, btnNewCharacter.right + 2f, btnNewCharacter.bottom + 2f, 8f, 8f, paintFill);
+            paintFill.setColor(0xFFD97706);
+            canvas.drawRoundRect(btnNewCharacter, 6f, 6f, paintFill);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(9.5f);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText("EROE 👤", btnNewCharacter.centerX(), btnNewCharacter.centerY() + 4f, paintText);
+        }
 
         // Sound Toggle Button (Slot 810f .. 860f)
         paintFill.setColor(COL_STICKER);
@@ -1981,6 +2137,1001 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextSize(8f);
         paintText.setColor(0xFF7DD3FC);
         canvas.drawText("MAREA", cx, cy - 10f, paintText);
+    }
+
+    // =========================================================================
+    // CREAZIONE PERSONAGGIO, HUB SANTUARIO, CASSA, FABBRO E MAPPA ATTI
+    // =========================================================================
+    private void drawCharacterCreation(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setShader(new LinearGradient(0, 0, 0, screenH,
+                new int[]{0xFF020B14, 0xFF0B2545, 0xFF031926},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
+        paintFill.setShader(null);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(24f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("CREAZIONE PALOMBARO", screenW / 2f, 40f, paintText);
+
+        paintText.setTextSize(11.5f);
+        paintText.setColor(COL_GOLD);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Scegli la tua classe di combattimento e personalizza lo scafandro", screenW / 2f, 62f, paintText);
+
+        float cardW = Math.min(270f, (screenW - 120f) / 3f);
+        float cardH = 360f;
+        float gap = 20f;
+        float totalCardsW = cardW * 3 + gap * 2;
+        float startX = (screenW - totalCardsW) / 2f;
+        float cardY = 80f;
+
+        String[] classIds = {Game.CLASS_HUNTER, Game.CLASS_JUGGERNAUT, Game.CLASS_MYSTIC};
+        String[] classTitles = {"Cacciatore dei Mari", "Custode dei Fondali", "Mistico dell'Abisso"};
+        String[] classRoles = {"BALISTICA & MOBILITÀ", "BASTIONE & RESPINTO", "ARCANO & FLUSSO"};
+        String[] classAttacks = {"Arpione Perforante", "Maglio Ancora (Mischia)", "Dardo Marea Homing"};
+        String[] classDescs = {
+                "Scaglia arpioni balistici che trapassano i mostri marini in linea retta. Alta cadenza e colpi critici letali.",
+                "Sferra pesanti fendenti d'ancora a mezzaluna in mischia. Respinge i nemici e converte la Difesa in danno extra.",
+                "Emette dardi idrici che inseguono automaticamente i nemici. Ricarica costante di Marea e risucchio a vortice."
+        };
+        int[] classColors = {0xFF38BDF8, 0xFFF59E0B, 0xFFA855F7};
+
+        for (int i = 0; i < 3; i++) {
+            RectF card = classCardRects[i];
+            float cx = startX + i * (cardW + gap);
+            card.set(cx, cardY, cx + cardW, cardY + cardH);
+            boolean isSel = classIds[i].equals(tempCharClass);
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0x55000000);
+            canvas.drawRoundRect(card.left + 4f, card.top + 6f, card.right + 4f, card.bottom + 6f, 12f, 12f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(isSel ? COL_GOLD : COL_STICKER);
+            paintStroke.setStrokeWidth(isSel ? 5f : 3f);
+            canvas.drawRoundRect(card, 12f, 12f, paintStroke);
+
+            paintFill.setColor(isSel ? 0xFF0F2B48 : 0xFF091829);
+            canvas.drawRoundRect(card, 12f, 12f, paintFill);
+
+            paintFill.setColor(classColors[i]);
+            canvas.drawRoundRect(card.left + 10f, card.top + 12f, card.right - 10f, card.top + 42f, 6f, 6f, paintFill);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(12f);
+            paintText.setFakeBoldText(true);
+            paintText.setColor(0xFF0F172A);
+            canvas.drawText(classTitles[i].toUpperCase(), card.centerX(), card.top + 31f, paintText);
+
+            paintText.setTextSize(9f);
+            paintText.setColor(classColors[i]);
+            canvas.drawText("RUOLO: " + classRoles[i], card.centerX(), card.top + 62f, paintText);
+
+            paintFill.setColor(0xFF1E293B);
+            canvas.drawRoundRect(card.left + 12f, card.top + 74f, card.right - 12f, card.top + 106f, 5f, 5f, paintFill);
+            paintText.setTextSize(9.5f);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText("ATTACCO: " + classAttacks[i], card.centerX(), card.top + 94f, paintText);
+
+            paintText.setTextSize(9.5f);
+            paintText.setFakeBoldText(false);
+            paintText.setColor(0xFFCBD5E1);
+            String desc = classDescs[i];
+            String[] words = desc.split(" ");
+            StringBuilder line = new StringBuilder();
+            float textY = card.top + 130f;
+            for (String w : words) {
+                if (paintText.measureText(line + w) > cardW - 24f) {
+                    canvas.drawText(line.toString(), card.centerX(), textY, paintText);
+                    line = new StringBuilder(w).append(" ");
+                    textY += 15f;
+                } else {
+                    line.append(w).append(" ");
+                }
+            }
+            if (line.length() > 0) {
+                canvas.drawText(line.toString(), card.centerX(), textY, paintText);
+            }
+
+            float pillY = card.bottom - 40f;
+            paintFill.setColor(isSel ? COL_GOLD : 0xFF1E293B);
+            canvas.drawRoundRect(card.left + 20f, pillY, card.right - 20f, pillY + 28f, 6f, 6f, paintFill);
+            paintText.setTextSize(10.5f);
+            paintText.setFakeBoldText(true);
+            paintText.setColor(isSel ? 0xFF0F172A : 0xFF64748B);
+            canvas.drawText(isSel ? "✓ SELEZIONATA" : "TOCCA PER SCEGLIERE", card.centerX(), pillY + 18f, paintText);
+        }
+
+        float bY = 460f;
+        btnDiceName.set(40f, bY, 230f, bY + 48f);
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF0F172A);
+        canvas.drawRoundRect(btnDiceName, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(btnDiceName, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(9f);
+        paintText.setColor(0xFF94A3B8);
+        canvas.drawText("NOME PALOMBARO:", 50f, bY + 17f, paintText);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(COL_GOLD);
+        canvas.drawText(tempCharName + " 🎲", 50f, bY + 36f, paintText);
+
+        float colX = 255f;
+        paintText.setTextSize(9.5f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(0xFF94A3B8);
+        canvas.drawText("COLORE SCAFANDRO:", colX, bY + 16f, paintText);
+
+        for (int c = 0; c < Game.SUIT_COLORS.length; c++) {
+            float circleX = colX + 18f + c * 40f;
+            float circleY = bY + 32f;
+            float radius = 13f;
+            colorCircleRects[c].set(circleX - radius, circleY - radius, circleX + radius, circleY + radius);
+
+            boolean isColorSel = (c == tempSuitColorIndex);
+            if (isColorSel) {
+                paintStroke.setStyle(Paint.Style.STROKE);
+                paintStroke.setColor(COL_STICKER);
+                paintStroke.setStrokeWidth(3.5f);
+                canvas.drawCircle(circleX, circleY, radius + 3.5f, paintStroke);
+            }
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(Game.SUIT_COLORS[c]);
+            canvas.drawCircle(circleX, circleY, radius, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_INK);
+            paintStroke.setStrokeWidth(1.8f);
+            canvas.drawCircle(circleX, circleY, radius, paintStroke);
+        }
+
+        btnConfirmChar.set(screenW - 300f, bY, screenW - 35f, bY + 48f);
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_GOLD);
+        canvas.drawRoundRect(btnConfirmChar, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(3.5f);
+        canvas.drawRoundRect(btnConfirmChar, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(0xFF0F172A);
+        canvas.drawText("ENTRA NELL'AVAMPOSTO ➔", btnConfirmChar.centerX(), btnConfirmChar.centerY() + 5f, paintText);
+    }
+
+    private void handleCharacterCreationTouch(float vx, float vy) {
+        for (int i = 0; i < 3; i++) {
+            if (classCardRects[i].contains(vx, vy)) {
+                String[] classIds = {Game.CLASS_HUNTER, Game.CLASS_JUGGERNAUT, Game.CLASS_MYSTIC};
+                tempCharClass = classIds[i];
+                AudioHelper.playClick();
+                return;
+            }
+        }
+
+        if (btnDiceName.contains(vx, vy)) {
+            nameIndex = (nameIndex + 1) % RANDOM_NAMES.length;
+            tempCharName = RANDOM_NAMES[nameIndex];
+            AudioHelper.playClick();
+            return;
+        }
+
+        for (int c = 0; c < Game.SUIT_COLORS.length; c++) {
+            if (colorCircleRects[c].contains(vx, vy)) {
+                tempSuitColorIndex = c;
+                AudioHelper.playClick();
+                return;
+            }
+        }
+
+        if (btnConfirmChar.contains(vx, vy)) {
+            game.createCharacter(tempCharName, tempCharClass, tempSuitColorIndex);
+            AudioHelper.playLevelUp();
+        }
+    }
+
+    private void drawHubWorld(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setShader(new LinearGradient(0, 0, 0, Game.HUB_H,
+                new int[]{0xFF081C33, 0xFF0E395A, 0xFF051829},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRect(0f, 0f, Game.HUB_W, Game.HUB_H, paintFill);
+        paintFill.setShader(null);
+
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0x2238BDF8);
+        paintStroke.setStrokeWidth(1.5f);
+        for (float x = 0f; x < Game.HUB_W; x += 100f) {
+            canvas.drawLine(x, 0f, x, Game.HUB_H, paintStroke);
+        }
+        for (float y = 0f; y < Game.HUB_H; y += 100f) {
+            canvas.drawLine(0f, y, Game.HUB_W, y, paintStroke);
+        }
+
+        for (float cx = 120f; cx < Game.HUB_W; cx += 260f) {
+            drawFloorShadow(canvas, cx, 80f, 35f, 14f);
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFF1E293B);
+            canvas.drawRoundRect(cx - 20f, 20f, cx + 20f, 80f, 8f, 8f, paintFill);
+            paintFill.setColor(0xFF38BDF8);
+            canvas.drawCircle(cx, 40f, 8f, paintFill);
+        }
+
+        drawSunRaysAndMotes(canvas);
+
+        drawHubStation(canvas, game.hubBlacksmithX, game.hubBlacksmithY, "MASTRO ASTICE (IL FABBRO)", bmpBlacksmith, 0xFFE11D48);
+        drawHubStation(canvas, game.hubMerchantX, game.hubMerchantY, "MASTRO PAGURO (ALCHIMIA)", bmpMerchant, 0xFFFBBF24);
+        drawHubStation(canvas, game.hubStashX, game.hubStashY, "CASSA DI SPEDIZIONE", bmpStash, 0xFF38BDF8);
+        drawHubStation(canvas, game.hubSageX, game.hubSageY, "ANZIANA TARTARUGA (STORIA)", bmpSage, 0xFF4ADE80);
+
+        float wpX = game.hubWaypointX;
+        float wpY = game.hubWaypointY;
+        drawFloorShadow(canvas, wpX, wpY, 55f, 20f);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(5f);
+        canvas.drawCircle(wpX, wpY, 44f, paintStroke);
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF0284C7);
+        canvas.drawCircle(wpX, wpY, 42f, paintFill);
+        paintStroke.setColor(0xFF38BDF8);
+        paintStroke.setStrokeWidth(3f);
+        canvas.drawCircle(wpX, wpY, 32f, paintStroke);
+        float runeRot = animTime * 60f;
+        canvas.save();
+        canvas.translate(wpX, wpY);
+        canvas.rotate(runeRot);
+        paintStroke.setColor(COL_GOLD);
+        canvas.drawRect(-18f, -18f, 18f, 18f, paintStroke);
+        canvas.restore();
+        drawOverheadBadge(canvas, wpX, wpY - 55f, "PORTALE DI SPEDIZIONE (ATTI)", 0xFF0284C7);
+
+        if (game.townPortalActive) {
+            float tpX = game.hubTownPortalX;
+            float tpY = game.hubTownPortalY;
+            drawFloorShadow(canvas, tpX, tpY, 45f, 16f);
+            if (bmpTownPortal != null) {
+                float s = 0.28f;
+                canvas.save();
+                canvas.translate(tpX, tpY);
+                canvas.rotate(animTime * 45f);
+                canvas.scale(s, s);
+                canvas.drawBitmap(bmpTownPortal, -bmpTownPortal.getWidth() / 2f, -bmpTownPortal.getHeight() / 2f, null);
+                canvas.restore();
+            }
+            drawOverheadBadge(canvas, tpX, tpY - 50f, "PORTALE CITTADINO (RITORNO)", 0xFF38BDF8);
+        }
+
+        drawPaperDiver(canvas);
+
+        if (game.beaconTimer > 0f) {
+            drawClickBeacon(canvas, game.beaconX, game.beaconY, game.beaconTimer);
+        }
+
+        for (Game.Floater f : game.floaters) {
+            drawComicFloater(canvas, f);
+        }
+        drawParticles(canvas);
+    }
+
+    private void drawHubStation(Canvas canvas, float x, float y, String title, Bitmap bmp, int badgeCol) {
+        drawFloorShadow(canvas, x, y, 35f, 14f);
+        if (bmp != null) {
+            float s = 0.28f;
+            float bob = (float) Math.sin(animTime * 2.5f + x * 0.01f) * 4f;
+            canvas.save();
+            canvas.translate(x, y + bob);
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmp, -bmp.getWidth() / 2f, -bmp.getHeight() + 20f, null);
+            canvas.restore();
+        }
+        drawOverheadBadge(canvas, x, y - 85f, title, badgeCol);
+    }
+
+    private void drawOverheadBadge(Canvas canvas, float x, float y, String text, int col) {
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(10f);
+        paintText.setFakeBoldText(true);
+        float tw = paintText.measureText(text) + 20f;
+        float h = 22f;
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(COL_STICKER);
+        canvas.drawRoundRect(x - tw / 2f - 2f, y - h / 2f - 2f, x + tw / 2f + 2f, y + h / 2f + 2f, 6f, 6f, paintFill);
+        paintFill.setColor(0xFF0F172A);
+        canvas.drawRoundRect(x - tw / 2f, y - h / 2f, x + tw / 2f, y + h / 2f, 5f, 5f, paintFill);
+
+        paintText.setColor(col);
+        canvas.drawText(text, x, y + 4f, paintText);
+    }
+
+    private void drawStashModal(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xB3020B14);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
+
+        drawStorybookParchment(canvas, stashModalRect, "CASSA DI SPEDIZIONE (DEPOSITO SICURO)", btnCloseStash);
+
+        float left = stashModalRect.left;
+        float top = stashModalRect.top;
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(0xFF78350F);
+        paintText.setTextSize(12f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("ZAINO (" + game.backpack.size() + "/8) — DEPOSITA", left + 35f, top + 75f, paintText);
+
+        float bpSlotW = 100f;
+        float bpSlotH = 50f;
+        float bpStartX = left + 35f;
+        float bpStartY = top + 90f;
+
+        for (int i = 0; i < 8; i++) {
+            int col = i % 2;
+            int row = i / 2;
+            float sx = bpStartX + col * (bpSlotW + 12f);
+            float sy = bpStartY + row * (bpSlotH + 10f);
+            if (stashBackpackSlots[i] == null) stashBackpackSlots[i] = new RectF();
+            stashBackpackSlots[i].set(sx, sy, sx + bpSlotW, sy + bpSlotH);
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFFFFBEB);
+            canvas.drawRoundRect(stashBackpackSlots[i], 6f, 6f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(0xFFCBD5E1);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawRoundRect(stashBackpackSlots[i], 6f, 6f, paintStroke);
+
+            if (i < game.backpack.size()) {
+                Game.Item it = game.backpack.get(i);
+                int rCol = game.getRarityColor(it.rarity);
+                paintStroke.setColor(rCol);
+                paintStroke.setStrokeWidth(2.5f);
+                canvas.drawRoundRect(stashBackpackSlots[i], 6f, 6f, paintStroke);
+
+                paintText.setTextSize(9.5f);
+                paintText.setFakeBoldText(true);
+                paintText.setColor(rCol);
+                canvas.drawText(it.getDisplayName(), sx + 6f, sy + 18f, paintText);
+
+                paintText.setTextSize(8f);
+                paintText.setFakeBoldText(false);
+                paintText.setColor(0xFF64748B);
+                canvas.drawText(it.getSlotTitle(), sx + 6f, sy + 32f, paintText);
+            }
+        }
+
+        float stStartX = left + 280f;
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(0xFF78350F);
+        paintText.setTextSize(12f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("CASSA FORTE (" + game.stash.size() + "/16) — RITIRA", stStartX, top + 75f, paintText);
+
+        float stSlotW = 120f;
+        float stSlotH = 50f;
+        float stStartY = top + 90f;
+
+        for (int i = 0; i < 16; i++) {
+            int col = i % 4;
+            int row = i / 4;
+            float sx = stStartX + col * (stSlotW + 10f);
+            float sy = stStartY + row * (stSlotH + 10f);
+            if (stashSlots[i] == null) stashSlots[i] = new RectF();
+            stashSlots[i].set(sx, sy, sx + stSlotW, sy + stSlotH);
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFFEF3C7);
+            canvas.drawRoundRect(stashSlots[i], 6f, 6f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(0xFFD97706);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawRoundRect(stashSlots[i], 6f, 6f, paintStroke);
+
+            if (i < game.stash.size()) {
+                Game.Item it = game.stash.get(i);
+                int rCol = game.getRarityColor(it.rarity);
+                paintStroke.setColor(rCol);
+                paintStroke.setStrokeWidth(2.5f);
+                canvas.drawRoundRect(stashSlots[i], 6f, 6f, paintStroke);
+
+                paintText.setTextSize(9.5f);
+                paintText.setFakeBoldText(true);
+                paintText.setColor(rCol);
+                canvas.drawText(it.getDisplayName(), sx + 6f, sy + 18f, paintText);
+
+                paintText.setTextSize(8f);
+                paintText.setFakeBoldText(false);
+                paintText.setColor(0xFF64748B);
+                canvas.drawText(it.getSlotTitle(), sx + 6f, sy + 32f, paintText);
+            }
+        }
+
+        float botY = top + stSlotH * 4 + 145f;
+        paintFill.setColor(0xFF0F172A);
+        canvas.drawRoundRect(left + 35f, botY, stashModalRect.right - 35f, botY + 36f, 6f, 6f, paintFill);
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(10.5f);
+        paintText.setColor(COL_GOLD);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("TOCCA UN OGGETTO DELLO ZAINO PER DEPOSITARLO, O DELLA CASSA PER RITIRARLO", stashModalRect.centerX(), botY + 22f, paintText);
+    }
+
+    private void handleStashTouch(float vx, float vy) {
+        if (btnCloseStash.contains(vx, vy)) {
+            stashModalOpen = false;
+            AudioHelper.playClick();
+            return;
+        }
+
+        for (int i = 0; i < game.backpack.size(); i++) {
+            if (stashBackpackSlots[i] != null && stashBackpackSlots[i].contains(vx, vy)) {
+                game.depositToStash(i);
+                AudioHelper.playClick();
+                return;
+            }
+        }
+
+        for (int i = 0; i < game.stash.size(); i++) {
+            if (stashSlots[i] != null && stashSlots[i].contains(vx, vy)) {
+                game.withdrawFromStash(i);
+                AudioHelper.playClick();
+                return;
+            }
+        }
+    }
+
+    private void drawBlacksmithModal(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xB3020B14);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
+
+        drawStorybookParchment(canvas, blacksmithModalRect, "MASTRO ASTICE — IL FABBRO DELLE PROFONDITÀ", btnCloseBlacksmith);
+
+        float left = blacksmithModalRect.left;
+        float top = blacksmithModalRect.top;
+        float right = blacksmithModalRect.right;
+
+        paintText.setTextAlign(Paint.Align.RIGHT);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(0xFF78350F);
+        canvas.drawText("💎 " + game.abyssalShards + " FRAMMENTI   🐚 " + game.shells + " CONCHIGLIE", right - 70f, top + 34f, paintText);
+
+        float tabW = 160f;
+        float tabH = 34f;
+        float tabY = top + 60f;
+        tabSmantella.set(left + 35f, tabY, left + 35f + tabW, tabY + tabH);
+        tabPotenzia.set(left + 45f + tabW, tabY, left + 45f + tabW * 2, tabY + tabH);
+        tabForgia.set(left + 55f + tabW * 2, tabY, left + 55f + tabW * 3, tabY + tabH);
+
+        drawModalTab(canvas, tabSmantella, "SMANTELLA", blacksmithTab == 0);
+        drawModalTab(canvas, tabPotenzia, "POTENZIA (+1..+5)", blacksmithTab == 1);
+        drawModalTab(canvas, tabForgia, "FORGIA ARTIFATTI", blacksmithTab == 2);
+
+        if (blacksmithTab == 0) {
+            paintText.setTextAlign(Paint.Align.LEFT);
+            paintText.setTextSize(12f);
+            paintText.setColor(0xFF78350F);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("TOCCA UN OGGETTO DELLO ZAINO PER SMANTELLARLO IN FRAMMENTI E CONCHIGLIE", left + 35f, top + 120f, paintText);
+
+            float slotW = 180f;
+            float slotH = 55f;
+            for (int i = 0; i < 8; i++) {
+                int col = i % 4;
+                int row = i / 4;
+                float sx = left + 35f + col * (slotW + 12f);
+                float sy = top + 140f + row * (slotH + 15f);
+                tempRect.set(sx, sy, sx + slotW, sy + slotH);
+
+                paintFill.setStyle(Paint.Style.FILL);
+                paintFill.setColor(0xFFFFFBEB);
+                canvas.drawRoundRect(tempRect, 6f, 6f, paintFill);
+                paintStroke.setStyle(Paint.Style.STROKE);
+                paintStroke.setColor(0xFFCBD5E1);
+                paintStroke.setStrokeWidth(1.5f);
+                canvas.drawRoundRect(tempRect, 6f, 6f, paintStroke);
+
+                if (i < game.backpack.size()) {
+                    Game.Item it = game.backpack.get(i);
+                    int rCol = game.getRarityColor(it.rarity);
+                    paintStroke.setColor(rCol);
+                    paintStroke.setStrokeWidth(2f);
+                    canvas.drawRoundRect(tempRect, 6f, 6f, paintStroke);
+
+                    paintText.setTextSize(10f);
+                    paintText.setFakeBoldText(true);
+                    paintText.setColor(rCol);
+                    canvas.drawText(it.getDisplayName(), sx + 8f, sy + 20f, paintText);
+
+                    paintText.setTextSize(8.5f);
+                    paintText.setFakeBoldText(false);
+                    paintText.setColor(0xFF059669);
+                    int shards = it.rarity == Game.RARITY_ABYSSAL ? 15 : (it.rarity == Game.RARITY_RARE ? 7 : (it.rarity == Game.RARITY_MAGIC ? 3 : 1));
+                    canvas.drawText("➔ Resa: +" + shards + " Frammenti", sx + 8f, sy + 38f, paintText);
+                }
+            }
+        } else if (blacksmithTab == 1) {
+            paintText.setTextAlign(Paint.Align.LEFT);
+            paintText.setTextSize(12f);
+            paintText.setColor(0xFF78350F);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("SCEGLI UNO SLOT EQUIPAGGIATO DA POTENZIARE (+1..+5)", left + 35f, top + 115f, paintText);
+
+            float slotBoxW = 240f;
+            float slotBoxH = 80f;
+            upSlotWeapon.set(left + 35f, top + 135f, left + 35f + slotBoxW, top + 135f + slotBoxH);
+            upSlotArmor.set(left + 35f, top + 230f, left + 35f + slotBoxW, top + 230f + slotBoxH);
+            upSlotRelic.set(left + 35f, top + 325f, left + 35f + slotBoxW, top + 325f + slotBoxH);
+
+            drawUpgradeSlotCard(canvas, upSlotWeapon, "ARMA", game.equippedWeapon, "weapon".equals(selectedUpgradeSlot));
+            drawUpgradeSlotCard(canvas, upSlotArmor, "CORAZZA", game.equippedArmor, "armor".equals(selectedUpgradeSlot));
+            drawUpgradeSlotCard(canvas, upSlotRelic, "RELIQUIA", game.equippedRelic, "relic".equals(selectedUpgradeSlot));
+
+            float rightX = left + 300f;
+            float rightY = top + 135f;
+            float rightW = right - rightX - 35f;
+            float rightH = 270f;
+            tempRect.set(rightX, rightY, rightX + rightW, rightY + rightH);
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFFFEF3C7);
+            canvas.drawRoundRect(tempRect, 10f, 10f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(0xFFD97706);
+            paintStroke.setStrokeWidth(2f);
+            canvas.drawRoundRect(tempRect, 10f, 10f, paintStroke);
+
+            Game.Item selIt = game.getEquippedForSlot(selectedUpgradeSlot);
+            if (selIt != null) {
+                paintText.setTextAlign(Paint.Align.LEFT);
+                paintText.setTextSize(14f);
+                paintText.setFakeBoldText(true);
+                paintText.setColor(game.getRarityColor(selIt.rarity));
+                canvas.drawText(selIt.getDisplayName(), rightX + 20f, rightY + 35f, paintText);
+
+                paintText.setTextSize(11f);
+                paintText.setColor(COL_INK);
+                paintText.setFakeBoldText(false);
+                if (selIt.upgradeLevel >= 5) {
+                    canvas.drawText("Livello di Potenziamento MASSIMO (+5)", rightX + 20f, rightY + 70f, paintText);
+                } else {
+                    int nextLvl = selIt.upgradeLevel + 1;
+                    int shardCost = game.getUpgradeShardCost(selIt);
+                    int shellCost = game.getUpgradeShellCost(selIt);
+
+                    canvas.drawText("Potenzia al Livello: +" + nextLvl, rightX + 20f, rightY + 65f, paintText);
+                    paintText.setColor(0xFF059669);
+                    if ("weapon".equals(selIt.slot)) {
+                        canvas.drawText("Danno: " + selIt.getEffectiveDamage() + " ➔ " + (selIt.getEffectiveDamage() + 4), rightX + 20f, rightY + 95f, paintText);
+                    } else if ("armor".equals(selIt.slot)) {
+                        canvas.drawText("Difesa: " + selIt.getEffectiveDefense() + " ➔ " + (selIt.getEffectiveDefense() + 2) + ", PV: +" + (selIt.getEffectiveHealth() + 15), rightX + 20f, rightY + 95f, paintText);
+                    } else {
+                        canvas.drawText("Velocità & Potere Arcano incrementati", rightX + 20f, rightY + 95f, paintText);
+                    }
+
+                    paintText.setColor(0xFF78350F);
+                    canvas.drawText("Costo: " + shardCost + " Frammenti, " + shellCost + " Conchiglie", rightX + 20f, rightY + 130f, paintText);
+
+                    btnUpgradeAction.set(rightX + 20f, rightY + 160f, rightX + rightW - 20f, rightY + 215f);
+                    boolean canUp = game.canUpgradeEquippedItem(selectedUpgradeSlot);
+                    paintFill.setColor(canUp ? 0xFF16A34A : 0xFFCBD5E1);
+                    canvas.drawRoundRect(btnUpgradeAction, 8f, 8f, paintFill);
+                    paintStroke.setColor(COL_STICKER);
+                    paintStroke.setStrokeWidth(2f);
+                    canvas.drawRoundRect(btnUpgradeAction, 8f, 8f, paintStroke);
+
+                    paintText.setTextAlign(Paint.Align.CENTER);
+                    paintText.setTextSize(13f);
+                    paintText.setFakeBoldText(true);
+                    paintText.setColor(canUp ? COL_STICKER : 0xFF64748B);
+                    canvas.drawText("POTENZIA A +" + nextLvl, btnUpgradeAction.centerX(), btnUpgradeAction.centerY() + 5f, paintText);
+                }
+            }
+        } else {
+            paintText.setTextAlign(Paint.Align.LEFT);
+            paintText.setTextSize(12f);
+            paintText.setColor(0xFF78350F);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("FORGIA NUOVI EQUIPAGGIAMENTI ABISSALI DALL'INCUDINE", left + 35f, top + 115f, paintText);
+
+            float cardW = (right - left - 90f) / 2f;
+            float cardH = 240f;
+            btnForgeRare.set(left + 35f, top + 140f, left + 35f + cardW, top + 140f + cardH);
+            btnForgeAbyssal.set(left + 55f + cardW, top + 140f, left + 55f + cardW * 2, top + 140f + cardH);
+
+            drawForgeCard(canvas, btnForgeRare, "FORGIA RARO (ORO)", "8 Frammenti, 40 Conchiglie",
+                    "Crea un equipaggiamento di qualità Rara con bonus al danno e alla difesa.", 0xFFFBBF24,
+                    game.abyssalShards >= 8 && game.shells >= 40 && game.backpack.size() < 8);
+
+            drawForgeCard(canvas, btnForgeAbyssal, "FORGIA ABISSALE (VIOLA)", "20 Frammenti, 100 Conchiglie",
+                    "Forgia un artefatto leggendario degli Abissi con statistiche supreme.", 0xFFC084FC,
+                    game.abyssalShards >= 20 && game.shells >= 100 && game.backpack.size() < 8);
+        }
+    }
+
+    private void drawModalTab(Canvas canvas, RectF r, String title, boolean active) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(active ? 0xFF0F172A : 0xFFFFFBEB);
+        canvas.drawRoundRect(r, 6f, 6f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(active ? COL_GOLD : 0xFFCBD5E1);
+        paintStroke.setStrokeWidth(active ? 3f : 1.5f);
+        canvas.drawRoundRect(r, 6f, 6f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(active ? COL_GOLD : 0xFF78350F);
+        canvas.drawText(title, r.centerX(), r.centerY() + 4f, paintText);
+    }
+
+    private void drawUpgradeSlotCard(Canvas canvas, RectF r, String slotTitle, Game.Item item, boolean selected) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(selected ? 0xFFFEF08A : 0xFFFFFBEB);
+        canvas.drawRoundRect(r, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(selected ? 0xFFD97706 : 0xFFCBD5E1);
+        paintStroke.setStrokeWidth(selected ? 3f : 1.5f);
+        canvas.drawRoundRect(r, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(10f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(0xFF78350F);
+        canvas.drawText(slotTitle, r.left + 12f, r.top + 22f, paintText);
+
+        if (item != null) {
+            paintText.setTextSize(12f);
+            paintText.setColor(game.getRarityColor(item.rarity));
+            canvas.drawText(item.getDisplayName(), r.left + 12f, r.top + 45f, paintText);
+
+            paintText.setTextSize(9.5f);
+            paintText.setFakeBoldText(false);
+            paintText.setColor(0xFF64748B);
+            canvas.drawText(item.desc, r.left + 12f, r.top + 65f, paintText);
+        }
+    }
+
+    private void drawForgeCard(Canvas canvas, RectF r, String title, String cost, String desc, int col, boolean canForge) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFFFFFBEB);
+        canvas.drawRoundRect(r, 10f, 10f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(col);
+        paintStroke.setStrokeWidth(2.5f);
+        canvas.drawRoundRect(r, 10f, 10f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(col);
+        canvas.drawText(title, r.centerX(), r.top + 35f, paintText);
+
+        paintText.setTextSize(10.5f);
+        paintText.setFakeBoldText(false);
+        paintText.setColor(0xFF78350F);
+        canvas.drawText("Costo: " + cost, r.centerX(), r.top + 65f, paintText);
+
+        paintText.setColor(0xFF64748B);
+        paintText.setTextSize(9.5f);
+        canvas.drawText(desc, r.centerX(), r.top + 95f, paintText);
+
+        float btnW = r.width() - 40f;
+        float btnH = 40f;
+        float bx = r.left + 20f;
+        float by = r.bottom - 60f;
+        paintFill.setColor(canForge ? 0xFF16A34A : 0xFFCBD5E1);
+        canvas.drawRoundRect(bx, by, bx + btnW, by + btnH, 8f, 8f, paintFill);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2f);
+        canvas.drawRoundRect(bx, by, bx + btnW, by + btnH, 8f, 8f, paintStroke);
+
+        paintText.setTextSize(12f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(canForge ? COL_STICKER : 0xFF64748B);
+        canvas.drawText("FORGIA ORA", bx + btnW / 2f, by + 25f, paintText);
+    }
+
+    private void handleBlacksmithTouch(float vx, float vy) {
+        if (btnCloseBlacksmith.contains(vx, vy) || !blacksmithModalRect.contains(vx, vy)) {
+            blacksmithModalOpen = false;
+            AudioHelper.playClick();
+            return;
+        }
+
+        if (tabSmantella.contains(vx, vy)) {
+            blacksmithTab = 0;
+            AudioHelper.playClick();
+            return;
+        }
+        if (tabPotenzia.contains(vx, vy)) {
+            blacksmithTab = 1;
+            AudioHelper.playClick();
+            return;
+        }
+        if (tabForgia.contains(vx, vy)) {
+            blacksmithTab = 2;
+            AudioHelper.playClick();
+            return;
+        }
+
+        if (blacksmithTab == 0) {
+            float left = blacksmithModalRect.left;
+            float top = blacksmithModalRect.top;
+            float slotW = 180f;
+            float slotH = 55f;
+            for (int i = 0; i < game.backpack.size(); i++) {
+                int col = i % 4;
+                int row = i / 4;
+                float sx = left + 35f + col * (slotW + 12f);
+                float sy = top + 140f + row * (slotH + 15f);
+                if (vx >= sx && vx <= sx + slotW && vy >= sy && vy <= sy + slotH) {
+                    game.salvageBackpackItem(i);
+                    return;
+                }
+            }
+        } else if (blacksmithTab == 1) {
+            if (upSlotWeapon.contains(vx, vy)) {
+                selectedUpgradeSlot = "weapon";
+                AudioHelper.playClick();
+                return;
+            }
+            if (upSlotArmor.contains(vx, vy)) {
+                selectedUpgradeSlot = "armor";
+                AudioHelper.playClick();
+                return;
+            }
+            if (upSlotRelic.contains(vx, vy)) {
+                selectedUpgradeSlot = "relic";
+                AudioHelper.playClick();
+                return;
+            }
+            if (btnUpgradeAction.contains(vx, vy)) {
+                game.upgradeEquippedItem(selectedUpgradeSlot);
+                return;
+            }
+        } else if (blacksmithTab == 2) {
+            if (btnForgeRare.contains(vx, vy)) {
+                game.forgeRandomItem(Game.RARITY_RARE);
+                return;
+            }
+            if (btnForgeAbyssal.contains(vx, vy)) {
+                game.forgeRandomItem(Game.RARITY_ABYSSAL);
+                return;
+            }
+        }
+    }
+
+    private void drawQuestModal(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xB3020B14);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
+
+        drawStorybookParchment(canvas, questModalRect, "ANZIANA TARTARUGA — CRONACHE DEGLI ABISSI", btnCloseQuest);
+
+        float left = questModalRect.left;
+        float top = questModalRect.top;
+        float right = questModalRect.right;
+
+        if (bmpSage != null) {
+            float s = 0.32f;
+            canvas.save();
+            canvas.translate(left + 65f, top + 105f);
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpSage, -bmpSage.getWidth() / 2f, -bmpSage.getHeight() / 2f, null);
+            canvas.restore();
+        }
+
+        float diaX = left + 130f;
+        float diaY = top + 65f;
+        float diaW = right - diaX - 35f;
+        tempRect.set(diaX, diaY, diaX + diaW, diaY + 70f);
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFFFFFBEB);
+        canvas.drawRoundRect(tempRect, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0xFFD97706);
+        paintStroke.setStrokeWidth(1.5f);
+        canvas.drawRoundRect(tempRect, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(11f);
+        paintText.setColor(COL_INK);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("«Benvenuto all'Avamposto, audace palombaro. Le correnti abissali sussurrano", diaX + 14f, diaY + 24f, paintText);
+        canvas.drawText("di antichi terrori risvegliati nelle profondità. Porta a termine le missioni di ciascun", diaX + 14f, diaY + 42f, paintText);
+        canvas.drawText("Atto per forgiare la tua leggenda e spezzare la morsa del Leviatano Primordiale!»", diaX + 14f, diaY + 60f, paintText);
+
+        float actStartY = top + 150f;
+        float actCardH = 75f;
+        float actGap = 10f;
+
+        for (int i = 0; i < game.acts.size(); i++) {
+            Game.ActInfo act = game.acts.get(i);
+            float ay = actStartY + i * (actCardH + actGap);
+            tempRect.set(left + 35f, ay, right - 35f, ay + actCardH);
+
+            boolean isCurrent = (act.number == game.currentAct);
+            boolean isUnlocked = (act.number <= game.maxActUnlocked);
+            boolean isCompleted = act.completed;
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(isCompleted ? 0xFFDCFCE7 : (isCurrent ? 0xFFFEF3C7 : 0xFFF1F5F9));
+            canvas.drawRoundRect(tempRect, 8f, 8f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(isCompleted ? 0xFF16A34A : (isCurrent ? 0xFFD97706 : 0xFF94A3B8));
+            paintStroke.setStrokeWidth(isCurrent ? 2.5f : 1.5f);
+            canvas.drawRoundRect(tempRect, 8f, 8f, paintStroke);
+
+            paintText.setTextAlign(Paint.Align.LEFT);
+            paintText.setTextSize(12f);
+            paintText.setFakeBoldText(true);
+            paintText.setColor(isCompleted ? 0xFF166534 : (isCurrent ? 0xFF92400E : 0xFF475569));
+            canvas.drawText(act.title.toUpperCase() + " (" + act.startDepth + "m)", left + 50f, ay + 22f, paintText);
+
+            paintText.setTextSize(10f);
+            paintText.setColor(COL_INK);
+            paintText.setFakeBoldText(false);
+            canvas.drawText("Missione: " + act.questTitle + " — Taglia Boss: " + act.bossName, left + 50f, ay + 42f, paintText);
+            paintText.setTextSize(9f);
+            paintText.setColor(0xFF64748B);
+            canvas.drawText(act.questDesc, left + 50f, ay + 60f, paintText);
+
+            float badgeX = right - 110f;
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(10.5f);
+            paintText.setFakeBoldText(true);
+            if (isCompleted) {
+                paintText.setColor(0xFF16A34A);
+                canvas.drawText("✓ COMPLETATO", badgeX, ay + 42f, paintText);
+            } else if (isUnlocked) {
+                paintText.setColor(0xFFD97706);
+                canvas.drawText("⚔ IN CORSO", badgeX, ay + 42f, paintText);
+            } else {
+                paintText.setColor(0xFF94A3B8);
+                canvas.drawText("🔒 BLOCCATO", badgeX, ay + 42f, paintText);
+            }
+        }
+    }
+
+    private void handleQuestTouch(float vx, float vy) {
+        if (btnCloseQuest.contains(vx, vy) || !questModalRect.contains(vx, vy)) {
+            questModalOpen = false;
+            AudioHelper.playClick();
+        }
+    }
+
+    private void drawWaypointMapModal(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xB3020B14);
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
+
+        drawStorybookParchment(canvas, waypointModalRect, "PORTALE DI SPEDIZIONE — MAPPA DEGLI ATTI", btnCloseWaypoint);
+
+        float left = waypointModalRect.left;
+        float top = waypointModalRect.top;
+        float right = waypointModalRect.right;
+
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(12f);
+        paintText.setColor(0xFF78350F);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("SELEZIONA UN ATTO PER IMMERGERTI NELLE PROFONDITÀ DELL'ABISSO", waypointModalRect.centerX(), top + 70f, paintText);
+
+        float cardW = (right - left - 100f) / 4f;
+        float cardH = 340f;
+        float startX = left + 35f;
+        float cardY = top + 90f;
+
+        for (int i = 0; i < 4 && i < game.acts.size(); i++) {
+            Game.ActInfo act = game.acts.get(i);
+            float cx = startX + i * (cardW + 10f);
+            waypointActCards[i].set(cx, cardY, cx + cardW, cardY + cardH);
+
+            boolean isUnlocked = (act.number <= game.maxActUnlocked);
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(isUnlocked ? 0xFFFFFDF5 : 0xFFF1F5F9);
+            canvas.drawRoundRect(waypointActCards[i], 8f, 8f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(isUnlocked ? COL_GOLD : 0xFFCBD5E1);
+            paintStroke.setStrokeWidth(isUnlocked ? 2.5f : 1.5f);
+            canvas.drawRoundRect(waypointActCards[i], 8f, 8f, paintStroke);
+
+            paintFill.setColor(isUnlocked ? (act.number == 4 ? 0xFF7C3AED : 0xFF0284C7) : 0xFF94A3B8);
+            canvas.drawRoundRect(cx + 8f, cardY + 10f, cx + cardW - 8f, cardY + 45f, 6f, 6f, paintFill);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(11f);
+            paintText.setFakeBoldText(true);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText("ATTO " + act.number, cx + cardW / 2f, cardY + 32f, paintText);
+
+            paintText.setTextSize(10f);
+            paintText.setColor(0xFF78350F);
+            canvas.drawText(act.subtitle, cx + cardW / 2f, cardY + 70f, paintText);
+            paintText.setTextSize(9f);
+            paintText.setColor(0xFF0369A1);
+            canvas.drawText("Profondità: " + act.startDepth + "m", cx + cardW / 2f, cardY + 90f, paintText);
+
+            paintFill.setColor(0xFF0F172A);
+            canvas.drawRoundRect(cx + 12f, cardY + 110f, cx + cardW - 12f, cardY + 155f, 6f, 6f, paintFill);
+            paintText.setTextSize(9f);
+            paintText.setColor(COL_GOLD);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("BOSS DELL'ATTO:", cx + cardW / 2f, cardY + 128f, paintText);
+            paintText.setTextSize(9.5f);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText(act.bossName, cx + cardW / 2f, cardY + 145f, paintText);
+
+            paintText.setTextSize(8.5f);
+            paintText.setColor(0xFF64748B);
+            paintText.setFakeBoldText(false);
+            String[] words = act.questDesc.split(" ");
+            StringBuilder sb = new StringBuilder();
+            float ty = cardY + 175f;
+            for (String w : words) {
+                if (paintText.measureText(sb + w) > cardW - 20f) {
+                    canvas.drawText(sb.toString(), cx + cardW / 2f, ty, paintText);
+                    sb = new StringBuilder(w).append(" ");
+                    ty += 14f;
+                } else {
+                    sb.append(w).append(" ");
+                }
+            }
+            if (sb.length() > 0) canvas.drawText(sb.toString(), cx + cardW / 2f, ty, paintText);
+
+            float btnW = cardW - 24f;
+            float btnH = 38f;
+            float bx = cx + 12f;
+            float by = cardY + cardH - 50f;
+            waypointDiveBtns[i].set(bx, by, bx + btnW, by + btnH);
+
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(isUnlocked ? 0xFF16A34A : 0xFFCBD5E1);
+            canvas.drawRoundRect(waypointDiveBtns[i], 6f, 6f, paintFill);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(1.5f);
+            canvas.drawRoundRect(waypointDiveBtns[i], 6f, 6f, paintStroke);
+
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(11f);
+            paintText.setFakeBoldText(true);
+            paintText.setColor(isUnlocked ? COL_STICKER : 0xFF64748B);
+            canvas.drawText(isUnlocked ? "IMMERGITI ➔" : "🔒 BLOCCATO", bx + btnW / 2f, by + 24f, paintText);
+        }
+    }
+
+    private void handleWaypointMapTouch(float vx, float vy) {
+        if (btnCloseWaypoint.contains(vx, vy) || !waypointModalRect.contains(vx, vy)) {
+            waypointMapModalOpen = false;
+            AudioHelper.playClick();
+            return;
+        }
+
+        for (int i = 0; i < 4 && i < game.acts.size(); i++) {
+            if (waypointDiveBtns[i].contains(vx, vy) || waypointActCards[i].contains(vx, vy)) {
+                int actNum = i + 1;
+                if (actNum <= game.maxActUnlocked) {
+                    waypointMapModalOpen = false;
+                    game.startActExpedition(actNum);
+                    AudioHelper.playWave();
+                    return;
+                }
+            }
+        }
     }
 
     // =========================================================================
@@ -3320,6 +4471,51 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         int action = event.getActionMasked();
         int actionIndex = event.getActionIndex();
 
+        if (game.gameState == Game.STATE_CHAR_CREATE) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handleCharacterCreationTouch(vx, vy);
+            }
+            return true;
+        }
+
+        if (stashModalOpen) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handleStashTouch(vx, vy);
+            }
+            return true;
+        }
+
+        if (blacksmithModalOpen) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handleBlacksmithTouch(vx, vy);
+            }
+            return true;
+        }
+
+        if (questModalOpen) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handleQuestTouch(vx, vy);
+            }
+            return true;
+        }
+
+        if (waypointMapModalOpen) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                float vx = (event.getX() - offsetX) / viewScale;
+                float vy = (event.getY() - offsetY) / viewScale;
+                handleWaypointMapTouch(vx, vy);
+            }
+            return true;
+        }
+
         if (skillTreeOpen) {
             if (action == MotionEvent.ACTION_DOWN) {
                 float vx = (event.getX() - offsetX) / viewScale;
@@ -3420,8 +4616,54 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
+        // Town Portal HUD button (durante la Spedizione nel dungeon)
+        if (game.gameState == Game.STATE_EXPEDITION && btnHudTownPortal.contains(vx, vy)) {
+            game.openTownPortal();
+            return;
+        }
+
+        // Tasto EROE nell'HUD (nell'Avamposto Hub) per accedere alla scheda/creazione
+        if (game.gameState == Game.STATE_HUB && btnNewCharacter.contains(vx, vy)) {
+            game.gameState = Game.STATE_CHAR_CREATE;
+            AudioHelper.playClick();
+            return;
+        }
+
         float wx = vx + camX;
         float wy = vy + camY;
+
+        // Interazioni con le stazioni del Santuario (nell'Hub)
+        if (game.gameState == Game.STATE_HUB) {
+            if (distSq(wx, wy, game.hubBlacksmithX, game.hubBlacksmithY) < 110f * 110f) {
+                blacksmithModalOpen = true;
+                AudioHelper.playClick();
+                return;
+            }
+            if (distSq(wx, wy, game.hubMerchantX, game.hubMerchantY) < 110f * 110f) {
+                game.merchantShopOpen = true;
+                AudioHelper.playClick();
+                return;
+            }
+            if (distSq(wx, wy, game.hubStashX, game.hubStashY) < 110f * 110f) {
+                stashModalOpen = true;
+                AudioHelper.playClick();
+                return;
+            }
+            if (distSq(wx, wy, game.hubSageX, game.hubSageY) < 110f * 110f) {
+                questModalOpen = true;
+                AudioHelper.playClick();
+                return;
+            }
+            if (distSq(wx, wy, game.hubWaypointX, game.hubWaypointY) < 110f * 110f) {
+                waypointMapModalOpen = true;
+                AudioHelper.playClick();
+                return;
+            }
+            if (game.townPortalActive && distSq(wx, wy, game.hubTownPortalX, game.hubTownPortalY) < 110f * 110f) {
+                game.enterTownPortalToDungeon();
+                return;
+            }
+        }
 
         // 1. Tasto HUD interazione Mastro Paguro (se il giocatore è nei paraggi)
         boolean merchantNear = game.merchantPresent && distSq(game.playerX, game.playerY, game.merchantX, game.merchantY) < 180f * 180f;

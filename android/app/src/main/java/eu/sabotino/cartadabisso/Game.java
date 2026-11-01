@@ -49,6 +49,7 @@ public class Game {
         public String desc;
         public int visualVariant; // 0..3
         public String setName; // null or "Corallo", "Marea", "Abisso"
+        public int upgradeLevel = 0; // 0..5 (+1..+5)
 
         public Item(String id, String name, String slot, int rarity,
                     int damageBonus, int defenseBonus, int healthBonus,
@@ -71,6 +72,26 @@ public class Game {
             this.desc = desc;
             this.visualVariant = visualVariant;
             this.setName = setName;
+            this.upgradeLevel = 0;
+        }
+
+        public int getEffectiveDamage() {
+            return damageBonus + (upgradeLevel * 4);
+        }
+
+        public int getEffectiveDefense() {
+            return defenseBonus + (upgradeLevel * 2);
+        }
+
+        public int getEffectiveHealth() {
+            return healthBonus + (upgradeLevel * 15);
+        }
+
+        public String getDisplayName() {
+            if (upgradeLevel > 0) {
+                return name + " +" + upgradeLevel;
+            }
+            return name;
         }
 
         public String getRarityName() {
@@ -191,6 +212,42 @@ public class Game {
         ALL_PERKS.add(new Perk("perk_crit", "Occhio di Falco", "+15% probabilità di colpo critico e danno critico 2.2x.", "CRITICO", 0xFFF43F5E));
     }
 
+    public static class ActInfo {
+        public int number;
+        public String title;
+        public String subtitle;
+        public String questTitle;
+        public String questDesc;
+        public String bossName;
+        public int startDepth;
+        public boolean completed;
+
+        public ActInfo(int number, String title, String subtitle, String questTitle, String questDesc, String bossName, int startDepth) {
+            this.number = number;
+            this.title = title;
+            this.subtitle = subtitle;
+            this.questTitle = questTitle;
+            this.questDesc = questDesc;
+            this.bossName = bossName;
+            this.startDepth = startDepth;
+            this.completed = false;
+        }
+    }
+
+    public static class CharacterProfile {
+        public String name;
+        public String playerClass;
+        public int suitColorIndex;
+        public int level;
+
+        public CharacterProfile(String name, String playerClass, int suitColorIndex, int level) {
+            this.name = name;
+            this.playerClass = playerClass;
+            this.suitColorIndex = suitColorIndex;
+            this.level = level;
+        }
+    }
+
     public static class Drop {
         public float x, y;
         public Item item;
@@ -264,6 +321,7 @@ public class Game {
         public float life;
         public int color;
         public int pierceCount = 1;
+        public boolean homing = false;
         public final java.util.Set<String> hitEnemyIds = new java.util.HashSet<>();
 
         public Projectile(float x, float y, float vx, float vy, float radius, int damage, boolean playerOwned, float life, int color) {
@@ -347,6 +405,62 @@ public class Game {
     public int maxPotions = 5;
     public int shells = 15; // Conchiglie d'oro (valuta abissale)
     public float speedBoostTimer = 0f;
+
+    // Game States (Diablo Progression & Hub)
+    public static final int STATE_CHAR_SELECT = 0;
+    public static final int STATE_CHAR_CREATE = 1;
+    public static final int STATE_HUB = 2;
+    public static final int STATE_EXPEDITION = 3;
+    public int gameState = STATE_EXPEDITION;
+
+    // Sanctuary Hub Dimensions & Stations
+    public static final float HUB_W = 1400f;
+    public static final float HUB_H = 800f;
+    public float hubBlacksmithX = 350f;
+    public float hubBlacksmithY = 320f;
+    public float hubMerchantX = 640f;
+    public float hubMerchantY = 260f;
+    public float hubStashX = 950f;
+    public float hubStashY = 320f;
+    public float hubSageX = 480f;
+    public float hubSageY = 560f;
+    public float hubWaypointX = 780f;
+    public float hubWaypointY = 560f;
+    public float hubTownPortalX = 640f;
+    public float hubTownPortalY = 440f;
+
+    // Cassa di Spedizione (Stash - 16 slot)
+    public final List<Item> stash = new ArrayList<>();
+    public int maxStashSlots = 16;
+
+    // Materiali di Forgiatura & Potenziamento
+    public int abyssalShards = 0; // Frammenti Abissali
+
+    // Progressioni Atti Diablo
+    public int currentAct = 1;
+    public int maxActUnlocked = 1;
+    public final List<ActInfo> acts = new ArrayList<>();
+
+    // Diablo Town Portal (Portale Cittadino di ritorno)
+    public boolean townPortalActive = false;
+    public int townPortalAct = 1;
+    public int townPortalZone = 1;
+    public float townPortalPlayerX = 0f;
+    public float townPortalPlayerY = 0f;
+
+    // Personalizzazione Palombaro
+    public static final int[] SUIT_COLORS = {
+            0xFF0284C7, // Oceano (Cyan)
+            0xFFE11D48, // Corallo (Rosso)
+            0xFFD97706, // Oro Abissale
+            0xFF059669, // Smeraldo (Verde)
+            0xFF7C3AED  // Ametista (Viola)
+    };
+    public static final String[] SUIT_COLOR_NAMES = {
+            "Oceano", "Corallo", "Oro Abisso", "Smeraldo", "Ametista"
+    };
+    public String characterName = "Esploratore";
+    public int suitColorIndex = 0;
 
     // Classi e Albero delle Abilità Fisso
     public String playerClass = CLASS_HUNTER;
@@ -446,6 +560,42 @@ public class Game {
         }
     }
 
+    public static String itemToString(Item it) {
+        if (it == null) return "";
+        return it.id + "::" + it.name + "::" + it.slot + "::" + it.rarity + "::" +
+                it.damageBonus + "::" + it.defenseBonus + "::" + it.healthBonus + "::" +
+                it.speedBonus + "::" + it.critBonus + "::" + it.desc + "::" +
+                it.visualVariant + "::" + (it.setName != null ? it.setName : "none") + "::" +
+                it.upgradeLevel;
+    }
+
+    public static Item itemFromString(String s) {
+        if (s == null || s.trim().isEmpty()) return null;
+        try {
+            String[] parts = s.split("::", -1);
+            if (parts.length >= 11) {
+                String id = parts[0];
+                String name = parts[1];
+                String slot = parts[2];
+                int rarity = Integer.parseInt(parts[3]);
+                int dmg = Integer.parseInt(parts[4]);
+                int def = Integer.parseInt(parts[5]);
+                int hp = Integer.parseInt(parts[6]);
+                float spd = Float.parseFloat(parts[7]);
+                float crit = Float.parseFloat(parts[8]);
+                String desc = parts[9];
+                int variant = Integer.parseInt(parts[10]);
+                String setName = (parts.length > 11 && !"none".equals(parts[11])) ? parts[11] : null;
+                Item it = new Item(id, name, slot, rarity, dmg, def, hp, spd, crit, desc, variant, setName);
+                if (parts.length > 12) {
+                    it.upgradeLevel = Integer.parseInt(parts[12]);
+                }
+                return it;
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     public void loadPersistentData() {
         if (saveDelegate == null) return;
         maxDepthRecord = saveDelegate.getInt("record_max_depth", 0);
@@ -457,6 +607,26 @@ public class Game {
         metaTideLevel = saveDelegate.getInt("meta_tide", 0);
         metaPotionLevel = saveDelegate.getInt("meta_potion", 0);
         metaMagnetLevel = saveDelegate.getInt("meta_magnet", 0);
+
+        characterName = saveDelegate.getString("char_name", "Esploratore");
+        playerClass = saveDelegate.getString("char_class", CLASS_HUNTER);
+        suitColorIndex = Math.max(0, Math.min(SUIT_COLORS.length - 1, saveDelegate.getInt("char_suit_color", 0)));
+        abyssalShards = saveDelegate.getInt("abyssal_shards", 0);
+        maxActUnlocked = Math.max(1, saveDelegate.getInt("max_act_unlocked", 1));
+
+        int stashCount = saveDelegate.getInt("stash_count", 0);
+        if (stashCount > 0) {
+            stash.clear();
+            for (int i = 0; i < stashCount; i++) {
+                String s = saveDelegate.getString("stash_item_" + i, "");
+                Item it = itemFromString(s);
+                if (it != null && stash.size() < maxStashSlots) {
+                    stash.add(it);
+                }
+            }
+        }
+
+        initActs();
     }
 
     public void savePersistentData() {
@@ -470,6 +640,17 @@ public class Game {
         saveDelegate.setInt("meta_tide", metaTideLevel);
         saveDelegate.setInt("meta_potion", metaPotionLevel);
         saveDelegate.setInt("meta_magnet", metaMagnetLevel);
+
+        saveDelegate.setString("char_name", characterName);
+        saveDelegate.setString("char_class", playerClass);
+        saveDelegate.setInt("char_suit_color", suitColorIndex);
+        saveDelegate.setInt("abyssal_shards", abyssalShards);
+        saveDelegate.setInt("max_act_unlocked", maxActUnlocked);
+
+        saveDelegate.setInt("stash_count", stash.size());
+        for (int i = 0; i < stash.size(); i++) {
+            saveDelegate.setString("stash_item_" + i, itemToString(stash.get(i)));
+        }
     }
 
     public void onDiveCompleted(boolean isVictory) {
@@ -565,8 +746,16 @@ public class Game {
         tide = getMaxTide();
 
         // Starting Equipment (con Set Corallino iniziale per apprendere i bonus)
-        equippedWeapon = new Item("w_harpoon_copper", "Arpione di Rame", "weapon", RARITY_COMMON,
-                16, 0, 0, 0f, 0.05f, "Asta di ottone bilanciata con arpione scanalato.", 0, null);
+        if (CLASS_JUGGERNAUT.equals(playerClass)) {
+            equippedWeapon = new Item("w_anchor_iron", "Ancora d'Acciaio", "weapon", RARITY_COMMON,
+                    20, 2, 0, -5f, 0.04f, "Pesante ancora da ormeggio che spazza via i mostri in mischia.", 0, null);
+        } else if (CLASS_MYSTIC.equals(playerClass)) {
+            equippedWeapon = new Item("w_staff_pearl", "Scettro di Madreperla", "weapon", RARITY_COMMON,
+                    15, 0, 0, 0f, 0.08f, "Scettro che incanala i flussi d'acqua e genera dardi a ricerca.", 0, null);
+        } else {
+            equippedWeapon = new Item("w_harpoon_copper", "Arpione di Rame", "weapon", RARITY_COMMON,
+                    16, 0, 0, 0f, 0.05f, "Asta di ottone bilanciata con arpione scanalato.", 0, null);
+        }
         equippedArmor = new Item("a_diver_suit", "Scafandro Esploratore", "armor", RARITY_COMMON,
                 0, 6, 40, 0f, 0f, "Tuta impermeabile con rinforzi alle giunture.", 0, "Corallo");
         equippedRelic = new Item("r_coral_pebble", "Frammento di Madreperla", "relic", RARITY_COMMON,
@@ -599,7 +788,7 @@ public class Game {
 
     public int getMaxHp() {
         int base = 80 + (level * 15);
-        if (equippedArmor != null) base += equippedArmor.healthBonus;
+        if (equippedArmor != null) base += equippedArmor.getEffectiveHealth();
         if (isSetBonusActive("Corallo")) base += 35; // Set Corallo (2pz): +35 PV
         if (hasSkill("jug_armor")) base += 35 * getSkillRank("jug_armor");
         base += metaVitalityLevel * 25; // Altare permanente
@@ -608,7 +797,7 @@ public class Game {
 
     public int getAttackDamage() {
         int base = 10 + (level * 4);
-        if (equippedWeapon != null) base += equippedWeapon.damageBonus;
+        if (equippedWeapon != null) base += equippedWeapon.getEffectiveDamage();
         if (isSetBonusActive("Abisso")) base += (int) (base * 0.22f); // Set Abisso (2pz): +22% Danno
         if (hasSkill("jug_titan")) base += (int) (base * 0.35f);
         if (hasSkill("jug_slam")) base += (int) (base * 0.30f);
@@ -617,7 +806,7 @@ public class Game {
 
     public int getDefense() {
         int base = 2 + (level * 2);
-        if (equippedArmor != null) base += equippedArmor.defenseBonus;
+        if (equippedArmor != null) base += equippedArmor.getEffectiveDefense();
         if (isSetBonusActive("Corallo")) base += 5; // Set Corallo (2pz): +5 Difesa
         if (hasSkill("jug_armor")) base += 8 * getSkillRank("jug_armor");
         if (activePerks.contains("perk_armor")) base += 6; // Talento retro-compatibile Guscio Corazzato
@@ -797,12 +986,224 @@ public class Game {
         return true;
     }
 
+    // Hub, Atti e Missioni Diablo
+    public void initActs() {
+        acts.clear();
+        acts.add(new ActInfo(1, "Atto I: La Barriera Silenziosa", "Le Rovine Sommerso",
+                "Il Riconoscimento del Relitto",
+                "Elimina i predatori che infestano la barriera corallina e sconfiggi il Granchio Corazzato Gigante.",
+                "Granchio Gigante", 220));
+        acts.add(new ActInfo(2, "Atto II: La Fossa delle Tenebre", "Gli Abissi Elettrici",
+                "Il Segnale dal Fondo",
+                "Esplora i camini idrotermali della fossa, sopravvivi alle scariche delle meduse e abbatti le murene.",
+                "Corazza Nera", 680));
+        acts.add(new ActInfo(3, "Atto III: La Dorsale Vulcanica", "Il Santuario di Magma",
+                "Il Risveglio del Leviatano",
+                "Penetra nella caldera vulcanica difesa dai pesci lanterna ciechi e sconfiggi il Leviatano Primordiale.",
+                "Leviatano Primordiale", 1450));
+        acts.add(new ActInfo(4, "Atto IV: L'Abisso Infinito", "La Faglia Senza Limiti",
+                "Immersioni Oltre il Limite",
+                "Metti alla prova il tuo equipaggiamento scendendo sempre più a fondo nell'abisso sconfinato.",
+                "Abominio delle Profondità", 2400));
+
+        for (int i = 0; i < acts.size(); i++) {
+            if (i + 1 < maxActUnlocked) {
+                acts.get(i).completed = true;
+            }
+        }
+    }
+
+    public ActInfo getAct(int actNum) {
+        if (acts.isEmpty()) initActs();
+        for (ActInfo a : acts) {
+            if (a.number == actNum) return a;
+        }
+        return acts.get(0);
+    }
+
+    public void startActExpedition(int actNum) {
+        if (actNum < 1) actNum = 1;
+        if (actNum > maxActUnlocked) actNum = maxActUnlocked;
+        currentAct = actNum;
+        loadZone(actNum);
+    }
+
+    public void enterHub() {
+        gameState = STATE_HUB;
+        enemies.clear();
+        drops.clear();
+        projectiles.clear();
+        floaters.clear();
+        particles.clear();
+        portalOpen = false;
+        gameOver = false;
+        victory = false;
+
+        playerX = 640f;
+        playerY = 440f;
+        playerTargetX = playerX;
+        playerTargetY = playerY;
+        playerMoving = false;
+        beaconTimer = 0f;
+
+        hp = getMaxHp();
+        tide = getMaxTide();
+        attackCooldown = 0f;
+        waveCooldown = 0f;
+        dashCooldown = 0f;
+    }
+
+    public void createCharacter(String name, String clz, int suitColor) {
+        if (name != null && !name.trim().isEmpty()) {
+            this.characterName = name.trim();
+        } else {
+            this.characterName = "Esploratore";
+        }
+        if (clz != null) {
+            this.playerClass = clz;
+        }
+        this.suitColorIndex = Math.max(0, Math.min(SUIT_COLORS.length - 1, suitColor));
+
+        initPlayer();
+        enterHub();
+        saveDelegate.setBoolean("char_created", true);
+        savePersistentData();
+    }
+
+    // Cassa di Spedizione (Stash - 16 slot)
+    public boolean depositToStash(int backpackIndex) {
+        if (backpackIndex < 0 || backpackIndex >= backpack.size()) return false;
+        if (stash.size() >= maxStashSlots) return false;
+        Item item = backpack.remove(backpackIndex);
+        stash.add(item);
+        if (soundListener != null) soundListener.onClick();
+        floaters.add(new Floater(playerX, playerY - 45f, "DEPOSITATO: " + item.getDisplayName(), 0xFF38BDF8, true, 1.2f));
+        savePersistentData();
+        return true;
+    }
+
+    public boolean withdrawFromStash(int stashIndex) {
+        if (stashIndex < 0 || stashIndex >= stash.size()) return false;
+        if (backpack.size() >= 8) return false;
+        Item item = stash.remove(stashIndex);
+        backpack.add(item);
+        if (soundListener != null) soundListener.onClick();
+        floaters.add(new Floater(playerX, playerY - 45f, "RITIRATO: " + item.getDisplayName(), 0xFF4ADE80, true, 1.2f));
+        savePersistentData();
+        return true;
+    }
+
+    // Mastro Astice: Fabbro delle Profondità (Smantellamento, Potenziamento, Forgiatura)
+    public boolean salvageBackpackItem(int backpackIndex) {
+        if (backpackIndex < 0 || backpackIndex >= backpack.size()) return false;
+        Item item = backpack.remove(backpackIndex);
+        int shardsYield = 1;
+        int shellsYield = 5;
+        if (item.rarity == RARITY_MAGIC) { shardsYield = 3; shellsYield = 12; }
+        else if (item.rarity == RARITY_RARE) { shardsYield = 7; shellsYield = 25; }
+        else if (item.rarity == RARITY_ABYSSAL) { shardsYield = 15; shellsYield = 50; }
+
+        if (item.upgradeLevel > 0) {
+            shardsYield += item.upgradeLevel * 2;
+            shellsYield += item.upgradeLevel * 10;
+        }
+
+        abyssalShards += shardsYield;
+        shells += shellsYield;
+        if (soundListener != null) soundListener.onHeavyHit();
+        floaters.add(new Floater(playerX, playerY - 45f, "+" + shardsYield + " FRAMMENTI, +" + shellsYield + " CONCHIGLIE", 0xFFFBBF24, true, 1.4f));
+        savePersistentData();
+        return true;
+    }
+
+    public int getUpgradeShardCost(Item item) {
+        if (item == null) return 999;
+        return (item.upgradeLevel + 1) * 3;
+    }
+
+    public int getUpgradeShellCost(Item item) {
+        if (item == null) return 999;
+        return (item.upgradeLevel + 1) * 25;
+    }
+
+    public boolean canUpgradeEquippedItem(String slot) {
+        Item item = getEquippedForSlot(slot);
+        if (item == null || item.upgradeLevel >= 5) return false;
+        int shardCost = getUpgradeShardCost(item);
+        int shellCost = getUpgradeShellCost(item);
+        return abyssalShards >= shardCost && shells >= shellCost;
+    }
+
+    public boolean upgradeEquippedItem(String slot) {
+        if (!canUpgradeEquippedItem(slot)) return false;
+        Item item = getEquippedForSlot(slot);
+        int shardCost = getUpgradeShardCost(item);
+        int shellCost = getUpgradeShellCost(item);
+        abyssalShards -= shardCost;
+        shells -= shellCost;
+        item.upgradeLevel++;
+        hp = Math.min(hp, getMaxHp());
+        if (soundListener != null) soundListener.onLevelUp();
+        floaters.add(new Floater(playerX, playerY - 45f, "POTENZIATO: " + item.getDisplayName() + "!", 0xFF4ADE80, true, 1.5f));
+        savePersistentData();
+        return true;
+    }
+
+    public boolean forgeRandomItem(int targetRarity) {
+        if (backpack.size() >= 8) return false;
+        int shardCost = targetRarity == RARITY_ABYSSAL ? 20 : 8;
+        int shellCost = targetRarity == RARITY_ABYSSAL ? 100 : 40;
+        if (abyssalShards < shardCost || shells < shellCost) return false;
+
+        abyssalShards -= shardCost;
+        shells -= shellCost;
+        Item forged = generateRandomItem(currentAct + 1, targetRarity == RARITY_ABYSSAL);
+        forged.rarity = targetRarity;
+        backpack.add(forged);
+        if (soundListener != null) soundListener.onLoot(targetRarity);
+        floaters.add(new Floater(playerX, playerY - 45f, "FORGIATO: " + forged.name + "!", getRarityColor(targetRarity), true, 1.6f));
+        savePersistentData();
+        return true;
+    }
+
+    // Portale Cittadino (Diablo Town Portal)
+    public boolean openTownPortal() {
+        if (gameState != STATE_EXPEDITION || gameOver || victory) return false;
+        townPortalActive = true;
+        townPortalAct = currentAct;
+        townPortalZone = zone;
+        townPortalPlayerX = playerX;
+        townPortalPlayerY = playerY;
+
+        enterHub();
+        floaters.add(new Floater(playerX, playerY - 45f, "PORTALE CITTADINO APERTO", 0xFF38BDF8, true, 1.5f));
+        if (soundListener != null) soundListener.onWave();
+        return true;
+    }
+
+    public boolean enterTownPortalToDungeon() {
+        if (gameState != STATE_HUB || !townPortalActive) return false;
+        currentAct = townPortalAct;
+        loadZone(townPortalZone);
+        playerX = townPortalPlayerX;
+        playerY = townPortalPlayerY;
+        playerTargetX = playerX;
+        playerTargetY = playerY;
+        gameState = STATE_EXPEDITION;
+        townPortalActive = false;
+        floaters.add(new Floater(playerX, playerY - 45f, "RITORNO NELL'ABISSO", 0xFF38BDF8, true, 1.5f));
+        if (soundListener != null) soundListener.onWave();
+        return true;
+    }
+
     public void setSoundListener(SoundListener listener) {
         this.soundListener = listener;
     }
 
     public void loadZone(int z) {
         zone = z;
+        gameState = STATE_EXPEDITION;
+        currentAct = Math.min(4, Math.max(1, z));
         enemies.clear();
         drops.clear();
         projectiles.clear();
@@ -892,6 +1293,18 @@ public class Game {
     public void update(float dt) {
         if (gameOver || victory) return;
 
+        if (gameState == STATE_HUB) {
+            if (hitStop > 0f) {
+                hitStop -= dt;
+                return;
+            }
+            if (trauma > 0f) trauma = Math.max(0f, trauma - dt * 1.5f);
+            if (beaconTimer > 0f) beaconTimer = Math.max(0f, beaconTimer - dt * 2.2f);
+            updatePlayerMovement(dt);
+            updateEffects(dt);
+            return;
+        }
+
         // Hit-stop processing (freezes logic briefly on huge impacts)
         if (hitStop > 0f) {
             hitStop -= dt;
@@ -945,8 +1358,10 @@ public class Game {
     }
 
     public void setPlayerTarget(float targetX, float targetY) {
-        playerTargetX = Math.max(60f, Math.min(MAP_W - 60f, targetX));
-        playerTargetY = Math.max(60f, Math.min(MAP_H - 60f, targetY));
+        float mapMaxW = gameState == STATE_HUB ? HUB_W : MAP_W;
+        float mapMaxH = gameState == STATE_HUB ? HUB_H : MAP_H;
+        playerTargetX = Math.max(60f, Math.min(mapMaxW - 60f, targetX));
+        playerTargetY = Math.max(60f, Math.min(mapMaxH - 60f, targetY));
         playerMoving = true;
         beaconX = playerTargetX;
         beaconY = playerTargetY;
@@ -954,6 +1369,9 @@ public class Game {
     }
 
     private void updatePlayerMovement(float dt) {
+        float mapMaxW = gameState == STATE_HUB ? HUB_W : MAP_W;
+        float mapMaxH = gameState == STATE_HUB ? HUB_H : MAP_H;
+
         if (joystickActive) {
             float lenSq = joystickX * joystickX + joystickY * joystickY;
             if (lenSq > 0.04f) {
@@ -980,8 +1398,8 @@ public class Game {
             }
 
             // Boundary clamping
-            playerX = Math.max(60f, Math.min(MAP_W - 60f, playerX));
-            playerY = Math.max(60f, Math.min(MAP_H - 60f, playerY));
+            playerX = Math.max(60f, Math.min(mapMaxW - 60f, playerX));
+            playerY = Math.max(60f, Math.min(mapMaxH - 60f, playerY));
             playerTargetX = playerX;
             playerTargetY = playerY;
             return;
@@ -1021,12 +1439,18 @@ public class Game {
         }
 
         // Boundary clamping
-        playerX = Math.max(60f, Math.min(MAP_W - 60f, playerX));
-        playerY = Math.max(60f, Math.min(MAP_H - 60f, playerY));
+        playerX = Math.max(60f, Math.min(mapMaxW - 60f, playerX));
+        playerY = Math.max(60f, Math.min(mapMaxH - 60f, playerY));
+    }
+
+    public float normalizeAngle(float angle) {
+        while (angle > Math.PI) angle -= (float)(2.0 * Math.PI);
+        while (angle < -Math.PI) angle += (float)(2.0 * Math.PI);
+        return angle;
     }
 
     public boolean performAttack(float targetWorldX, float targetWorldY) {
-        if (attackCooldown > 0f || gameOver || victory || perkChoicePending) return false;
+        if (gameState == STATE_HUB || attackCooldown > 0f || gameOver || victory || perkChoicePending) return false;
 
         float effectiveRate = attackRate;
         if (hasPerk("perk_rapid")) effectiveRate = 0.28f;
@@ -1064,14 +1488,66 @@ public class Game {
         }
 
         float angle = playerFacingAngle;
-        float speed = hasPerk("perk_rapid") ? 640f : 520f;
-        float vx = (float) Math.cos(angle) * speed;
-        float vy = (float) Math.sin(angle) * speed;
-
         int dmg = getAttackDamage();
         boolean isCrit = rng.nextFloat() < getCritChance();
         float critMult = hasPerk("perk_crit") ? 2.2f : 1.8f;
         if (isCrit) dmg = (int) (dmg * critMult);
+
+        if (CLASS_JUGGERNAUT.equals(playerClass)) {
+            // Melee Anchor Cleave (Custode dei Fondali)
+            int cleaveDmg = (int) (dmg * 1.35f + getDefense() * 0.5f);
+            int hitCount = 0;
+            for (Enemy e : enemies) {
+                if (e.hp <= 0) continue;
+                float edx = e.x - playerX;
+                float edy = e.y - playerY;
+                float dist = (float) Math.sqrt(edx * edx + edy * edy);
+                if (dist <= 140f + e.radius) {
+                    float eAngle = (float) Math.atan2(edy, edx);
+                    float diff = Math.abs(normalizeAngle(eAngle - playerFacingAngle));
+                    if (diff <= 1.35f || dist < 45f) {
+                        damageEnemy(e, cleaveDmg, e.x, e.y);
+                        if (dist > 1f) {
+                            e.x += (edx / dist) * 65f;
+                            e.y += (edy / dist) * 65f;
+                        }
+                        hitCount++;
+                    }
+                }
+            }
+            for (int i = -4; i <= 4; i++) {
+                float a = playerFacingAngle + i * 0.25f;
+                float px = playerX + (float) Math.cos(a) * 60f;
+                float py = playerY + (float) Math.sin(a) * 60f;
+                float pvx = (float) Math.cos(a) * 160f;
+                float pvy = (float) Math.sin(a) * 160f;
+                particles.add(new Particle(px, py, pvx, pvy, 6f, 0xFFF59E0B, 0.25f));
+            }
+            trauma = Math.min(1.0f, trauma + 0.25f);
+            if (soundListener != null) {
+                if (hitCount > 0) soundListener.onHeavyHit();
+                else soundListener.onHit();
+            }
+            return true;
+        } else if (CLASS_MYSTIC.equals(playerClass)) {
+            // Homing Tidal Bolt (Mistico dell'Abisso)
+            float speed = 460f;
+            float vx = (float) Math.cos(angle) * speed;
+            float vy = (float) Math.sin(angle) * speed;
+            int pColor = 0xFF38BDF8; // Aqua tidal bolt
+            if (equippedWeapon != null && equippedWeapon.rarity == RARITY_ABYSSAL) pColor = 0xFFC084FC;
+            Projectile proj = new Projectile(playerX, playerY, vx, vy, 10f, dmg, true, 0.9f, pColor);
+            proj.homing = true;
+            projectiles.add(proj);
+            tide = Math.min(getMaxTide(), tide + 3f);
+            if (soundListener != null) soundListener.onWave();
+            return true;
+        }
+
+        // Cacciatore dei Mari: Balistica arpione perforante
+        float speed = hasPerk("perk_rapid") ? 640f : 520f;
+        float vx = (float) Math.cos(angle) * speed;
+        float vy = (float) Math.sin(angle) * speed;
 
         int pColor = 0xFF38BDF8; // Aqua spear
         if (equippedWeapon != null) {
@@ -1229,6 +1705,36 @@ public class Game {
         Iterator<Projectile> it = projectiles.iterator();
         while (it.hasNext()) {
             Projectile p = it.next();
+
+            // Dardo di Marea a Ricerca (Mistico)
+            if (p.homing && p.playerOwned) {
+                Enemy closest = null;
+                float minDistSq = 450f * 450f;
+                for (Enemy e : enemies) {
+                    if (e.hp <= 0 || p.hitEnemyIds.contains(e.id)) continue;
+                    float dX = e.x - p.x;
+                    float dY = e.y - p.y;
+                    float d2 = dX * dX + dY * dY;
+                    if (d2 < minDistSq) {
+                        minDistSq = d2;
+                        closest = e;
+                    }
+                }
+                if (closest != null) {
+                    float dx = closest.x - p.x;
+                    float dy = closest.y - p.y;
+                    float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 5f) {
+                        float curSpd = (float) Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                        if (curSpd < 100f) curSpd = 460f;
+                        float targetVx = (dx / dist) * curSpd;
+                        float targetVy = (dy / dist) * curSpd;
+                        p.vx += (targetVx - p.vx) * Math.min(1.0f, dt * 7.5f);
+                        p.vy += (targetVy - p.vy) * Math.min(1.0f, dt * 7.5f);
+                    }
+                }
+            }
+
             p.x += p.vx * dt;
             p.y += p.vy * dt;
             p.life -= dt;
@@ -1738,10 +2244,35 @@ public class Game {
             float dx = playerX - portalX;
             float dy = playerY - portalY;
             if (dx * dx + dy * dy < portalRadius * portalRadius) {
+                // Check Act progression completion
+                if (zone == 1 && maxActUnlocked < 2) {
+                    maxActUnlocked = 2;
+                    getAct(1).completed = true;
+                    abyssalShards += 5;
+                    shells += 50;
+                    savePersistentData();
+                } else if (zone == 2 && maxActUnlocked < 3) {
+                    maxActUnlocked = 3;
+                    getAct(2).completed = true;
+                    abyssalShards += 10;
+                    shells += 100;
+                    savePersistentData();
+                } else if (zone == 3 && maxActUnlocked < 4) {
+                    maxActUnlocked = 4;
+                    getAct(3).completed = true;
+                    abyssalShards += 20;
+                    shells += 200;
+                    savePersistentData();
+                }
+
                 // Enter portal to next zone or victory!
                 if (zone == 4 && !victory) {
                     victory = true;
                     onDiveCompleted(true);
+                    maxActUnlocked = Math.max(maxActUnlocked, 4);
+                    getAct(3).completed = true;
+                    getAct(4).completed = true;
+                    savePersistentData();
                 } else {
                     loadZone(zone + 1);
                 }

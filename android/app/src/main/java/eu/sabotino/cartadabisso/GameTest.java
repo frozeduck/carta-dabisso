@@ -264,6 +264,140 @@ public class GameTest {
         assert game.enemies.size() >= 4 : "Nemici Endless non generati";
         System.out.println("Test 19 PASSATO: Modalità Abisso Infinito (Endless Dive) OK.");
 
-        System.out.println("TUTTI I 19 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
+        // Test 20: Creazione Personaggio, Classi e Personalizzazione Colore
+        game.createCharacter("Nereus", Game.CLASS_MYSTIC, 2);
+        assert "Nereus".equals(game.characterName) : "Nome personaggio non memorizzato";
+        assert Game.CLASS_MYSTIC.equals(game.playerClass) : "Classe Mistico non applicata";
+        assert game.suitColorIndex == 2 : "Colore scafandro non memorizzato";
+        assert game.gameState == Game.STATE_HUB : "Creazione personaggio deve portare all'Hub";
+        assert game.level == 1 : "Livello iniziale deve essere 1";
+        assert "w_staff_pearl".equals(game.equippedWeapon.id) : "Arma iniziale per Mistico non equipaggiata";
+        System.out.println("Test 20 PASSATO: Creazione Personaggio, Classi e Colori OK.");
+
+        // Test 21: Nautilus Hub Santuario e Stazioni NPC
+        game.enterHub();
+        assert game.gameState == Game.STATE_HUB : "Stato di gioco deve essere Hub";
+        assert game.enemies.isEmpty() : "Hub deve essere privo di nemici ostili";
+        assert game.hp == game.getMaxHp() : "Salute non ripristinata al massimo nell'Hub";
+        assert game.tide == game.getMaxTide() : "Marea non ripristinata al massimo nell'Hub";
+        assert game.hubBlacksmithX > 0 && game.hubMerchantX > 0 && game.hubStashX > 0 : "Coordinate stazioni Hub non valide";
+        boolean hubAttack = game.performAttack(500f, 500f);
+        assert !hubAttack : "Attacco primario non deve essere consentito nell'Hub santuario";
+        System.out.println("Test 21 PASSATO: Santuario Nautilus Hub e Stazioni NPC OK.");
+
+        // Test 22: Cassa di Spedizione (Stash - 16 Slot) Deposito e Prelievo
+        Game.Item testGem = new Game.Item("test_gem", "Perla Abissale", "relic", Game.RARITY_MAGIC, 0, 0, 0, 20f, 0.05f, "Gemma", 0);
+        game.backpack.add(testGem);
+        int bpBefore = game.backpack.size();
+        int stashBefore = game.stash.size();
+        boolean deposited = game.depositToStash(game.backpack.size() - 1);
+        assert deposited : "Deposito nella Cassa fallito";
+        assert game.backpack.size() == bpBefore - 1 : "Item non rimosso dallo zaino";
+        assert game.stash.size() == stashBefore + 1 : "Item non inserito nella Cassa";
+        assert "test_gem".equals(game.stash.get(game.stash.size() - 1).id) : "ID item nella cassa non corrispondente";
+
+        boolean withdrawn = game.withdrawFromStash(game.stash.size() - 1);
+        assert withdrawn : "Prelievo dalla Cassa fallito";
+        assert game.backpack.size() == bpBefore : "Item non rientrato nello zaino";
+        assert game.stash.size() == stashBefore : "Item non rimosso dalla Cassa";
+        System.out.println("Test 22 PASSATO: Cassa di Spedizione (Stash 16 slot) Deposito e Prelievo OK.");
+
+        // Test 23: Mastro Astice: Smantellamento (Salvage), Potenziamento (+1..+5) e Forgiatura
+        Game.Item junk = new Game.Item("junk_blade", "Lama Arrugginita", "weapon", Game.RARITY_MAGIC, 10, 0, 0, 0f, 0f, "Scarto", 0);
+        game.backpack.add(junk);
+        int shardsBefore = game.abyssalShards;
+        int shellsBefore = game.shells;
+        boolean salvaged = game.salvageBackpackItem(game.backpack.size() - 1);
+        assert salvaged : "Smantellamento fallito";
+        assert game.abyssalShards > shardsBefore : "Frammenti abissali non incrementati";
+        assert game.shells > shellsBefore : "Conchiglie non incrementate da smantellamento";
+
+        game.abyssalShards = 50;
+        game.shells = 500;
+        int preUpDmg = game.getAttackDamage();
+        int oldUpgradeLevel = game.equippedWeapon.upgradeLevel;
+        boolean upgraded = game.upgradeEquippedItem("weapon");
+        assert upgraded : "Potenziamento arma fallito";
+        assert game.equippedWeapon.upgradeLevel == oldUpgradeLevel + 1 : "Livello potenziamento non incrementato";
+        assert game.getAttackDamage() > preUpDmg : "Danno non incrementato dopo potenziamento";
+        assert game.equippedWeapon.getDisplayName().contains("+1") : "Display name deve mostrare +1";
+
+        int bpCount = game.backpack.size();
+        boolean forged = game.forgeRandomItem(Game.RARITY_RARE);
+        assert forged : "Forgiatura oggetto raro fallita";
+        assert game.backpack.size() == bpCount + 1 : "Oggetto forgiato non presente nello zaino";
+        assert game.backpack.get(game.backpack.size() - 1).rarity == Game.RARITY_RARE : "Rarità oggetto forgiato errata";
+        System.out.println("Test 23 PASSATO: Mastro Astice (Smantella, Potenzia +1..+5, Forgia) OK.");
+
+        // Test 24: Portale Cittadino (Diablo Town Portal) A/R Hub-Dungeon
+        game.maxActUnlocked = 3;
+        game.startActExpedition(2);
+        assert game.gameState == Game.STATE_EXPEDITION : "Stato non in spedizione";
+        assert game.zone == 2 : "Zona spedizione errata";
+        float dungeonX = 720f, dungeonY = 350f;
+        game.playerX = dungeonX;
+        game.playerY = dungeonY;
+
+        boolean tpOpened = game.openTownPortal();
+        assert tpOpened : "Apertura portale cittadino fallita";
+        assert game.townPortalActive : "Portale cittadino deve risultare attivo";
+        assert game.gameState == Game.STATE_HUB : "Il portale cittadino deve riportare all'Hub";
+        assert game.townPortalAct == 2 : "Atto di origine del portale errato";
+        assert game.townPortalZone == 2 : "Zona di origine del portale errata";
+
+        boolean returned = game.enterTownPortalToDungeon();
+        assert returned : "Ritorno tramite portale cittadino fallito";
+        assert game.gameState == Game.STATE_EXPEDITION : "Stato non tornato in spedizione";
+        assert game.zone == 2 : "Zona non corrispondente dopo ritorno dal portale";
+        assert game.playerX == dungeonX && game.playerY == dungeonY : "Coordinate giocatore non ripristinate";
+        assert !game.townPortalActive : "Il portale cittadino deve chiudersi dopo l'uso";
+        System.out.println("Test 24 PASSATO: Portale Cittadino Diablo A/R Hub-Dungeon OK.");
+
+        // Test 25: Attacchi Distinti per Classe di Gioco
+        // 1. Cacciatore: Arpione balistico perforante in linea retta
+        game.createCharacter("CacciatoreTest", Game.CLASS_HUNTER, 0);
+        game.startActExpedition(1);
+        game.attackCooldown = 0f;
+        int projBefore = game.projectiles.size();
+        game.performAttack(game.playerX + 150f, game.playerY);
+        assert game.projectiles.size() == projBefore + 1 : "Cacciatore deve scagliare proiettile arpione";
+        assert !game.projectiles.get(game.projectiles.size() - 1).homing : "Arpione del cacciatore non deve essere homing";
+
+        // 2. Custode: Fendente Maglio Pesante in mischia (AoE sweep con knockback, no proiettili lenti)
+        game.createCharacter("CustodeTest", Game.CLASS_JUGGERNAUT, 1);
+        game.startActExpedition(1);
+        game.attackCooldown = 0f;
+        Game.Enemy dummyEnemy = game.enemies.get(0);
+        dummyEnemy.x = game.playerX + 50f;
+        dummyEnemy.y = game.playerY;
+        int enemyHpBefore = dummyEnemy.hp;
+        int projBeforeCleave = game.projectiles.size();
+        game.performAttack(dummyEnemy.x, dummyEnemy.y);
+        assert dummyEnemy.hp < enemyHpBefore : "Fendente mischia del Custode non ha inflitto danno al nemico";
+        assert dummyEnemy.x > game.playerX + 50f : "Fendente mischia del Custode deve respingere (knockback) il nemico";
+        assert game.projectiles.size() == projBeforeCleave : "Fendente mischia del Custode non crea proiettili ordinari";
+
+        // 3. Mistico: Dardo di Marea a Ricerca (Homing projectile)
+        game.createCharacter("MisticoTest", Game.CLASS_MYSTIC, 4);
+        game.startActExpedition(1);
+        game.attackCooldown = 0f;
+        int projBeforeMystic = game.projectiles.size();
+        game.performAttack(game.playerX + 100f, game.playerY);
+        assert game.projectiles.size() == projBeforeMystic + 1 : "Mistico deve generare un dardo di marea";
+        Game.Projectile mysticProj = game.projectiles.get(game.projectiles.size() - 1);
+        assert mysticProj.homing : "Dardo del Mistico deve avere tracciamento homing attivo";
+        System.out.println("Test 25 PASSATO: Attacchi Primari Distinti per Classe OK.");
+
+        // Test 26: Progressione Storia ad Atti Diablo
+        game.initActs();
+        assert game.acts.size() == 4 : "Devono esistere 4 atti della storia";
+        assert "Atto I: La Barriera Silenziosa".equals(game.getAct(1).title) : "Titolo Atto I errato";
+        assert "Atto II: La Fossa delle Tenebre".equals(game.getAct(2).title) : "Titolo Atto II errato";
+        assert "Atto III: La Dorsale Vulcanica".equals(game.getAct(3).title) : "Titolo Atto III errato";
+        assert "Atto IV: L'Abisso Infinito".equals(game.getAct(4).title) : "Titolo Atto IV errato";
+        assert game.maxActUnlocked >= 1 : "Almeno Atto I deve essere sbloccato";
+        System.out.println("Test 26 PASSATO: Progressione Storia ad Atti Diablo OK.");
+
+        System.out.println("TUTTI I 26 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
     }
 }
