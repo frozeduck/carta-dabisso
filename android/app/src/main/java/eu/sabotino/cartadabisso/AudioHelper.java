@@ -10,9 +10,16 @@ public class AudioHelper {
     private static final int SAMPLE_RATE = 22050;
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static volatile boolean soundEnabled = true;
+    private static AudioTrack ambientTrack = null;
+    private static final Object ambientLock = new Object();
 
     public static void toggleSound() {
         soundEnabled = !soundEnabled;
+        if (!soundEnabled) {
+            stopAmbient();
+        } else {
+            startAmbient();
+        }
     }
 
     public static boolean isSoundEnabled() {
@@ -21,6 +28,75 @@ public class AudioHelper {
 
     public static void setSoundEnabled(boolean enabled) {
         soundEnabled = enabled;
+        if (!soundEnabled) {
+            stopAmbient();
+        } else {
+            startAmbient();
+        }
+    }
+
+    public static void startAmbient() {
+        if (!soundEnabled) return;
+        synchronized (ambientLock) {
+            if (ambientTrack != null) return;
+            executor.execute(() -> {
+                try {
+                    float duration = 4.0f;
+                    int n = (int) (SAMPLE_RATE * duration);
+                    short[] buf = new short[n];
+                    for (int i = 0; i < n; i++) {
+                        double t = (double) i / SAMPLE_RATE;
+                        double wobble = 1.0 + 0.15 * Math.sin(2.0 * Math.PI * 0.25 * t);
+                        double f1 = Math.sin(2.0 * Math.PI * 48.0 * t * wobble);
+                        double f2 = Math.sin(2.0 * Math.PI * 72.0 * t) * 0.5;
+                        double f3 = Math.sin(2.0 * Math.PI * 105.0 * t) * 0.25;
+                        double bubbleEnv = Math.pow(Math.max(0.0, Math.sin(2.0 * Math.PI * 0.5 * t)), 4);
+                        double bubble = Math.sin(2.0 * Math.PI * (220.0 + 70.0 * Math.sin(2.0 * Math.PI * 7.0 * t)) * t) * bubbleEnv * 0.18;
+                        double val = (f1 + f2 + f3 + bubble) * 0.25;
+                        buf[i] = (short) (val * 32767);
+                    }
+
+                    synchronized (ambientLock) {
+                        if (!soundEnabled || ambientTrack != null) return;
+                        ambientTrack = new AudioTrack.Builder()
+                                .setAudioAttributes(new AudioAttributes.Builder()
+                                        .setUsage(AudioAttributes.USAGE_GAME)
+                                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                        .build())
+                                .setAudioFormat(new AudioFormat.Builder()
+                                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                        .setSampleRate(SAMPLE_RATE)
+                                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                                        .build())
+                                .setBufferSizeInBytes(buf.length * 2)
+                                .setTransferMode(AudioTrack.MODE_STATIC)
+                                .build();
+
+                        ambientTrack.setVolume(0.30f);
+                        ambientTrack.write(buf, 0, buf.length);
+                        ambientTrack.setLoopPoints(0, buf.length, -1);
+                        ambientTrack.play();
+                    }
+                } catch (Exception ignored) {
+                    synchronized (ambientLock) {
+                        ambientTrack = null;
+                    }
+                }
+            });
+        }
+    }
+
+    public static void stopAmbient() {
+        synchronized (ambientLock) {
+            if (ambientTrack != null) {
+                try {
+                    ambientTrack.stop();
+                    ambientTrack.release();
+                } catch (Exception ignored) {
+                }
+                ambientTrack = null;
+            }
+        }
     }
 
     private static void playBuffer(short[] buffer, float volume) {

@@ -36,6 +36,7 @@ echo "Versione build: $version"
 mkdir -p downloads
 apk_target="downloads/carta-dabisso-${version}-debug.apk"
 cp android/app/build/outputs/apk/debug/app-debug.apk "$apk_target"
+ln -sf "carta-dabisso-${version}-debug.apk" downloads/carta-dabisso-latest-debug.apk
 
 # Verifica integrita APK e assenza vincoli web
 python3 scripts/check-apk.py

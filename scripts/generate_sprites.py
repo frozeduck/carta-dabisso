@@ -407,6 +407,66 @@ def gen_anemone():
     sticker.save(out_dir / 'anemone.png')
     print('Generato anemone.png (supersampled Lanczos)')
 
+def gen_pesce_lanterna():
+    # Cartoon Paper Mario Anglerfish / Pesce Lanterna degli Abissi
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Glowing lantern light aura (concentric translucent circles)
+    aura_cx, aura_cy = 130, 110
+    draw.ellipse([aura_cx - 70, aura_cy - 70, aura_cx + 70, aura_cy + 70], fill=(56, 189, 248, 60))
+    draw.ellipse([aura_cx - 45, aura_cy - 45, aura_cx + 45, aura_cy + 45], fill=(254, 240, 138, 110))
+    draw.ellipse([aura_cx - 24, aura_cy - 24, aura_cx + 24, aura_cy + 24], fill=(253, 224, 71, 255), outline=COL_INK, width=6)
+    draw.ellipse([aura_cx - 10, aura_cy - 10, aura_cx + 4, aura_cy + 4], fill=COL_WHITE)
+
+    # Curved stalk/esca from head
+    stalk_pts = [(240, 210), (220, 150), (170, 120), (134, 120), (130, 134), (160, 136), (206, 166), (226, 220)]
+    draw.polygon(stalk_pts, fill=(15, 118, 110, 255), outline=COL_INK)
+
+    # Caudal fin (tail fin) - Paper fan shape
+    tail_pts = [(400, 280), (475, 210), (455, 280), (485, 350), (400, 310)]
+    draw.polygon(tail_pts, fill=(13, 148, 136, 255), outline=COL_INK)
+
+    # Dorsal fin
+    dorsal_pts = [(280, 195), (340, 140), (370, 205)]
+    draw.polygon(dorsal_pts, fill=(20, 184, 166, 255), outline=COL_INK)
+
+    # Main rounded body
+    body_box = [150, 180, 420, 400]
+    draw.ellipse(body_box, fill=(19, 78, 74, 255), outline=COL_INK, width=12)
+
+    # Belly patch (lighter teal)
+    belly_box = [180, 270, 380, 390]
+    draw.ellipse(belly_box, fill=(45, 212, 191, 220))
+
+    # Pectoral side fin
+    pec_pts = [(260, 290), (310, 310), (275, 345)]
+    draw.polygon(pec_pts, fill=(94, 234, 212, 255), outline=COL_INK)
+
+    # Massive predatory underbite grin
+    mouth_pts = [(160, 290), (260, 280), (250, 360), (170, 375)]
+    draw.polygon(mouth_pts, fill=(225, 29, 72, 255), outline=COL_INK, width=8)
+
+    # Sharp triangle teeth
+    for tx in [180, 205, 230]:
+        draw.polygon([(tx, 282), (tx + 8, 304), (tx + 16, 282)], fill=COL_WHITE, outline=COL_INK)
+    for bx in [170, 195, 220, 240]:
+        draw.polygon([(bx, 370), (bx + 8, 340), (bx + 16, 370)], fill=COL_WHITE, outline=COL_INK)
+
+    # Big round cartoon eye
+    draw.ellipse([200, 205, 265, 270], fill=COL_WHITE, outline=COL_INK, width=8)
+    draw.ellipse([210, 215, 245, 250], fill=(245, 158, 11, 255))
+    draw.ellipse([218, 223, 238, 243], fill=COL_INK)
+    draw.ellipse([222, 225, 228, 231], fill=COL_WHITE)
+
+    # Rosy sticker cheek
+    draw.ellipse([250, 260, 280, 285], fill=(251, 146, 60, 180))
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'pesce_lanterna.png')
+    print('Generato pesce_lanterna.png (supersampled Lanczos)')
+
 def gen_app_icon():
     # Builds both standard squircle and round adaptive Paper Mario app icons
     w, h = 1024, 1024
@@ -628,5 +688,6 @@ if __name__ == '__main__':
     gen_paguro_bottegaio()
     gen_stella_marina()
     gen_anemone()
+    gen_pesce_lanterna()
     gen_app_icon()
     print('Tutti gli asset grafici Paper Mario PNG generati con successo e anti-aliasing liscio!')

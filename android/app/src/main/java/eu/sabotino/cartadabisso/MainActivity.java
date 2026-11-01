@@ -8,7 +8,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements Game.SaveDelegate {
     private GameView gameView;
     private long lastBack = 0;
 
@@ -25,8 +25,10 @@ public class MainActivity extends Activity {
         }
 
         applyImmersive();
+        HapticHelper.init(this);
 
         gameView = new GameView(this);
+        gameView.game.setSaveDelegate(this);
         setContentView(gameView);
     }
 
@@ -48,6 +50,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        AudioHelper.stopAmbient();
         if (gameView != null) {
             gameView.pause();
         }
@@ -57,9 +60,40 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        AudioHelper.startAmbient();
         if (gameView != null) {
             gameView.resume();
         }
+    }
+
+    @Override
+    public int getInt(String key, int defVal) {
+        return getSharedPreferences("carta_dabisso_save", MODE_PRIVATE).getInt(key, defVal);
+    }
+
+    @Override
+    public void setInt(String key, int val) {
+        getSharedPreferences("carta_dabisso_save", MODE_PRIVATE).edit().putInt(key, val).apply();
+    }
+
+    @Override
+    public String getString(String key, String defVal) {
+        return getSharedPreferences("carta_dabisso_save", MODE_PRIVATE).getString(key, defVal);
+    }
+
+    @Override
+    public void setString(String key, String val) {
+        getSharedPreferences("carta_dabisso_save", MODE_PRIVATE).edit().putString(key, val).apply();
+    }
+
+    @Override
+    public boolean getBoolean(String key, boolean defVal) {
+        return getSharedPreferences("carta_dabisso_save", MODE_PRIVATE).getBoolean(key, defVal);
+    }
+
+    @Override
+    public void setBoolean(String key, boolean val) {
+        getSharedPreferences("carta_dabisso_save", MODE_PRIVATE).edit().putBoolean(key, val).apply();
     }
 
     @Override

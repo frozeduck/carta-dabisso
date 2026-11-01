@@ -9,3 +9,5 @@ android/app/debug.keystore
 android/app/src/main/assets/web/
 downloads/*.apk
 downloads/*.sha256
+__pycache__/
+*.pyc

@@ -2,7 +2,7 @@
 
 ARPG isometrico subacqueo in **Android nativo** (SurfaceView + Canvas a 60 FPS) in **orientamento orizzontale (Landscape)**, progettato con feeling e dinamiche **Diablo-like**.
 
-**[Scarica l’APK Android v0.3.0](https://github.com/frozeduck/carta-dabisso/releases/download/v0.3.0/carta-dabisso-0.3.0-debug.apk)** · [Release e checksum](https://github.com/frozeduck/carta-dabisso/releases/latest)
+**[Scarica l’APK Android v0.4.0](downloads/carta-dabisso-0.4.0-debug.apk)** · [Server locale di download](http://192.168.1.200:8142)
 
 ---
 

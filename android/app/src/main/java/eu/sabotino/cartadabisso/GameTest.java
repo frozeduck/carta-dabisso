@@ -86,15 +86,27 @@ public class GameTest {
         assert game.getAttackDamage() != oldDmg || game.getDefense() != oldDef || game.getMoveSpeed() > 0 : "Equipaggiamento non ha modificato le statistiche";
         System.out.println("Test 8-9 PASSATO: Loot drop, zaino ed equipaggiamento OK.");
 
-        // Test 10: Progressione Zone e Boss Fight
+        // Test 10: Progressione Zone 3 (Dorsale Vulcanica con Pesce Lanterna) e Zona 4 (Santuario del Kraken)
         game.loadZone(3);
         assert game.zone == 3 : "Caricamento Zona 3 fallito";
-        assert "Santuario del Kraken".equals(game.zoneName) : "Nome zona 3 errato";
+        assert "Dorsale Vulcanica".equals(game.zoneName) : "Nome zona 3 errato";
+        boolean hasAngler = false;
+        for (Game.Enemy e : game.enemies) {
+            if ("angler".equals(e.type)) {
+                hasAngler = true;
+                break;
+            }
+        }
+        assert hasAngler : "Zona 3 deve contenere il nemico Pesce Lanterna";
+
+        game.loadZone(4);
+        assert game.zone == 4 : "Caricamento Zona 4 fallito";
+        assert "Santuario del Kraken".equals(game.zoneName) : "Nome zona 4 errato";
         assert game.enemies.size() == 1 : "Boss arena deve contenere il boss";
         Game.Enemy boss = game.enemies.get(0);
         assert "boss".equals(boss.type) : "Nemico non e' il boss";
         assert boss.hp > 500 : "Salute del boss insufficiente";
-        System.out.println("Test 10 PASSATO: Zona 3 e Boss Leviatano OK.");
+        System.out.println("Test 10 PASSATO: Zona 3 (Dorsale Vulcanica con Pesce Lanterna) e Zona 4 (Boss Leviatano) OK.");
 
         // Test 11: Set di Equipaggiamento e Bonus Set
         game.initPlayer();
@@ -225,6 +237,33 @@ public class GameTest {
         assert !game.playerMoving : "Giocatore non deve muoversi senza input";
         System.out.println("Test 16 PASSATO: Joystick dinamico e zero drift OK.");
 
-        System.out.println("TUTTI I 16 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
+        // Test 17: Meta-Progressione e Altare delle Reliquie Permanenti
+        game.initPlayer();
+        game.shells = 100;
+        int hpBeforeMeta = game.getMaxHp();
+        assert game.canUpgradeMetaPerk("vitality") : "Dovrebbe essere possibile potenziare la Vitalità con 100 conchiglie";
+        boolean vitUpgraded = game.upgradeMetaPerk("vitality");
+        assert vitUpgraded : "Potenziamento Vitalità fallito";
+        assert game.metaVitalityLevel == 1 : "Livello Vitalità non aggiornato";
+        assert game.getMaxHp() == hpBeforeMeta + 25 : "Max HP non incrementato di 25";
+        System.out.println("Test 17 PASSATO: Meta-Progressione e Altare delle Reliquie Permanenti OK.");
+
+        // Test 18: Salvataggio Persistente (SaveDelegate e Record)
+        game.loadZone(3);
+        game.shells = 50;
+        game.onDiveCompleted(false);
+        assert game.maxDepthRecord >= 1450 : "Record profondità non registrato";
+        assert game.totalDivesCount >= 1 : "Conteggio immersioni non incrementato";
+        assert game.totalShellsBank >= 50 : "Conchiglie non depositate in banca";
+        System.out.println("Test 18 PASSATO: Salvataggio Persistente e Record Storici OK.");
+
+        // Test 19: Modalità Abisso Infinito (Endless Dive)
+        game.loadZone(5);
+        assert game.zone == 5 : "Caricamento Zona 5 fallito";
+        assert game.depthMeters > 2400 : "Profondità Endless non superiore alla Zona 4";
+        assert game.enemies.size() >= 4 : "Nemici Endless non generati";
+        System.out.println("Test 19 PASSATO: Modalità Abisso Infinito (Endless Dive) OK.");
+
+        System.out.println("TUTTI I 19 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
     }
 }

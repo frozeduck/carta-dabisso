@@ -27,6 +27,15 @@ public class Game {
         void onLevelUp();
     }
 
+    public interface SaveDelegate {
+        int getInt(String key, int defVal);
+        void setInt(String key, int val);
+        String getString(String key, String defVal);
+        void setString(String key, String val);
+        boolean getBoolean(String key, boolean defVal);
+        void setBoolean(String key, boolean val);
+    }
+
     public static class Item {
         public String id;
         public String name;
@@ -395,6 +404,28 @@ public class Game {
     public boolean gameOver = false;
     public boolean victory = false;
 
+    // Meta-progressione & Record Storici (Banca del Paguro & SharedPreferences)
+    public SaveDelegate saveDelegate = new SaveDelegate() {
+        private final java.util.Map<String, Object> mem = new java.util.HashMap<>();
+        @Override public int getInt(String k, int d) { Object v = mem.get(k); return v instanceof Integer ? (Integer) v : d; }
+        @Override public void setInt(String k, int v) { mem.put(k, v); }
+        @Override public String getString(String k, String d) { Object v = mem.get(k); return v instanceof String ? (String) v : d; }
+        @Override public void setString(String k, String v) { mem.put(k, v); }
+        @Override public boolean getBoolean(String k, boolean d) { Object v = mem.get(k); return v instanceof Boolean ? (Boolean) v : d; }
+        @Override public void setBoolean(String k, boolean v) { mem.put(k, v); }
+    };
+
+    public int maxDepthRecord = 0;
+    public int totalShellsBank = 0;
+    public int totalDivesCount = 0;
+    public int bossesDefeatedCount = 0;
+
+    // Altare delle Reliquie Permanenti
+    public int metaVitalityLevel = 0; // +25 PV per rank (max 5)
+    public int metaTideLevel = 0;     // +20 Marea per rank (max 5)
+    public int metaPotionLevel = 0;   // +1 Fiala iniziale per rank (max 2)
+    public int metaMagnetLevel = 0;   // +45px Calamita tesori per rank (max 3)
+
     // Juice & Feel knobs
     public float trauma = 0f;
     public float hitStop = 0f;
@@ -403,15 +434,125 @@ public class Game {
     private final Random rng = new Random();
 
     public Game() {
+        loadPersistentData();
         initPlayer();
         loadZone(1);
+    }
+
+    public void setSaveDelegate(SaveDelegate delegate) {
+        if (delegate != null) {
+            this.saveDelegate = delegate;
+            loadPersistentData();
+        }
+    }
+
+    public void loadPersistentData() {
+        if (saveDelegate == null) return;
+        maxDepthRecord = saveDelegate.getInt("record_max_depth", 0);
+        totalShellsBank = saveDelegate.getInt("bank_shells", 0);
+        totalDivesCount = saveDelegate.getInt("stat_total_dives", 0);
+        bossesDefeatedCount = saveDelegate.getInt("stat_bosses_defeated", 0);
+
+        metaVitalityLevel = saveDelegate.getInt("meta_vitality", 0);
+        metaTideLevel = saveDelegate.getInt("meta_tide", 0);
+        metaPotionLevel = saveDelegate.getInt("meta_potion", 0);
+        metaMagnetLevel = saveDelegate.getInt("meta_magnet", 0);
+    }
+
+    public void savePersistentData() {
+        if (saveDelegate == null) return;
+        saveDelegate.setInt("record_max_depth", maxDepthRecord);
+        saveDelegate.setInt("bank_shells", totalShellsBank);
+        saveDelegate.setInt("stat_total_dives", totalDivesCount);
+        saveDelegate.setInt("stat_bosses_defeated", bossesDefeatedCount);
+
+        saveDelegate.setInt("meta_vitality", metaVitalityLevel);
+        saveDelegate.setInt("meta_tide", metaTideLevel);
+        saveDelegate.setInt("meta_potion", metaPotionLevel);
+        saveDelegate.setInt("meta_magnet", metaMagnetLevel);
+    }
+
+    public void onDiveCompleted(boolean isVictory) {
+        if (depthMeters > maxDepthRecord) {
+            maxDepthRecord = depthMeters;
+        }
+        totalShellsBank += shells;
+        totalDivesCount++;
+        if (isVictory) {
+            bossesDefeatedCount++;
+        }
+        savePersistentData();
+    }
+
+    public int getMetaPerkCost(String metaId) {
+        if ("vitality".equals(metaId)) {
+            int[] costs = {30, 65, 110, 170, 250};
+            return metaVitalityLevel < costs.length ? costs[metaVitalityLevel] : 999;
+        } else if ("tide".equals(metaId)) {
+            int[] costs = {25, 55, 90, 140, 200};
+            return metaTideLevel < costs.length ? costs[metaTideLevel] : 999;
+        } else if ("potion".equals(metaId)) {
+            int[] costs = {75, 180};
+            return metaPotionLevel < costs.length ? costs[metaPotionLevel] : 999;
+        } else if ("magnet".equals(metaId)) {
+            int[] costs = {35, 85, 150};
+            return metaMagnetLevel < costs.length ? costs[metaMagnetLevel] : 999;
+        }
+        return 999;
+    }
+
+    public boolean canUpgradeMetaPerk(String metaId) {
+        int cost = getMetaPerkCost(metaId);
+        int availableShells = totalShellsBank + shells;
+        if (availableShells < cost) return false;
+
+        if ("vitality".equals(metaId)) return metaVitalityLevel < 5;
+        if ("tide".equals(metaId)) return metaTideLevel < 5;
+        if ("potion".equals(metaId)) return metaPotionLevel < 2;
+        if ("magnet".equals(metaId)) return metaMagnetLevel < 3;
+        return false;
+    }
+
+    public boolean upgradeMetaPerk(String metaId) {
+        if (!canUpgradeMetaPerk(metaId)) return false;
+        int cost = getMetaPerkCost(metaId);
+
+        if (shells >= cost) {
+            shells -= cost;
+        } else {
+            int diff = cost - shells;
+            shells = 0;
+            totalShellsBank = Math.max(0, totalShellsBank - diff);
+        }
+
+        if ("vitality".equals(metaId)) {
+            metaVitalityLevel++;
+            hp += 25;
+            floaters.add(new Floater(playerX, playerY - 45f, "+25 SALUTE PERMANENTE!", 0xFF4ADE80, true, 1.4f));
+        } else if ("tide".equals(metaId)) {
+            metaTideLevel++;
+            tide += 20;
+            floaters.add(new Floater(playerX, playerY - 45f, "+20 MAREA PERMANENTE!", 0xFF38BDF8, true, 1.4f));
+        } else if ("potion".equals(metaId)) {
+            metaPotionLevel++;
+            potions++;
+            floaters.add(new Floater(playerX, playerY - 45f, "+1 FIALA INIZIALE!", 0xFFF59E0B, true, 1.4f));
+        } else if ("magnet".equals(metaId)) {
+            metaMagnetLevel++;
+            floaters.add(new Floater(playerX, playerY - 45f, "+35% CALAMITA TESORI!", 0xFFA855F7, true, 1.4f));
+        }
+
+        savePersistentData();
+        if (soundListener != null) soundListener.onLevelUp();
+        return true;
     }
 
     public void initPlayer() {
         level = 1;
         xp = 0;
         xpNext = 60;
-        potions = 3;
+        potions = 3 + metaPotionLevel;
+        maxPotions = 5 + metaPotionLevel;
         shells = 15;
         speedBoostTimer = 0f;
         skillPoints = 0;
@@ -461,6 +602,7 @@ public class Game {
         if (equippedArmor != null) base += equippedArmor.healthBonus;
         if (isSetBonusActive("Corallo")) base += 35; // Set Corallo (2pz): +35 PV
         if (hasSkill("jug_armor")) base += 35 * getSkillRank("jug_armor");
+        base += metaVitalityLevel * 25; // Altare permanente
         return base;
     }
 
@@ -504,6 +646,7 @@ public class Game {
         float base = 100f;
         if (isSetBonusActive("Marea")) base += 30f; // Set Marea (2pz): +30 Marea
         if (hasSkill("mys_tideflow")) base += 40f;
+        base += metaTideLevel * 20f; // Altare permanente
         return base;
     }
 
@@ -698,15 +841,39 @@ public class Game {
             spawnEnemy("eel", "Murena dei Fondali", 800f, 380f, 140, 28, 16f, 120f);
             spawnEnemy("eel", "Murena Zannuta", 700f, 260f, 145, 28, 16f, 120f);
             spawnEnemy("crab", "Corazza Nera", 900f, 250f, 220, 28, 20f, 75f);
-        } else {
+        } else if (zone == 3) {
+            zoneName = "Dorsale Vulcanica";
+            depthMeters = 1450;
+            // Spawn 8 dangerous enemies with Anglerfish (Pesce Lanterna)
+            spawnEnemy("crab", "Granchio di Magma", 450f, 420f, 210, 30, 18f, 85f);
+            spawnEnemy("crab", "Granchio Vulcanico", 1150f, 420f, 220, 32, 18f, 85f);
+            spawnEnemy("eel", "Murena di Fuoco", 600f, 340f, 175, 32, 16f, 125f);
+            spawnEnemy("eel", "Murena di Magma", 1000f, 340f, 180, 32, 16f, 125f);
+            spawnEnemy("angler", "Pesce Lanterna Cieco", 550f, 250f, 195, 34, 18f, 95f);
+            spawnEnemy("angler", "Rana Pescatrice Abissale", 800f, 240f, 240, 38, 21f, 105f);
+            spawnEnemy("angler", "Predatore Fosforescente", 1100f, 260f, 200, 35, 18f, 95f);
+            spawnEnemy("jelly", "Medusa Radiante", 750f, 440f, 160, 30, 16f, 70f);
+        } else if (zone == 4) {
             zoneName = "Santuario del Kraken";
-            depthMeters = 1350;
-            // Boss Arena!
-            spawnBoss("Leviatano Primordiale", MAP_W / 2f, 360f, 750, 36, 52f, 50f);
+            depthMeters = 2400;
+            // Boss Arena! Leviatano Primordiale
+            spawnBoss("Leviatano Primordiale", MAP_W / 2f, 360f, 950, 40, 52f, 50f);
+        } else {
+            // Endless Dive (Zone 5+)
+            int cycle = zone - 4;
+            zoneName = "Abisso Senza Fine (" + cycle + ")";
+            depthMeters = 2400 + cycle * 650;
+            int scaleHp = 1 + (cycle * 2) / 10;
+            int scaleDmg = cycle * 3;
+            spawnEnemy("angler", "Fosforo Ancestrale", 500f, 350f, 260 * scaleHp, 36 + scaleDmg, 20f, 105f);
+            spawnEnemy("angler", "Abominio delle Profondità", 900f, 280f, 300 * scaleHp, 40 + scaleDmg, 22f, 110f);
+            spawnEnemy("crab", "Colosso di Basalto", 700f, 450f, 340 * scaleHp, 38 + scaleDmg, 22f, 90f);
+            spawnEnemy("eel", "Leviatano Minore", 1100f, 360f, 260 * scaleHp, 38 + scaleDmg, 18f, 130f);
+            spawnEnemy("jelly", "Marea Psionica", 600f, 240f, 220 * scaleHp, 38 + scaleDmg, 16f, 75f);
         }
 
-        // Refill half tide
-        tide = maxTide;
+        // Refill tide
+        tide = getMaxTide();
     }
 
     private void spawnEnemy(String type, String name, float x, float y, int hp, int dmg, float radius, float speed) {
@@ -1136,6 +1303,7 @@ public class Game {
         if (hp <= 0) {
             hp = 0;
             gameOver = true;
+            onDiveCompleted(false);
         }
     }
 
@@ -1187,6 +1355,7 @@ public class Game {
         e.hp = 0;
         int gainedXp = 20;
         if ("eel".equals(e.type)) gainedXp = 35;
+        else if ("angler".equals(e.type)) gainedXp = 48;
         else if ("boss".equals(e.type)) gainedXp = 150;
 
         addXp(gainedXp);
@@ -1199,7 +1368,7 @@ public class Game {
         }
 
         // Death burst particles
-        int particleCount = "boss".equals(e.type) ? 40 : 16;
+        int particleCount = "boss".equals(e.type) ? 40 : ("angler".equals(e.type) ? 24 : 16);
         for (int i = 0; i < particleCount; i++) {
             particles.add(new Particle(e.x, e.y,
                     (float)(Math.random()*160-80), (float)(Math.random()*160-80),
@@ -1207,7 +1376,14 @@ public class Game {
         }
 
         // Drop di Conchiglie d'oro sempre garantito!
-        int shellReward = "boss".equals(e.type) ? (25 + rng.nextInt(15)) : (3 + rng.nextInt(5));
+        int shellReward;
+        if ("boss".equals(e.type)) {
+            shellReward = 25 + rng.nextInt(15);
+        } else if ("angler".equals(e.type)) {
+            shellReward = 7 + rng.nextInt(7);
+        } else {
+            shellReward = 3 + rng.nextInt(5);
+        }
         drops.add(new Drop(e.x + rng.nextInt(24) - 12, e.y + rng.nextInt(24) - 12, shellReward));
 
         // Floor Loot Drop!
@@ -1231,8 +1407,8 @@ public class Game {
 
     private void rollLootDrop(Enemy e) {
         float roll = rng.nextFloat();
-        // High chance for boss, normal for mobs
-        float dropThreshold = "boss".equals(e.type) ? 1.0f : 0.45f;
+        // High chance for boss and angler, normal for common mobs
+        float dropThreshold = "boss".equals(e.type) ? 1.0f : ("angler".equals(e.type) ? 0.65f : 0.45f);
         if (roll > dropThreshold) return;
 
         Item dropped = generateRandomItem(zone, "boss".equals(e.type));
@@ -1329,10 +1505,11 @@ public class Game {
             float dy = playerY - d.y;
             float distSq = dx * dx + dy * dy;
 
-            // Magnet pull: attira gocce e oggetti verso il palombaro se entro 170px
-            if (distSq < 170f * 170f && distSq > 4f) {
+            // Magnet pull: attira gocce e oggetti verso il palombaro con potenziamento permanente
+            float magnetDist = 170f + (metaMagnetLevel * 45f);
+            if (distSq < magnetDist * magnetDist && distSq > 4f) {
                 float dist = (float) Math.sqrt(distSq);
-                float pullSpeed = Math.max(220f, (1f - dist / 170f) * 460f);
+                float pullSpeed = Math.max(220f, (1f - dist / magnetDist) * 480f);
                 d.x += (dx / dist) * pullSpeed * dt;
                 d.y += (dy / dist) * pullSpeed * dt;
             }
@@ -1395,6 +1572,8 @@ public class Game {
                 updateJellyAI(e, dist, dx, dy, dt);
             } else if ("eel".equals(e.type)) {
                 updateEelAI(e, dist, dx, dy, dt);
+            } else if ("angler".equals(e.type)) {
+                updateAnglerAI(e, dist, dx, dy, dt);
             } else {
                 // Crab melee
                 updateCrabAI(e, dist, dx, dy, dt);
@@ -1448,6 +1627,55 @@ public class Game {
         }
 
         if (dist < e.radius + playerRadius + 12f && e.attackCooldown <= 0f) {
+            e.attackCooldown = e.attackInterval;
+            damagePlayer(e.attackDamage, e.x, e.y);
+        }
+    }
+
+    private void updateAnglerAI(Enemy e, float dist, float dx, float dy, float dt) {
+        if (e.isWindingUp) {
+            e.windupTimer -= dt;
+            if (e.windupTimer <= 0f) {
+                e.isWindingUp = false;
+                e.attackCooldown = e.attackInterval;
+                float spd = e.speed * 2.8f;
+                e.vx = (dx / Math.max(1f, dist)) * spd;
+                e.vy = (dy / Math.max(1f, dist)) * spd;
+                projectiles.add(new Projectile(e.x, e.y, e.vx * 0.9f, e.vy * 0.9f, 9f, e.attackDamage, false, 2.0f, 0xFFFBBF24));
+            }
+            return;
+        }
+
+        if (Math.abs(e.vx) > 0.1f || Math.abs(e.vy) > 0.1f) {
+            e.x += e.vx * dt;
+            e.y += e.vy * dt;
+            e.vx *= (1f - dt * 3.5f);
+            e.vy *= (1f - dt * 3.5f);
+        } else {
+            if (dist > 380f) {
+                e.x += (dx / dist) * e.speed * dt;
+                e.y += (dy / dist) * e.speed * dt;
+            } else if (dist < 180f) {
+                e.x -= (dx / dist) * e.speed * 0.7f * dt;
+                e.y -= (dy / dist) * e.speed * 0.7f * dt;
+            } else {
+                float perpX = -dy / dist;
+                float perpY = dx / dist;
+                e.x += perpX * e.speed * 0.8f * dt;
+                e.y += perpY * e.speed * 0.8f * dt;
+            }
+        }
+
+        if (dist < 320f && e.attackCooldown <= 0f && !e.isWindingUp) {
+            e.isWindingUp = true;
+            e.windupDuration = 0.85f;
+            e.windupTimer = e.windupDuration;
+            e.windupX = playerX;
+            e.windupY = playerY;
+            e.windupRadius = 40f;
+        }
+
+        if (dist < e.radius + playerRadius + 10f && e.attackCooldown <= 0f) {
             e.attackCooldown = e.attackInterval;
             damagePlayer(e.attackDamage, e.x, e.y);
         }
@@ -1511,10 +1739,11 @@ public class Game {
             float dy = playerY - portalY;
             if (dx * dx + dy * dy < portalRadius * portalRadius) {
                 // Enter portal to next zone or victory!
-                if (zone < 3) {
-                    loadZone(zone + 1);
-                } else {
+                if (zone == 4 && !victory) {
                     victory = true;
+                    onDiveCompleted(true);
+                } else {
+                    loadZone(zone + 1);
                 }
             }
         }

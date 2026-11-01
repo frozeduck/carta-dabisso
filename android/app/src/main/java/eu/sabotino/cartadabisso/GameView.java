@@ -54,6 +54,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private Bitmap bmpEel;
     private Bitmap bmpStarfish;
     private Bitmap bmpAnemone;
+    private Bitmap bmpAngler;
 
     // Modals: Perk Selection Card Rects (3 cards)
     private final RectF[] perkCardRects = new RectF[]{
@@ -63,12 +64,22 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     };
 
     // Modals: Merchant Shop Dialog Rects & Exit Button
+    public int shopTab = 0; // 0 = Provviste, 1 = Altare Reliquie Permanenti
     private final RectF shopModalRect = new RectF(120f, 25f, 840f, 515f);
     private final RectF btnCloseShop = new RectF(785f, 15f, 835f, 65f);
     private final RectF btnShopExit = new RectF(360f, 465f, 600f, 508f);
+    private final RectF shopTabProvviste = new RectF();
+    private final RectF shopTabAltare = new RectF();
+
     private final RectF shopSlotPotion = new RectF(150f, 125f, 810f, 222f);
     private final RectF shopSlotBlessing = new RectF(150f, 235f, 810f, 332f);
     private final RectF shopSlotCoffer = new RectF(150f, 345f, 810f, 442f);
+
+    private final RectF metaSlotVitality = new RectF();
+    private final RectF metaSlotTide = new RectF();
+    private final RectF metaSlotPotion = new RectF();
+    private final RectF metaSlotMagnet = new RectF();
+    private final RectF btnEndless = new RectF();
 
     // Dynamic Fullscreen Adaptive Widescreen (Galaxy Z Flip 7, 22:9, 20:9, 16:9 - ZERO Black Bars)
     public static final float VIRTUAL_H = 540f;
@@ -187,20 +198,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             bmpEel = BitmapFactory.decodeResource(context.getResources(), R.drawable.murena);
             bmpStarfish = BitmapFactory.decodeResource(context.getResources(), R.drawable.stella_marina);
             bmpAnemone = BitmapFactory.decodeResource(context.getResources(), R.drawable.anemone);
+            bmpAngler = BitmapFactory.decodeResource(context.getResources(), R.drawable.pesce_lanterna);
         } catch (Exception ignored) {
         }
     }
 
     private void setupSoundBridge() {
         game.setSoundListener(new Game.SoundListener() {
-            @Override public void onHit() { AudioHelper.playHit(); }
-            @Override public void onHeavyHit() { AudioHelper.playHeavyHit(); }
+            @Override public void onHit() { AudioHelper.playHit(); HapticHelper.lightTap(); }
+            @Override public void onHeavyHit() { AudioHelper.playHeavyHit(); HapticHelper.heavyImpact(); }
             @Override public void onWave() { AudioHelper.playWave(); }
-            @Override public void onDash() { AudioHelper.playDash(); }
+            @Override public void onDash() { AudioHelper.playDash(); HapticHelper.lightTap(); }
             @Override public void onPotion() { AudioHelper.playPotion(); }
             @Override public void onLoot(int rarity) { AudioHelper.playLoot(rarity); }
             @Override public void onClick() { AudioHelper.playClick(); }
-            @Override public void onLevelUp() { AudioHelper.playLevelUp(); }
+            @Override public void onLevelUp() { AudioHelper.playLevelUp(); HapticHelper.victoryFanfare(); }
         });
     }
 
@@ -307,9 +319,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         btnCloseShop.set(shopR - 65f, 15f, shopR - 10f, 68f);
         btnShopExit.set(cx - 130f, 465f, cx + 130f, 508f);
 
-        shopSlotPotion.set(shopL + 30f, 125f, shopR - 30f, 222f);
-        shopSlotBlessing.set(shopL + 30f, 235f, shopR - 30f, 332f);
-        shopSlotCoffer.set(shopL + 30f, 345f, shopR - 30f, 442f);
+        shopTabProvviste.set(shopL + 30f, 62f, cx - 10f, 102f);
+        shopTabAltare.set(cx + 10f, 62f, shopR - 70f, 102f);
+
+        shopSlotPotion.set(shopL + 30f, 155f, shopR - 30f, 245f);
+        shopSlotBlessing.set(shopL + 30f, 255f, shopR - 30f, 345f);
+        shopSlotCoffer.set(shopL + 30f, 355f, shopR - 30f, 445f);
+
+        metaSlotVitality.set(shopL + 30f, 155f, shopR - 30f, 222f);
+        metaSlotTide.set(shopL + 30f, 230f, shopR - 30f, 297f);
+        metaSlotPotion.set(shopL + 30f, 305f, shopR - 30f, 372f);
+        metaSlotMagnet.set(shopL + 30f, 380f, shopR - 30f, 447f);
 
         // 3. Inventory Modal
         float invW = Math.min(screenW - 60f, 860f);
@@ -409,6 +429,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         game.loadZone(1);
         game.gameOver = false;
         game.victory = false;
+        inventoryOpen = false;
+        resetJoystick();
+        AudioHelper.playClick();
+    }
+
+    public void startEndlessDive() {
+        game.victory = false;
+        game.loadZone(5);
         inventoryOpen = false;
         resetJoystick();
         AudioHelper.playClick();
@@ -568,15 +596,25 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // 1. Zone-Themed Watercolor Ocean Gradients
         int colTop, colMid, colBot;
         if (game.zone == 2) {
-            // Fossa Vulcanica (Abyssal indigo to volcanic crimson/orange twilight)
+            // Fossa delle Tenebre (Abyssal indigo to dark violet)
             colTop = 0xFF1E1B4B;
             colMid = 0xFF31103F;
-            colBot = 0xFF450A0A;
+            colBot = 0xFF1E1E38;
         } else if (game.zone == 3) {
-            // Palazzo di Madreperla (Royal oceanic amethyst to luminous emerald deeps)
-            colTop = 0xFF1E1B4B;
+            // Dorsale Vulcanica (Volcanic obsidian to burning magma twilight)
+            colTop = 0xFF1C0A0A;
+            colMid = 0xFF450A0A;
+            colBot = 0xFF7C2D12;
+        } else if (game.zone == 4) {
+            // Santuario del Kraken (Royal oceanic amethyst to luminous emerald deeps)
+            colTop = 0xFF0B091A;
             colMid = 0xFF0F766E;
             colBot = 0xFF042F2E;
+        } else if (game.zone >= 5) {
+            // Abisso Senza Fine (Deep cosmic abyssal void)
+            colTop = 0xFF020617;
+            colMid = 0xFF0B132B;
+            colBot = 0xFF1C2541;
         } else {
             // Barriera Corallina (Sunny Caribbean cyan/aquamarine to rich tropical teal)
             colTop = 0xFF0284C7;
@@ -1150,6 +1188,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawPaperJellyfish(canvas, e);
         } else if ("eel".equals(e.type)) {
             drawPaperAbyssalEel(canvas, e);
+        } else if ("angler".equals(e.type)) {
+            drawPaperAnglerfish(canvas, e);
         } else {
             drawPaperCrab(canvas, e);
         }
@@ -1332,6 +1372,45 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             paintStroke.setStrokeWidth(7f);
             canvas.drawPath(tempPath, paintStroke);
             paintStroke.setStrokeCap(Paint.Cap.BUTT);
+        }
+        canvas.restore();
+    }
+
+    private void drawPaperAnglerfish(Canvas canvas, Game.Enemy e) {
+        drawFloorShadow(canvas, 0f, 6f, 26f, 9f);
+
+        float rot = (float) Math.sin(animTime * 3.5f + e.animTimer) * 6f;
+        float bob = (float) Math.sin(animTime * 2.2f + e.animTimer) * 3f;
+
+        canvas.save();
+        canvas.translate(0f, bob);
+        canvas.rotate(rot);
+
+        boolean facingLeft = e.vx < 0f;
+        if (facingLeft) {
+            canvas.scale(-1f, 1f);
+        }
+
+        // Bioluminescent lantern glow in the deep sea!
+        float glowPulse = 0.85f + (float) Math.sin(animTime * 6f + e.animTimer) * 0.25f;
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0x3538BDF8);
+        canvas.drawCircle(-e.radius * 0.65f, -e.radius * 0.75f, 28f * glowPulse, paintFill);
+        paintFill.setColor(0x65FEF08A);
+        canvas.drawCircle(-e.radius * 0.65f, -e.radius * 0.75f, 15f * glowPulse, paintFill);
+
+        if (bmpAngler != null) {
+            float s = 0.23f;
+            canvas.scale(s, s);
+            canvas.drawBitmap(bmpAngler, -bmpAngler.getWidth() / 2f, -bmpAngler.getHeight() / 2f, null);
+        } else {
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFF0F766E);
+            canvas.drawCircle(0f, 0f, e.radius, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(3f);
+            canvas.drawCircle(0f, 0f, e.radius, paintStroke);
         }
         canvas.restore();
     }
@@ -2363,11 +2442,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setFakeBoldText(true);
         canvas.drawText("RIEPILOGO DELLA DISCESA", cx, cardT + 26f, paintText);
 
-        paintText.setTextSize(13f);
+        paintText.setTextSize(12.5f);
         paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Profondità Raggiunta: " + game.depthMeters + "m  •  " + game.zoneName, cx, cardT + 58f, paintText);
-        canvas.drawText("Livello Palombaro: " + game.level + "  •  Conchiglie Totali: " + game.shells, cx, cardT + 84f, paintText);
+        canvas.drawText("Profondità Raggiunta: " + game.depthMeters + "m  •  Record Storico: " + game.maxDepthRecord + "m", cx, cardT + 48f, paintText);
+        canvas.drawText("Conchiglie Raccolte: " + game.shells + "  •  Banca Totale: " + game.totalShellsBank, cx, cardT + 70f, paintText);
+        canvas.drawText("Immersioni Affrontate: " + game.totalDivesCount + "  •  Leviatani Battuti: " + game.bossesDefeatedCount, cx, cardT + 92f, paintText);
 
         // Tasto Riavvio Verde Smeraldo
         btnRestart.set(cx - 150f, goBox.bottom - 65f, cx + 150f, goBox.bottom - 18f);
@@ -2425,13 +2505,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setFakeBoldText(true);
         canvas.drawText("IMPRESA DEGLI ABISSI COMPLETATA", cx, cardT + 26f, paintText);
 
-        paintText.setTextSize(13f);
+        paintText.setTextSize(12.5f);
         paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Profondità Finale: " + game.depthMeters + "m  •  Tutte le Zone Ripulite", cx, cardT + 58f, paintText);
-        canvas.drawText("Palombaro Livello " + game.level + "  •  Conchiglie Raccolte: " + game.shells, cx, cardT + 84f, paintText);
+        canvas.drawText("Profondità Finale: " + game.depthMeters + "m  •  Record Storico: " + game.maxDepthRecord + "m", cx, cardT + 48f, paintText);
+        canvas.drawText("Conchiglie Salve: " + game.shells + "  •  Banca Totale: " + game.totalShellsBank, cx, cardT + 70f, paintText);
+        canvas.drawText("Spedizioni Concluse: " + game.totalDivesCount + "  •  Leviatani Sconfitti: " + game.bossesDefeatedCount, cx, cardT + 92f, paintText);
 
-        btnRestart.set(cx - 150f, vicBox.bottom - 65f, cx + 150f, vicBox.bottom - 18f);
+        float btnW = 210f;
+        btnRestart.set(cx - btnW - 12f, vicBox.bottom - 65f, cx - 12f, vicBox.bottom - 18f);
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFF16A34A);
         canvas.drawRoundRect(btnRestart, 8f, 8f, paintFill);
@@ -2442,9 +2524,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
-        paintText.setTextSize(15f);
+        paintText.setTextSize(13f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("NUOVA SPEDIZIONE", btnRestart.centerX(), btnRestart.centerY() + 5.5f, paintText);
+        canvas.drawText("NUOVA SPEDIZIONE", btnRestart.centerX(), btnRestart.centerY() + 5f, paintText);
+
+        btnEndless.set(cx + 12f, vicBox.bottom - 65f, cx + btnW + 12f, vicBox.bottom - 18f);
+        paintFill.setColor(0xFF0284C7);
+        canvas.drawRoundRect(btnEndless, 8f, 8f, paintFill);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2.5f);
+        canvas.drawRoundRect(btnEndless, 8f, 8f, paintStroke);
+
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(13f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("⚡ ABISSO SENZA FINE", btnEndless.centerX(), btnEndless.centerY() + 5f, paintText);
     }
 
     private void drawPaperMerchant(Canvas canvas) {
@@ -2989,12 +3083,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // Sigillo di chiusura 'X' disegnato SOPRA la tenda per massima visibilità e accessibilità!
         drawCloseWaxSeal(canvas, btnCloseShop);
 
+        // Tabs
+        drawClassTab(canvas, shopTabProvviste, "PROVVISTE SPEDIZIONE", shopTab == 0, 0xFF16A34A);
+        drawClassTab(canvas, shopTabAltare, "ALTARE DEGLI ABISSI", shopTab == 1, 0xFFD97706);
+
         // Conchiglie counter pill
         paintText.setTextAlign(Paint.Align.RIGHT);
         paintText.setTextSize(13f);
         paintText.setColor(0xFF78350F);
         paintText.setFakeBoldText(true);
-        canvas.drawText("Conchiglie: " + game.shells, shopModalRect.right - 85f, shopModalRect.top + 34f, paintText);
+        String shellStr = "Conchiglie: " + game.shells + (game.totalShellsBank > 0 ? " (Banca: " + game.totalShellsBank + ")" : "");
+        canvas.drawText(shellStr, shopModalRect.right - 85f, shopModalRect.top + 34f, paintText);
         if (bmpShell != null) {
             tempRect.set(shopModalRect.right - 78f, shopModalRect.top + 16f, shopModalRect.right - 50f, shopModalRect.top + 44f);
             canvas.drawBitmap(bmpShell, null, tempRect, null);
@@ -3004,7 +3103,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (bmpMerchant != null) {
             float s = 0.22f;
             canvas.save();
-            canvas.translate(shopModalRect.left + 50f, shopModalRect.top + 95f);
+            canvas.translate(shopModalRect.left + 50f, shopModalRect.top + 124f);
             canvas.scale(s, s);
             canvas.drawBitmap(bmpMerchant, -bmpMerchant.getWidth() / 2f, -bmpMerchant.getHeight() / 2f, null);
             canvas.restore();
@@ -3012,29 +3111,53 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             // Speech bubble
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(0xFFFFFBEB);
-            canvas.drawRoundRect(shopModalRect.left + 95f, shopModalRect.top + 65f, shopModalRect.right - 30f, shopModalRect.top + 115f, 8f, 8f, paintFill);
+            canvas.drawRoundRect(shopModalRect.left + 95f, shopModalRect.top + 106f, shopModalRect.right - 30f, shopModalRect.top + 144f, 8f, 8f, paintFill);
             paintStroke.setStyle(Paint.Style.STROKE);
             paintStroke.setColor(0xFFD97706);
             paintStroke.setStrokeWidth(1.5f);
-            canvas.drawRoundRect(shopModalRect.left + 95f, shopModalRect.top + 65f, shopModalRect.right - 30f, shopModalRect.top + 115f, 8f, 8f, paintStroke);
+            canvas.drawRoundRect(shopModalRect.left + 95f, shopModalRect.top + 106f, shopModalRect.right - 30f, shopModalRect.top + 144f, 8f, 8f, paintStroke);
 
             paintText.setTextAlign(Paint.Align.LEFT);
             paintText.setColor(0xFF78350F);
-            paintText.setTextSize(11f);
+            paintText.setTextSize(10.5f);
             paintText.setFakeBoldText(false);
-            canvas.drawText("«Ehilà, coraggioso palombaro! Ho recuperato queste rarità dagli abissi più profondi...", shopModalRect.left + 105f, shopModalRect.top + 85f, paintText);
-            canvas.drawText("Usa le conchiglie raccolte per rinforzare la tua spedizione!»", shopModalRect.left + 105f, shopModalRect.top + 102f, paintText);
+            if (shopTab == 0) {
+                canvas.drawText("«Rifornimenti rapidi per la spedizione attuale. Pozioni, benedizioni e forzieri!»", shopModalRect.left + 105f, shopModalRect.top + 128f, paintText);
+            } else {
+                canvas.drawText("«L'Altare Ancestrale risuona con le conchiglie salvate. Forgia poteri permanenti!»", shopModalRect.left + 105f, shopModalRect.top + 128f, paintText);
+            }
         }
 
-        // Shop items (warm parchment cards with luggage price tags)
-        drawShopItem(canvas, shopSlotPotion, "Fiala di Cura Rinforzata", "+1 Pozione di cura istantanea (ripristina tutti i PV)", 15,
-                game.shells >= 15 && game.potions < game.maxPotions, 0xFF16A34A);
+        if (shopTab == 0) {
+            drawShopItem(canvas, shopSlotPotion, "Fiala di Cura Rinforzata", "+1 Pozione di cura istantanea (ripristina tutti i PV)", 15,
+                    game.shells >= 15 && game.potions < game.maxPotions, 0xFF16A34A, "ACQUISTA");
 
-        drawShopItem(canvas, shopSlotBlessing, "Benedizione delle Maree", "Ripristina al 100% la Marea e guarisce +30 PV", 25,
-                game.shells >= 25, 0xFF0284C7);
+            drawShopItem(canvas, shopSlotBlessing, "Benedizione delle Maree", "Ripristina al 100% la Marea e guarisce +30 PV", 25,
+                    game.shells >= 25, 0xFF0284C7, "ACQUISTA");
 
-        drawShopItem(canvas, shopSlotCoffer, "Scrigno Misterioso dei Fondali", "Genera un equipaggiamento Raro o Abissale per lo zaino", 55,
-                game.shells >= 55 && game.backpack.size() < 8, 0xFF9333EA);
+            drawShopItem(canvas, shopSlotCoffer, "Scrigno Misterioso dei Fondali", "Genera un equipaggiamento Raro o Abissale per lo zaino", 55,
+                    game.shells >= 55 && game.backpack.size() < 8, 0xFF9333EA, "ACQUISTA");
+        } else {
+            int costVit = game.getMetaPerkCost("vitality");
+            drawShopItem(canvas, metaSlotVitality, "Vitalità Sommersa (+25 PV Base) — Livello " + game.metaVitalityLevel + "/5",
+                    "Aumenta permanentemente la salute massima per tutte le future spedizioni", costVit,
+                    game.canUpgradeMetaPerk("vitality"), 0xFF16A34A, "POTENZIA");
+
+            int costTide = game.getMetaPerkCost("tide");
+            drawShopItem(canvas, metaSlotTide, "Flusso della Marea (+20 Marea Base) — Livello " + game.metaTideLevel + "/5",
+                    "Aumenta permanentemente la riserva di energia vitale per le abilità marine", costTide,
+                    game.canUpgradeMetaPerk("tide"), 0xFF0284C7, "POTENZIA");
+
+            int costPot = game.getMetaPerkCost("potion");
+            drawShopItem(canvas, metaSlotPotion, "Scorta di Pozioni (+1 Fiala Iniziale) — Livello " + game.metaPotionLevel + "/2",
+                    "Inizia ogni spedizione negli abissi con una fiala di cura aggiuntiva", costPot,
+                    game.canUpgradeMetaPerk("potion"), 0xFFF59E0B, "POTENZIA");
+
+            int costMag = game.getMetaPerkCost("magnet");
+            drawShopItem(canvas, metaSlotMagnet, "Calamita Abissale (+35% Raggio Raccolta) — Livello " + game.metaMagnetLevel + "/3",
+                    "Attira magneticamente le conchiglie e i tesori da maggiore distanza", costMag,
+                    game.canUpgradeMetaPerk("magnet"), 0xFF9333EA, "POTENZIA");
+        }
 
         // Tasto di uscita chiaro in basso
         paintFill.setStyle(Paint.Style.FILL);
@@ -3051,30 +3174,30 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText("✕ ESCI DALLA BOTTEGA", btnShopExit.centerX(), btnShopExit.centerY() + 4.5f, paintText);
     }
 
-    private void drawShopItem(Canvas canvas, RectF r, String title, String desc, int cost, boolean canBuy, int accentCol) {
+    private void drawShopItem(Canvas canvas, RectF r, String title, String desc, int cost, boolean canBuy, int accentCol, String actionLabel) {
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFFFEF3C7);
-        canvas.drawRoundRect(r, 10f, 10f, paintFill);
+        canvas.drawRoundRect(r, 8f, 8f, paintFill);
 
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(canBuy ? accentCol : 0xFFCBD5E1);
-        paintStroke.setStrokeWidth(2f);
-        canvas.drawRoundRect(r, 10f, 10f, paintStroke);
+        paintStroke.setStrokeWidth(1.8f);
+        canvas.drawRoundRect(r, 8f, 8f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setColor(canBuy ? 0xFF78350F : 0xFF94A3B8);
-        paintText.setTextSize(14f);
+        paintText.setTextSize(12.5f);
         paintText.setFakeBoldText(true);
-        canvas.drawText(title, r.left + 20f, r.top + 32f, paintText);
+        canvas.drawText(title, r.left + 16f, r.top + 26f, paintText);
 
-        paintText.setTextSize(11f);
+        paintText.setTextSize(10.5f);
         paintText.setColor(COL_INK);
         paintText.setFakeBoldText(false);
-        canvas.drawText(desc, r.left + 20f, r.top + 58f, paintText);
+        canvas.drawText(desc, r.left + 16f, r.top + 48f, paintText);
 
-        float btnW = 140f;
-        float btnH = 40f;
-        float bx = r.right - btnW - 20f;
+        float btnW = 145f;
+        float btnH = 34f;
+        float bx = r.right - btnW - 16f;
         float by = r.centerY() - btnH / 2f;
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(canBuy ? 0xFF16A34A : 0xFFCBD5E1);
@@ -3086,9 +3209,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(canBuy ? COL_STICKER : 0xFF64748B);
-        paintText.setTextSize(12f);
+        paintText.setTextSize(11f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("ACQUISTA (" + cost + ")", bx + btnW / 2f, by + 25f, paintText);
+        String label = (cost >= 999) ? "MASSIMO" : (actionLabel + " (" + cost + ")");
+        canvas.drawText(label, bx + btnW / 2f, by + 21f, paintText);
     }
 
     private void handlePerkSelectionTouch(float vx, float vy) {
@@ -3109,19 +3233,48 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
-        if (shopSlotPotion.contains(vx, vy)) {
-            game.buyPotionFromMerchant();
+        if (shopTabProvviste.contains(vx, vy)) {
+            shopTab = 0;
+            AudioHelper.playClick();
             return;
         }
 
-        if (shopSlotBlessing.contains(vx, vy)) {
-            game.buyTideBlessing();
+        if (shopTabAltare.contains(vx, vy)) {
+            shopTab = 1;
+            AudioHelper.playClick();
             return;
         }
 
-        if (shopSlotCoffer.contains(vx, vy)) {
-            game.buyMysteryCoffer();
-            return;
+        if (shopTab == 0) {
+            if (shopSlotPotion.contains(vx, vy)) {
+                game.buyPotionFromMerchant();
+                return;
+            }
+            if (shopSlotBlessing.contains(vx, vy)) {
+                game.buyTideBlessing();
+                return;
+            }
+            if (shopSlotCoffer.contains(vx, vy)) {
+                game.buyMysteryCoffer();
+                return;
+            }
+        } else {
+            if (metaSlotVitality.contains(vx, vy)) {
+                game.upgradeMetaPerk("vitality");
+                return;
+            }
+            if (metaSlotTide.contains(vx, vy)) {
+                game.upgradeMetaPerk("tide");
+                return;
+            }
+            if (metaSlotPotion.contains(vx, vy)) {
+                game.upgradeMetaPerk("potion");
+                return;
+            }
+            if (metaSlotMagnet.contains(vx, vy)) {
+                game.upgradeMetaPerk("magnet");
+                return;
+            }
         }
     }
 
@@ -3207,7 +3360,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             if (action == MotionEvent.ACTION_DOWN) {
                 float vx = (event.getX() - offsetX) / viewScale;
                 float vy = (event.getY() - offsetY) / viewScale;
-                if (btnRestart.contains(vx, vy)) restartGame();
+                if (btnRestart.contains(vx, vy)) {
+                    restartGame();
+                } else if (game.victory && btnEndless.contains(vx, vy)) {
+                    startEndlessDive();
+                }
             }
             return true;
         }
