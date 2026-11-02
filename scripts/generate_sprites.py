@@ -602,6 +602,153 @@ def gen_anziano_tartaruga():
     sticker.save(out_dir / 'anziano_tartaruga.png')
     print('Generato anziano_tartaruga.png (supersampled Lanczos)')
 
+def gen_classe_cacciatore():
+    # Hunter Class: Sleek, hydrodynamic, scoped harpoon rifle, finned boots, agile aiming pose
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Streamlined Twin Oxygen Tanks on back (Teal/Cyan)
+    draw.rounded_rectangle([75, 160, 135, 340], radius=24, fill=(14, 165, 233, 255), outline=COL_INK, width=8)
+    draw.rounded_rectangle([115, 170, 165, 350], radius=24, fill=(6, 182, 212, 255), outline=COL_INK, width=8)
+    # Brass regulators & valve wheels
+    draw.ellipse([92, 140, 118, 166], fill=COL_GOLD, outline=COL_INK, width=6)
+    draw.ellipse([132, 150, 158, 176], fill=COL_GOLD, outline=COL_INK, width=6)
+
+    # Finned Diving Boots (Flipper fins extending back)
+    draw.polygon([(110, 420), (70, 470), (190, 470), (180, 410)], fill=(2, 132, 199, 255), outline=COL_INK)
+    draw.polygon([(240, 410), (220, 470), (330, 470), (290, 410)], fill=(14, 165, 233, 255), outline=COL_INK)
+    draw.rounded_rectangle([130, 380, 200, 440], radius=16, fill=COL_BOOT, outline=COL_INK, width=8)
+    draw.rounded_rectangle([250, 380, 320, 440], radius=16, fill=COL_BOOT, outline=COL_INK, width=8)
+
+    # Sleek Hydrodynamic Diving Suit Body (Ocean Teal / Cobalt)
+    draw.rounded_rectangle([150, 230, 330, 400], radius=44, fill=(2, 132, 199, 255), outline=COL_INK, width=10)
+    # Tactical chest straps & quiver pouch
+    draw.line([(150, 290), (330, 320)], fill=(15, 23, 42, 255), width=10)
+    draw.line([(150, 340), (330, 270)], fill=(15, 23, 42, 255), width=10)
+    draw.ellipse([225, 290, 255, 320], fill=COL_GOLD, outline=COL_INK, width=6)
+
+    # Scoped Pneumatic Harpoon Rifle (held forward in aiming pose)
+    draw.rounded_rectangle([280, 290, 360, 340], radius=12, fill=(120, 53, 15, 255), outline=COL_INK, width=8)
+    draw.line([(320, 305), (465, 240)], fill=(51, 65, 85, 255), width=16)
+    draw.line([(320, 305), (465, 240)], fill=COL_INK, width=6)
+    draw.rounded_rectangle([360, 255, 415, 275], radius=6, fill=COL_GOLD, outline=COL_INK, width=6)
+    draw.ellipse([410, 258, 422, 272], fill=COL_AQUA, outline=COL_INK, width=4)
+    draw.polygon([(465, 240), (495, 225), (475, 255)], fill=(241, 245, 249, 255), outline=COL_INK)
+    draw.polygon([(495, 225), (480, 215), (470, 228)], fill=COL_GOLD, outline=COL_INK)
+
+    # Streamlined Hunter Diving Helmet
+    draw.ellipse([160, 80, 330, 270], fill=(245, 158, 11, 255), outline=COL_INK, width=12)
+    draw.polygon([(220, 85), (245, 40), (270, 85)], fill=COL_GOLD, outline=COL_INK)
+    draw.polygon([(195, 130), (295, 130), (285, 215), (205, 215)], fill=(15, 23, 42, 255), outline=COL_INK)
+    draw.polygon([(202, 136), (288, 136), (280, 208), (210, 208)], fill=(34, 211, 238, 255))
+    draw.polygon([(212, 145), (232, 142), (222, 185), (206, 185)], fill=COL_WHITE)
+    draw.polygon([(262, 142), (278, 140), (272, 168), (258, 168)], fill=COL_WHITE)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'classe_cacciatore.png')
+    print('Generato classe_cacciatore.png (supersampled Lanczos)')
+
+def gen_classe_custode():
+    # Juggernaut / Guardian: Massive reinforced diving bell suit, colossal naval iron anchor, bolted pauldrons
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Massive Cast-Iron Dual Oxygen Boiler Tanks (Heavy industrial)
+    draw.rounded_rectangle([70, 140, 160, 380], radius=32, fill=(180, 83, 9, 255), outline=COL_INK, width=10)
+    draw.rectangle([70, 220, 160, 250], fill=COL_GOLD, outline=COL_INK, width=6)
+    draw.rectangle([70, 310, 160, 340], fill=COL_GOLD, outline=COL_INK, width=6)
+
+    # Massive Leaded Iron Boots
+    draw.rounded_rectangle([110, 390, 220, 480], radius=24, fill=(51, 65, 85, 255), outline=COL_INK, width=10)
+    draw.rounded_rectangle([260, 390, 370, 480], radius=24, fill=(71, 85, 105, 255), outline=COL_INK, width=10)
+    draw.ellipse([150, 435, 215, 475], fill=COL_GOLD, outline=COL_INK, width=6)
+    draw.ellipse([300, 435, 365, 475], fill=COL_GOLD, outline=COL_INK, width=6)
+
+    # Colossal Reinforced Bronze Torso / Chest Bulkhead
+    draw.rounded_rectangle([130, 220, 380, 420], radius=56, fill=(217, 119, 6, 255), outline=COL_INK, width=12)
+    draw.rounded_rectangle([160, 270, 350, 370], radius=24, fill=(180, 83, 9, 255), outline=COL_INK, width=8)
+    for rx, ry in [(180, 290), (330, 290), (180, 350), (330, 350), (255, 320)]:
+        draw.ellipse([rx - 8, ry - 8, rx + 8, ry + 8], fill=COL_GOLD, outline=COL_INK, width=4)
+
+    # Giant Bolted Iron Pauldrons (Shoulders)
+    draw.rounded_rectangle([80, 190, 160, 270], radius=24, fill=(71, 85, 105, 255), outline=COL_INK, width=10)
+    draw.rounded_rectangle([350, 190, 430, 270], radius=24, fill=(71, 85, 105, 255), outline=COL_INK, width=10)
+
+    # Colossal Forged Naval Iron Anchor (Rested across chest / shoulder)
+    draw.line([(240, 430), (430, 110)], fill=(30, 41, 59, 255), width=24)
+    draw.line([(240, 430), (430, 110)], fill=(71, 85, 105, 255), width=14)
+    draw.line([(360, 130), (440, 180)], fill=COL_GOLD, width=14)
+    draw.line([(360, 130), (440, 180)], fill=COL_INK, width=4)
+    draw.ellipse([410, 80, 460, 130], outline=COL_GOLD, width=12)
+    draw.ellipse([410, 80, 460, 130], outline=COL_INK, width=4)
+    draw.arc([160, 360, 310, 490], start=60, end=210, fill=COL_INK, width=26)
+    draw.arc([165, 365, 305, 485], start=60, end=210, fill=(71, 85, 105, 255), width=16)
+    draw.polygon([(170, 380), (140, 390), (175, 420)], fill=(148, 163, 184, 255), outline=COL_INK)
+    for link in [(280, 340), (320, 280), (360, 220)]:
+        draw.ellipse([link[0] - 14, link[1] - 8, link[0] + 14, link[1] + 8], outline=COL_GOLD, width=6)
+
+    # Heavy Spherical Brass Diving Bell Helmet
+    draw.ellipse([150, 60, 360, 270], fill=(217, 119, 6, 255), outline=COL_INK, width=14)
+    draw.ellipse([190, 105, 320, 235], fill=(30, 41, 59, 255), outline=COL_INK, width=12)
+    draw.ellipse([200, 115, 310, 225], fill=(234, 179, 8, 255), outline=COL_INK, width=6)
+    draw.line([(200, 170), (310, 170)], fill=COL_INK, width=12)
+    draw.line([(255, 115), (255, 225)], fill=COL_INK, width=12)
+    draw.line([(200, 170), (310, 170)], fill=COL_GOLD, width=6)
+    draw.line([(255, 115), (255, 225)], fill=COL_GOLD, width=6)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'classe_custode.png')
+    print('Generato classe_custode.png (supersampled Lanczos)')
+
+def gen_classe_mistico():
+    # Mystic Class: Abyssal purple cowl and robes over diving suit, ancient coral staff with glowing tidal orb, arcane runes
+    w, h = 512, 512
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+
+    # Flowing Abyssal Cowl & Cape (Purple/Violet)
+    cape_pts = [(120, 180), (70, 420), (130, 450), (180, 430), (256, 460), (330, 430), (390, 450), (440, 410), (390, 180)]
+    draw.polygon(cape_pts, fill=(126, 34, 206, 255), outline=COL_INK)
+    draw.line([(70, 420), (130, 450), (180, 430), (256, 460), (330, 430), (390, 450), (440, 410)], fill=COL_GOLD, width=8)
+
+    # Slim underwater boots
+    draw.rounded_rectangle([160, 390, 225, 460], radius=16, fill=(88, 28, 135, 255), outline=COL_INK, width=8)
+    draw.rounded_rectangle([275, 390, 340, 460], radius=16, fill=(88, 28, 135, 255), outline=COL_INK, width=8)
+
+    # Arcane Coral-patterned Suit Body
+    draw.rounded_rectangle([170, 220, 330, 400], radius=40, fill=(107, 33, 168, 255), outline=COL_INK, width=10)
+    draw.line([(170, 310), (330, 310)], fill=COL_GOLD, width=10)
+    draw.ellipse([235, 295, 265, 325], fill=(34, 211, 238, 255), outline=COL_GOLD, width=6)
+
+    # Ancient Branching Deep-Sea Coral Staff (Held in right hand)
+    staff_pts = [(380, 440), (375, 320), (390, 200), (385, 100)]
+    draw.line(staff_pts, fill=(244, 63, 94, 255), width=16)
+    draw.line(staff_pts, fill=COL_INK, width=6)
+    draw.line([(385, 210), (420, 180)], fill=(244, 63, 94, 255), width=12)
+    draw.line([(385, 210), (420, 180)], fill=COL_INK, width=4)
+    draw.line([(380, 140), (350, 120)], fill=(244, 63, 94, 255), width=10)
+    draw.line([(380, 140), (350, 120)], fill=COL_INK, width=4)
+
+    # Shimmering Tidal Pearl Orb atop the staff
+    draw.ellipse([350, 60, 420, 130], fill=(192, 132, 252, 255), outline=COL_GOLD, width=8)
+    draw.ellipse([365, 75, 405, 115], fill=(224, 231, 255, 255))
+    for ox, oy in [(335, 90), (430, 80), (390, 40), (415, 145)]:
+        draw.ellipse([ox - 7, oy - 7, ox + 7, oy + 7], fill=(34, 211, 238, 255), outline=COL_WHITE, width=3)
+
+    # Mystic Hooded Diver Helmet (Cowl wrapped around brass dome)
+    draw.ellipse([175, 70, 325, 260], fill=(147, 51, 234, 255), outline=COL_INK, width=12)
+    draw.ellipse([190, 85, 310, 245], fill=(245, 158, 11, 255), outline=COL_INK, width=8)
+    draw.ellipse([215, 125, 285, 205], fill=(15, 23, 42, 255), outline=COL_GOLD, width=8)
+    draw.ellipse([225, 135, 275, 195], fill=(34, 211, 238, 255))
+    draw.ellipse([242, 152, 258, 178], fill=(255, 255, 255, 255))
+    draw.ellipse([135, 290, 165, 320], fill=(34, 211, 238, 220), outline=COL_GOLD, width=4)
+
+    sticker = apply_smooth_sticker(im, stroke_width=14, target_size=(256, 256))
+    sticker.save(out_dir / 'classe_mistico.png')
+    print('Generato classe_mistico.png (supersampled Lanczos)')
+
 def gen_app_icon():
     # Builds both standard squircle and round adaptive Paper Mario app icons
     w, h = 1024, 1024
@@ -828,5 +975,8 @@ if __name__ == '__main__':
     gen_cassa_tesoro()
     gen_portale_citta()
     gen_anziano_tartaruga()
+    gen_classe_cacciatore()
+    gen_classe_custode()
+    gen_classe_mistico()
     gen_app_icon()
     print('Tutti gli asset grafici Paper Mario PNG generati con successo e anti-aliasing liscio!')

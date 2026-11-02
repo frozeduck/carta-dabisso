@@ -60,6 +60,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private Bitmap bmpBlacksmith;
     private Bitmap bmpStash;
     private Bitmap bmpTownPortal;
+    private Bitmap bmpClassHunter;
+    private Bitmap bmpClassJuggernaut;
+    private Bitmap bmpClassMystic;
     private Bitmap bmpSage;
 
     // Modals: Stash, Blacksmith, Quest, Waypoint
@@ -90,7 +93,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final RectF waypointModalRect = new RectF(80f, 25f, 880f, 515f);
     private final RectF btnCloseWaypoint = new RectF(825f, 20f, 875f, 70f);
 
-    // Character Creation UI Rects
+    // Character Select & Creation UI Rects
+    public int tempSlotToCreate = 0;
+    private final RectF[] charSlotCards = new RectF[]{new RectF(), new RectF(), new RectF()};
+    private final RectF[] charSlotPlayBtns = new RectF[]{new RectF(), new RectF(), new RectF()};
+    private final RectF[] charSlotDeleteBtns = new RectF[]{new RectF(), new RectF(), new RectF()};
+    private final RectF[] charSlotCreateBtns = new RectF[]{new RectF(), new RectF(), new RectF()};
+    private final RectF btnBackFromCharCreate = new RectF();
+    private final RectF classBannerRect = new RectF();
     private final RectF btnConfirmChar = new RectF();
     private final RectF btnDiceName = new RectF();
     private final RectF[] classCardRects = new RectF[]{new RectF(), new RectF(), new RectF()};
@@ -268,8 +278,24 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             bmpStash = BitmapFactory.decodeResource(context.getResources(), R.drawable.cassa_tesoro);
             bmpTownPortal = BitmapFactory.decodeResource(context.getResources(), R.drawable.portale_citta);
             bmpSage = BitmapFactory.decodeResource(context.getResources(), R.drawable.anziano_tartaruga);
+            bmpClassHunter = BitmapFactory.decodeResource(context.getResources(), R.drawable.classe_cacciatore);
+            bmpClassJuggernaut = BitmapFactory.decodeResource(context.getResources(), R.drawable.classe_custode);
+            bmpClassMystic = BitmapFactory.decodeResource(context.getResources(), R.drawable.classe_mistico);
         } catch (Exception ignored) {
         }
+    }
+
+    private Bitmap getClassBitmap(String clz) {
+        if (Game.CLASS_HUNTER.equals(clz) && bmpClassHunter != null) {
+            return bmpClassHunter;
+        }
+        if (Game.CLASS_JUGGERNAUT.equals(clz) && bmpClassJuggernaut != null) {
+            return bmpClassJuggernaut;
+        }
+        if (Game.CLASS_MYSTIC.equals(clz) && bmpClassMystic != null) {
+            return bmpClassMystic;
+        }
+        return bmpDiver;
     }
 
     private void setupSoundBridge() {
@@ -365,15 +391,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float treeR = treeL + treeW;
         modalSkillTreeRect.set(treeL, 12f, treeR, 528f);
 
-        // Header Row: 3 Archetype Tabs, Skill Points Badge, Respec Button, Close Seal
-        float tabW = 120f;
-        float tabH = 34f;
-        tabHunter.set(treeL + 20f, 22f, treeL + 20f + tabW, 22f + tabH);
-        tabJuggernaut.set(treeL + 150f, 22f, treeL + 150f + tabW, 22f + tabH);
-        tabMystic.set(treeL + 280f, 22f, treeL + 280f + tabW, 22f + tabH);
-
-        spPillRect.set(cx + 20f, 22f, cx + 175f, 22f + tabH);
-        btnRespec.set(treeR - 220f, 22f, treeR - 85f, 22f + tabH);
+        // Header Row: Class Banner, Skill Points Badge, Respec Button, Close Seal
+        classBannerRect.set(treeL + 20f, 20f, treeL + 340f, 62f);
+        spPillRect.set(cx - 50f, 22f, cx + 130f, 62f);
+        btnRespec.set(treeR - 250f, 22f, treeR - 85f, 62f);
         btnCloseSkillTree.set(treeR - 70f, 14f, treeR - 18f, 66f);
 
         treeRootX = cx;
@@ -537,7 +558,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             diverFlipScale += (targetFlip - diverFlipScale) * 0.28f;
 
             if (!paused && !inventoryOpen) {
-                game.update(dt);
+                synchronized (game.gameLock) {
+                    game.update(dt);
+                }
             }
 
             Canvas canvas = null;
@@ -545,7 +568,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 canvas = holder.lockCanvas();
                 if (canvas != null) {
                     synchronized (holder) {
-                        drawGame(canvas);
+                        synchronized (game.gameLock) {
+                            drawGame(canvas);
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -565,8 +590,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void updateCamera() {
-        float mapMaxW = game.gameState == Game.STATE_HUB ? Game.HUB_W : Game.MAP_W;
-        float mapMaxH = game.gameState == Game.STATE_HUB ? Game.HUB_H : Game.MAP_H;
+        float mapMaxW = game.gameState == Game.STATE_HUB ? Game.HUB_W : game.getMapWidth();
+        float mapMaxH = game.gameState == Game.STATE_HUB ? Game.HUB_H : game.getMapHeight();
 
         float targetCamX = game.playerX - screenW / 2f;
         float targetCamY = game.playerY - screenH / 2f;
@@ -634,6 +659,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawGame(Canvas canvas) {
+        if (game.gameState == Game.STATE_CHAR_SELECT) {
+            canvas.drawColor(0xFF020B14);
+            canvas.save();
+            canvas.scale(viewScale, viewScale);
+            canvas.clipRect(0f, 0f, screenW, screenH);
+            drawCharacterSelect(canvas);
+            canvas.restore();
+            return;
+        }
+
         if (game.gameState == Game.STATE_CHAR_CREATE) {
             canvas.drawColor(0xFF020B14);
             canvas.save();
@@ -729,28 +764,33 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             colBot = 0xFF0E4A59;
         }
 
+        float mapW = game.getMapWidth();
+        float mapH = game.getMapHeight();
+
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setShader(new LinearGradient(0, 0, 0, Game.MAP_H,
+        paintFill.setShader(new LinearGradient(0, 0, 0, mapH,
                 new int[]{colTop, colMid, colBot},
                 new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
-        canvas.drawRect(0f, 0f, Game.MAP_W, Game.MAP_H, paintFill);
+        canvas.drawRect(0f, 0f, mapW, mapH, paintFill);
         paintFill.setShader(null);
 
         // 2. Parallax Animated Storybook Paper Waves
-        drawStorybookWaves(canvas);
+        drawStorybookWaves(canvas, mapW, mapH);
 
         // 3. Golden Sun Rays / Geothermal Vents & Motes & Bubbles
-        drawSunRaysAndMotes(canvas);
+        drawSunRaysAndMotes(canvas, mapW, mapH);
 
         // 4. Cardboard Sandy Seabed with Dunes, Starfish, Shells & Anemones
-        drawSandySeabedWithDunes(canvas);
+        drawSandySeabedWithDunes(canvas, mapW, mapH);
 
         // 5. Perimeter Corals & Theatrical Stagecraft Ruins
-        drawPaperCoralsAndRuins(canvas);
+        drawPaperCoralsAndRuins(canvas, mapW, mapH);
 
         if (game.merchantPresent) {
             drawPaperMerchant(canvas);
         }
+
+        drawActChests(canvas);
 
         if (game.beaconTimer > 0f) {
             drawClickBeacon(canvas, game.beaconX, game.beaconY, game.beaconTimer);
@@ -760,17 +800,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawStorybookPortalArch(canvas, game.portalX, game.portalY);
         }
 
-        for (Game.Drop drop : game.drops) {
-            drawDrop(canvas, drop);
+        for (int i = 0; i < game.drops.size(); i++) {
+            Game.Drop drop = game.drops.get(i);
+            if (drop != null) drawDrop(canvas, drop);
         }
 
-        for (Game.Enemy enemy : game.enemies) {
-            drawEnemy(canvas, enemy);
+        for (int i = 0; i < game.enemies.size(); i++) {
+            Game.Enemy enemy = game.enemies.get(i);
+            if (enemy != null) drawEnemy(canvas, enemy);
         }
 
         drawPaperDiver(canvas);
 
-        for (Game.Projectile p : game.projectiles) {
+        for (int i = 0; i < game.projectiles.size(); i++) {
+            Game.Projectile p = game.projectiles.get(i);
+            if (p == null) continue;
             paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(p.color);
             canvas.drawCircle(p.x, p.y, p.radius, paintFill);
@@ -784,11 +828,52 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawCircle(p.x, p.y, p.radius, paintStroke);
         }
 
-        for (Game.Floater f : game.floaters) {
-            drawComicFloater(canvas, f);
+        for (int i = 0; i < game.floaters.size(); i++) {
+            Game.Floater f = game.floaters.get(i);
+            if (f != null) drawComicFloater(canvas, f);
         }
 
         drawParticles(canvas);
+    }
+
+    private void drawActChests(Canvas canvas) {
+        for (int i = 0; i < game.actChests.size(); i++) {
+            Game.ActChest c = game.actChests.get(i);
+            if (c == null) continue;
+            drawFloorShadow(canvas, c.x, c.y + 2f, 32f, 12f);
+            canvas.save();
+            canvas.translate(c.x, c.y);
+            if (!c.opened) {
+                float pulse = 0.88f + (float) Math.sin(animTime * 4f) * 0.12f;
+                paintFill.setStyle(Paint.Style.FILL);
+                paintFill.setColor(0x44F59E0B);
+                canvas.drawCircle(0f, -16f, 32f * pulse, paintFill);
+
+                if (bmpStash != null) {
+                    float s = 0.25f;
+                    canvas.scale(s, s);
+                    canvas.drawBitmap(bmpStash, -bmpStash.getWidth() / 2f, -bmpStash.getHeight() + 20f, null);
+                } else {
+                    paintFill.setColor(COL_GOLD);
+                    canvas.drawRect(-20f, -28f, 20f, 0f, paintFill);
+                }
+                canvas.restore();
+                drawOverheadBadge(canvas, c.x, c.y - 55f, "FORZIERE SOMMERSO [TOCCA]", COL_GOLD);
+            } else {
+                if (bmpStash != null) {
+                    float s = 0.22f;
+                    canvas.scale(s, s);
+                    Paint p = new Paint();
+                    p.setAlpha(150);
+                    canvas.drawBitmap(bmpStash, -bmpStash.getWidth() / 2f, -bmpStash.getHeight() + 20f, p);
+                } else {
+                    paintFill.setColor(0xFF64748B);
+                    canvas.drawRect(-18f, -24f, 18f, 0f, paintFill);
+                }
+                canvas.restore();
+                drawOverheadBadge(canvas, c.x, c.y - 45f, "[APERTO]", 0xFF94A3B8);
+            }
+        }
     }
 
     private void drawParticles(Canvas canvas) {
@@ -806,7 +891,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintFill.setAlpha(255);
     }
 
-    private void drawStorybookWaves(Canvas canvas) {
+    private void drawStorybookWaves(Canvas canvas, float mapW, float mapH) {
         // Multi-tier animated wave currents with cream paper scallop foam ripples
         for (int layer = 0; layer < 3; layer++) {
             float speed = (layer == 0) ? 0.35f : (layer == 1 ? 0.6f : 0.85f);
@@ -819,13 +904,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
             tempPath.reset();
             tempPath.moveTo(0f, baseY + 60f);
-            for (float x = 0; x <= Game.MAP_W + 120f; x += 120f) {
+            for (float x = 0; x <= mapW + 120f; x += 120f) {
                 float midX = x + 60f + offset;
                 float endX = x + 120f + offset;
                 float crest = baseY + (float) Math.sin(x * 0.02f + animTime * 1.2f) * 12f;
                 tempPath.quadTo(midX, crest - 18f, endX, baseY + 20f);
             }
-            tempPath.lineTo(Game.MAP_W, baseY + 70f);
+            tempPath.lineTo(mapW, baseY + 70f);
             tempPath.lineTo(0f, baseY + 70f);
             tempPath.close();
             canvas.drawPath(tempPath, paintFill);
@@ -838,18 +923,18 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
-    private void drawSunRaysAndMotes(Canvas canvas) {
+    private void drawSunRaysAndMotes(Canvas canvas, float mapW, float mapH) {
         // Warm God Rays
         for (int i = 0; i < 5; i++) {
-            float x = Game.MAP_W * (0.15f + i * 0.18f) + (float) Math.sin(animTime * 0.3f + i) * 25f;
+            float x = mapW * (0.15f + i * 0.18f) + (float) Math.sin(animTime * 0.3f + i) * 25f;
             tempPath.reset();
             tempPath.moveTo(x - 20f, 0f);
             tempPath.lineTo(x + 40f, 0f);
-            tempPath.lineTo(x + 220f, Game.MAP_H);
-            tempPath.lineTo(x - 45f, Game.MAP_H);
+            tempPath.lineTo(x + 220f, mapH);
+            tempPath.lineTo(x - 45f, mapH);
             tempPath.close();
 
-            paintFill.setShader(new LinearGradient(x, 0, x + 80f, Game.MAP_H,
+            paintFill.setShader(new LinearGradient(x, 0, x + 80f, mapH,
                     0x26FDE047, 0x00FDE047, Shader.TileMode.CLAMP));
             canvas.drawPath(tempPath, paintFill);
         }
@@ -859,16 +944,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0x88FDE047);
         for (int i = 0; i < 16; i++) {
-            float mx = (float) ((i * 113.7f + animTime * 14f) % Game.MAP_W);
-            float my = (float) ((i * 71.3f + Math.sin(animTime * 0.8f + i) * 30f) % (Game.MAP_H - 120f));
+            float mx = (float) ((i * 113.7f + animTime * 14f) % mapW);
+            float my = (float) ((i * 71.3f + Math.sin(animTime * 0.8f + i) * 30f) % Math.max(100f, mapH - 120f));
             float sz = 2.5f + (float) Math.sin(animTime * 2.0f + i) * 1f;
             canvas.drawCircle(mx, my, sz, paintFill);
         }
 
         // Rising Paper Air Bubbles with Glare Crescents
         for (int i = 0; i < 10; i++) {
-            float bx = (float) ((i * 179.3f + Math.sin(animTime * 1.5f + i) * 20f) % Game.MAP_W);
-            float by = (float) (Game.MAP_H - ((animTime * 45f + i * 110f) % Game.MAP_H));
+            float bx = (float) ((i * 179.3f + Math.sin(animTime * 1.5f + i) * 20f) % mapW);
+            float by = (float) (mapH - ((animTime * 45f + i * 110f) % mapH));
             float br = 4f + (i % 4) * 2.5f;
 
             paintFill.setColor(0x44FFFFFF);
@@ -886,19 +971,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
-    private void drawSandySeabedWithDunes(Canvas canvas) {
-        float seabedTop = Game.MAP_H - 240f;
+    private void drawSandySeabedWithDunes(Canvas canvas, float mapW, float mapH) {
+        float seabedTop = mapH - 240f;
 
         // Sand Base (warm golden sand: #FDE68A / #F59E0B)
         // Dune layer 1 (Background Dune)
         tempPath.reset();
         tempPath.moveTo(0f, seabedTop + 70f);
-        for (float x = 0f; x <= Game.MAP_W + 200f; x += 200f) {
+        for (float x = 0f; x <= mapW + 200f; x += 200f) {
             float waveH = (float) Math.sin(x * 0.008f) * 28f;
             tempPath.quadTo(x + 100f, seabedTop + 45f + waveH, x + 200f, seabedTop + 70f + waveH);
         }
-        tempPath.lineTo(Game.MAP_W, Game.MAP_H);
-        tempPath.lineTo(0f, Game.MAP_H);
+        tempPath.lineTo(mapW, mapH);
+        tempPath.lineTo(0f, mapH);
         tempPath.close();
 
         // Shadow under dune
@@ -909,7 +994,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawPath(shadowPath, paintFill);
 
         // Dune fill
-        paintFill.setShader(new LinearGradient(0, seabedTop + 40f, 0, Game.MAP_H,
+        paintFill.setShader(new LinearGradient(0, seabedTop + 40f, 0, mapH,
                 new int[]{0xFFFDE68A, 0xFFFBBF24, 0xFFD97706},
                 new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
         canvas.drawPath(tempPath, paintFill);
@@ -928,24 +1013,24 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // Dashed sewing stitches along the dune edge (Paper Mario craftwork)
         paintStroke.setColor(0x88B45309);
         paintStroke.setStrokeWidth(2f);
-        for (float x = 20f; x < Game.MAP_W; x += 36f) {
+        for (float x = 20f; x < mapW; x += 36f) {
             float waveH = (float) Math.sin(x * 0.008f) * 28f;
             float sy = seabedTop + 78f + waveH;
             canvas.drawLine(x, sy, x + 18f, sy, paintStroke);
         }
 
         // Seabed Decorations: Starfish, Shells, Anemones
-        drawSeabedDecorations(canvas, seabedTop);
+        drawSeabedDecorations(canvas, seabedTop, mapW);
     }
 
-    private void drawSeabedDecorations(Canvas canvas, float seabedTop) {
-        // Starfish scattered naturally across sandy dunes (non affollano il centro)
+    private void drawSeabedDecorations(Canvas canvas, float seabedTop, float mapW) {
+        // Starfish scattered naturally across sandy dunes
         if (bmpStarfish != null) {
             float[][] starPositions = {
                     {220f, seabedTop + 140f, 0.26f, 0.3f},
-                    {540f, seabedTop + 160f, 0.28f, 1.2f},
-                    {1260f, seabedTop + 160f, 0.28f, 2.1f},
-                    {1580f, seabedTop + 140f, 0.26f, 3.4f}
+                    {mapW * 0.32f, seabedTop + 160f, 0.28f, 1.2f},
+                    {mapW * 0.68f, seabedTop + 160f, 0.28f, 2.1f},
+                    {mapW - 220f, seabedTop + 140f, 0.26f, 3.4f}
             };
             for (float[] sp : starPositions) {
                 canvas.save();
@@ -962,9 +1047,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (bmpAnemone != null) {
             float[][] anemPositions = {
                     {240f, seabedTop + 95f, 0.22f, 0.5f},
-                    {450f, seabedTop + 115f, 0.24f, 1.7f},
-                    {1350f, seabedTop + 115f, 0.24f, 2.8f},
-                    {1560f, seabedTop + 95f, 0.22f, 0.2f}
+                    {mapW * 0.26f, seabedTop + 115f, 0.24f, 1.7f},
+                    {mapW * 0.74f, seabedTop + 115f, 0.24f, 2.8f},
+                    {mapW - 240f, seabedTop + 95f, 0.22f, 0.2f}
             };
             for (float[] ap : anemPositions) {
                 canvas.save();
@@ -982,9 +1067,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (bmpShell != null) {
             float[][] shellPositions = {
                     {340f, seabedTop + 155f, 0.18f, 25f},
-                    {750f, seabedTop + 165f, 0.16f, -15f},
-                    {1150f, seabedTop + 165f, 0.16f, 15f},
-                    {1460f, seabedTop + 150f, 0.18f, 40f}
+                    {mapW * 0.42f, seabedTop + 165f, 0.16f, -15f},
+                    {mapW * 0.62f, seabedTop + 165f, 0.16f, 15f},
+                    {mapW - 340f, seabedTop + 150f, 0.18f, 40f}
             };
             for (float[] shp : shellPositions) {
                 canvas.save();
@@ -998,17 +1083,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
-    private void drawPaperCoralsAndRuins(Canvas canvas) {
+    private void drawPaperCoralsAndRuins(Canvas canvas, float mapW, float mapH) {
         // Decorative perimeter corals only — framing stage wings and seabed
         drawCartoonCoral(canvas, 140f, 160f, 0, 0.28f, 0.5f);
-        drawCartoonCoral(canvas, 1660f, 160f, 1, 0.28f, 2.0f);
+        drawCartoonCoral(canvas, mapW - 140f, 160f, 1, 0.28f, 2.0f);
         drawCartoonCoral(canvas, 110f, 520f, 1, 0.32f, 3.1f);
-        drawCartoonCoral(canvas, 1690f, 520f, 0, 0.32f, 1.8f);
+        drawCartoonCoral(canvas, mapW - 110f, 520f, 0, 0.32f, 1.8f);
         drawCartoonCoral(canvas, 180f, 920f, 0, 0.36f, 4.4f);
-        drawCartoonCoral(canvas, 1620f, 920f, 1, 0.36f, 1.2f);
+        drawCartoonCoral(canvas, mapW - 180f, 920f, 1, 0.36f, 1.2f);
 
         drawStorybookColumn(canvas, 180f, 240f, 0.55f);
-        drawStorybookColumn(canvas, 1620f, 240f, 0.55f);
+        drawStorybookColumn(canvas, mapW - 180f, 240f, 0.55f);
     }
 
     private void drawCartoonCoral(Canvas canvas, float x, float y, int type, float scale, float phase) {
@@ -1100,7 +1185,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.rotate(tilt);
         canvas.scale(flip * sqX, sqY);
 
-        if (bmpDiver != null) {
+        Bitmap activeBmp = getClassBitmap(game.playerClass);
+        if (activeBmp != null) {
             float s = 0.21f;
             canvas.scale(s, s);
             Paint diverPaint = null;
@@ -1109,7 +1195,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 int col = Game.SUIT_COLORS[game.suitColorIndex];
                 diverPaint.setColorFilter(new PorterDuffColorFilter(col, PorterDuff.Mode.SRC_ATOP));
             }
-            canvas.drawBitmap(bmpDiver, -bmpDiver.getWidth() / 2f, -220f, diverPaint);
+            canvas.drawBitmap(activeBmp, -activeBmp.getWidth() / 2f, -220f, diverPaint);
             drawDiverEquipment(canvas);
         } else {
             // Procedural fallback with white sticker border
@@ -1715,7 +1801,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             paintText.setColor(COL_STICKER);
             canvas.drawText("PORTALE", btnHudTownPortal.centerX(), btnHudTownPortal.centerY() + 4f, paintText);
         } else if (game.gameState == Game.STATE_HUB) {
-            btnNewCharacter.set(btnSound.left - 85f, 10f, btnSound.left - 8f, 46f);
+            btnNewCharacter.set(btnSound.left - 92f, 10f, btnSound.left - 8f, 46f);
             paintFill.setColor(COL_STICKER);
             canvas.drawRoundRect(btnNewCharacter.left - 2f, btnNewCharacter.top - 2f, btnNewCharacter.right + 2f, btnNewCharacter.bottom + 2f, 8f, 8f, paintFill);
             paintFill.setColor(0xFFD97706);
@@ -1723,7 +1809,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             paintText.setTextAlign(Paint.Align.CENTER);
             paintText.setTextSize(9.5f);
             paintText.setColor(COL_STICKER);
-            canvas.drawText("EROE 👤", btnNewCharacter.centerX(), btnNewCharacter.centerY() + 4f, paintText);
+            canvas.drawText("👥 EROI (3)", btnNewCharacter.centerX(), btnNewCharacter.centerY() + 4f, paintText);
         }
 
         // Sound Toggle Button (Slot 810f .. 860f)
@@ -2142,6 +2228,233 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // =========================================================================
     // CREAZIONE PERSONAGGIO, HUB SANTUARIO, CASSA, FABBRO E MAPPA ATTI
     // =========================================================================
+    // =========================================================================
+    // SELEZIONE E GESTIONE MULTIPLI PERSONAGGI (ARCHIVIO DEI PALOMBARI)
+    // =========================================================================
+    private void drawCharacterSelect(Canvas canvas) {
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setShader(new LinearGradient(0, 0, 0, screenH,
+                new int[]{0xFF020B14, 0xFF082642, 0xFF031422},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
+        paintFill.setShader(null);
+
+        // Header Title & Lore
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setColor(COL_GOLD);
+        paintText.setTextSize(26f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText("ARCHIVIO DEI PALOMBARI", screenW / 2f, 42f, paintText);
+
+        paintText.setTextSize(11f);
+        paintText.setColor(COL_STICKER);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Seleziona il tuo pioniere dell'abisso o recluta un nuovo esploratore (Fino a 3 Eroi)", screenW / 2f, 66f, paintText);
+
+        float cardW = Math.min(270f, (screenW - 120f) / 3f);
+        float cardH = 360f;
+        float gap = 20f;
+        float totalCardsW = cardW * 3 + gap * 2;
+        float startX = (screenW - totalCardsW) / 2f;
+        float cardY = 85f;
+
+        for (int i = 0; i < Game.MAX_CHAR_SLOTS; i++) {
+            RectF card = charSlotCards[i];
+            float cx = startX + i * (cardW + gap);
+            card.set(cx, cardY, cx + cardW, cardY + cardH);
+
+            Game.CharSlotInfo slot = (i < game.charSlots.size()) ? game.charSlots.get(i) : null;
+            boolean hasHero = slot != null && slot.exists;
+
+            // Card Shadow & Base
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0x55000000);
+            canvas.drawRoundRect(card.left + 4f, card.top + 6f, card.right + 4f, card.bottom + 6f, 12f, 12f, paintFill);
+
+            paintFill.setColor(hasHero ? 0xFF0A1E33 : 0xFF051321);
+            canvas.drawRoundRect(card, 12f, 12f, paintFill);
+
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(hasHero ? COL_GOLD : 0xFF334155);
+            paintStroke.setStrokeWidth(hasHero ? 3.5f : 2f);
+            canvas.drawRoundRect(card, 12f, 12f, paintStroke);
+
+            // Slot Pill Tag at top left
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFF1E293B);
+            canvas.drawRoundRect(card.left + 12f, card.top + 10f, card.left + 80f, card.top + 30f, 5f, 5f, paintFill);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setTextSize(9f);
+            paintText.setFakeBoldText(true);
+            paintText.setColor(COL_STICKER);
+            canvas.drawText("SLOT " + (i + 1), card.left + 46f, card.top + 24f, paintText);
+
+            if (hasHero) {
+                // Class Role Color
+                int classCol = Game.CLASS_HUNTER.equals(slot.playerClass) ? 0xFF38BDF8 :
+                        (Game.CLASS_JUGGERNAUT.equals(slot.playerClass) ? 0xFFF59E0B : 0xFFA855F7);
+                String clzTitle = Game.CLASS_HUNTER.equals(slot.playerClass) ? "Cacciatore dei Mari" :
+                        (Game.CLASS_JUGGERNAUT.equals(slot.playerClass) ? "Custode dei Fondali" : "Mistico dell'Abisso");
+
+                // Class Banner
+                paintFill.setColor(classCol);
+                canvas.drawRoundRect(card.left + 12f, card.top + 36f, card.right - 12f, card.top + 62f, 6f, 6f, paintFill);
+                paintText.setColor(0xFF0F172A);
+                paintText.setTextSize(11f);
+                paintText.setFakeBoldText(true);
+                canvas.drawText(clzTitle.toUpperCase(), card.centerX(), card.top + 53f, paintText);
+
+                // Circular Frame for Character Preview
+                float portraitY = card.top + 124f;
+                drawFloorShadow(canvas, card.centerX(), portraitY + 28f, 32f, 10f);
+
+                paintFill.setColor(0xFF07192A);
+                canvas.drawCircle(card.centerX(), portraitY, 40f, paintFill);
+                paintStroke.setStyle(Paint.Style.STROKE);
+                paintStroke.setColor(COL_STICKER);
+                paintStroke.setStrokeWidth(2.5f);
+                canvas.drawCircle(card.centerX(), portraitY, 40f, paintStroke);
+
+                Bitmap heroBmp = getClassBitmap(slot.playerClass);
+                if (heroBmp != null) {
+                    canvas.save();
+                    canvas.translate(card.centerX(), portraitY + 30f);
+                    float s = 0.30f;
+                    canvas.scale(s, s);
+                    Paint p = null;
+                    if (slot.suitColorIndex > 0 && slot.suitColorIndex < Game.SUIT_COLORS.length) {
+                        p = new Paint();
+                        p.setColorFilter(new PorterDuffColorFilter(Game.SUIT_COLORS[slot.suitColorIndex], PorterDuff.Mode.SRC_ATOP));
+                    }
+                    canvas.drawBitmap(heroBmp, -heroBmp.getWidth() / 2f, -heroBmp.getHeight() + 20f, p);
+                    canvas.restore();
+                }
+
+                // Hero Name
+                paintText.setTextAlign(Paint.Align.CENTER);
+                paintText.setColor(COL_GOLD);
+                paintText.setTextSize(16f);
+                paintText.setFakeBoldText(true);
+                canvas.drawText(slot.name, card.centerX(), card.top + 195f, paintText);
+
+                // Hero Level & Act
+                paintFill.setStyle(Paint.Style.FILL);
+                paintFill.setColor(0xFF1E293B);
+                canvas.drawRoundRect(card.left + 16f, card.top + 208f, card.right - 16f, card.top + 258f, 6f, 6f, paintFill);
+
+                paintText.setTextSize(11f);
+                paintText.setColor(COL_STICKER);
+                paintText.setFakeBoldText(true);
+                canvas.drawText("LIVELLO " + slot.level + "  •  ATTO " + slot.maxActUnlocked, card.centerX(), card.top + 228f, paintText);
+
+                paintText.setTextSize(10f);
+                paintText.setColor(COL_GOLD);
+                paintText.setFakeBoldText(false);
+                canvas.drawText("Conchiglie: " + slot.shells + " 🐚", card.centerX(), card.top + 248f, paintText);
+
+                // Action Buttons: GIOCA (large) and ELIMINA (trash)
+                float btnY = card.bottom - 54f;
+                float playBtnW = cardW - 75f;
+                charSlotPlayBtns[i].set(card.left + 15f, btnY, card.left + 15f + playBtnW, btnY + 42f);
+                charSlotDeleteBtns[i].set(card.right - 52f, btnY, card.right - 12f, btnY + 42f);
+
+                // Play Button
+                paintFill.setColor(0xFF16A34A);
+                canvas.drawRoundRect(charSlotPlayBtns[i], 7f, 7f, paintFill);
+                paintStroke.setStyle(Paint.Style.STROKE);
+                paintStroke.setColor(COL_STICKER);
+                paintStroke.setStrokeWidth(2f);
+                canvas.drawRoundRect(charSlotPlayBtns[i], 7f, 7f, paintStroke);
+
+                paintText.setTextSize(12.5f);
+                paintText.setFakeBoldText(true);
+                paintText.setColor(COL_STICKER);
+                canvas.drawText("▶ GIOCA", charSlotPlayBtns[i].centerX(), charSlotPlayBtns[i].centerY() + 5f, paintText);
+
+                // Delete Button
+                paintFill.setStyle(Paint.Style.FILL);
+                paintFill.setColor(0xFF991B1B);
+                canvas.drawRoundRect(charSlotDeleteBtns[i], 7f, 7f, paintFill);
+                paintStroke.setStyle(Paint.Style.STROKE);
+                paintStroke.setColor(COL_STICKER);
+                paintStroke.setStrokeWidth(1.5f);
+                canvas.drawRoundRect(charSlotDeleteBtns[i], 7f, 7f, paintStroke);
+
+                paintText.setTextSize(13f);
+                paintText.setColor(COL_STICKER);
+                canvas.drawText("🗑", charSlotDeleteBtns[i].centerX(), charSlotDeleteBtns[i].centerY() + 5f, paintText);
+
+            } else {
+                // Empty Slot Card
+                paintText.setTextAlign(Paint.Align.CENTER);
+                paintText.setTextSize(15f);
+                paintText.setFakeBoldText(true);
+                paintText.setColor(0xFF64748B);
+                canvas.drawText("SLOT VUOTO", card.centerX(), card.centerY() - 35f, paintText);
+
+                paintText.setTextSize(10.5f);
+                paintText.setFakeBoldText(false);
+                paintText.setColor(0xFF475569);
+                canvas.drawText("Nessun palombaro registrato", card.centerX(), card.centerY() - 10f, paintText);
+
+                // Big Create Button
+                charSlotCreateBtns[i].set(card.left + 20f, card.bottom - 58f, card.right - 20f, card.bottom - 14f);
+                paintFill.setStyle(Paint.Style.FILL);
+                paintFill.setColor(COL_GOLD);
+                canvas.drawRoundRect(charSlotCreateBtns[i], 8f, 8f, paintFill);
+                paintStroke.setStyle(Paint.Style.STROKE);
+                paintStroke.setColor(COL_STICKER);
+                paintStroke.setStrokeWidth(2.5f);
+                canvas.drawRoundRect(charSlotCreateBtns[i], 8f, 8f, paintStroke);
+
+                paintText.setTextSize(12f);
+                paintText.setFakeBoldText(true);
+                paintText.setColor(0xFF0F172A);
+                canvas.drawText("＋ NUOVO EROE", charSlotCreateBtns[i].centerX(), charSlotCreateBtns[i].centerY() + 4f, paintText);
+            }
+        }
+
+        // Footer Bar: Shared Account Progression
+        float footerY = screenH - 22f;
+        paintText.setTextAlign(Paint.Align.CENTER);
+        paintText.setTextSize(10f);
+        paintText.setColor(0xFF94A3B8);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Cassa di Spedizione Condivisa: 16 Slot  |  Frammenti Abissali: " + game.abyssalShards + " 💎  |  Profondità Massima: " + game.maxDepthRecord + "m", screenW / 2f, footerY, paintText);
+    }
+
+    private void handleCharacterSelectTouch(float vx, float vy) {
+        for (int i = 0; i < Game.MAX_CHAR_SLOTS; i++) {
+            Game.CharSlotInfo slot = (i < game.charSlots.size()) ? game.charSlots.get(i) : null;
+            if (slot != null && slot.exists) {
+                if (charSlotPlayBtns[i].contains(vx, vy)) {
+                    game.selectCharacter(i);
+                    game.enterHub();
+                    AudioHelper.playClick();
+                    return;
+                }
+                if (charSlotDeleteBtns[i].contains(vx, vy)) {
+                    game.deleteCharacter(i);
+                    AudioHelper.playHit();
+                    return;
+                }
+            } else {
+                if (charSlotCreateBtns[i].contains(vx, vy) || charSlotCards[i].contains(vx, vy)) {
+                    tempSlotToCreate = i;
+                    tempCharClass = Game.CLASS_HUNTER;
+                    tempCharName = RANDOM_NAMES[i % RANDOM_NAMES.length];
+                    tempSuitColorIndex = 0;
+                    game.gameState = Game.STATE_CHAR_CREATE;
+                    AudioHelper.playClick();
+                    return;
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // CREAZIONE PALOMBARO (SCHEDA EROE & PERSONALIZZAZIONE SCAFANDRO)
+    // =========================================================================
     private void drawCharacterCreation(Canvas canvas) {
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setShader(new LinearGradient(0, 0, 0, screenH,
@@ -2150,32 +2463,50 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRect(0f, 0f, screenW, screenH, paintFill);
         paintFill.setShader(null);
 
+        // Optional Back Button to Character Select
+        if (game.hasAnyCharacter()) {
+            btnBackFromCharCreate.set(30f, 22f, 140f, 60f);
+            paintFill.setStyle(Paint.Style.FILL);
+            paintFill.setColor(0xFF1E293B);
+            canvas.drawRoundRect(btnBackFromCharCreate, 7f, 7f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(COL_STICKER);
+            paintStroke.setStrokeWidth(2f);
+            canvas.drawRoundRect(btnBackFromCharCreate, 7f, 7f, paintStroke);
+
+            paintText.setTextAlign(Paint.Align.CENTER);
+            paintText.setColor(COL_STICKER);
+            paintText.setTextSize(11f);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("← ARCHIVIO", btnBackFromCharCreate.centerX(), btnBackFromCharCreate.centerY() + 4f, paintText);
+        }
+
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
         paintText.setTextSize(24f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("CREAZIONE PALOMBARO", screenW / 2f, 40f, paintText);
+        canvas.drawText("CREAZIONE PALOMBARO (SLOT " + (tempSlotToCreate + 1) + ")", screenW / 2f, 38f, paintText);
 
-        paintText.setTextSize(11.5f);
+        paintText.setTextSize(11f);
         paintText.setColor(COL_GOLD);
         paintText.setFakeBoldText(false);
-        canvas.drawText("Scegli la tua classe di combattimento e personalizza lo scafandro", screenW / 2f, 62f, paintText);
+        canvas.drawText("Scegli la tua classe di combattimento permanente e personalizza lo scafandro", screenW / 2f, 58f, paintText);
 
         float cardW = Math.min(270f, (screenW - 120f) / 3f);
-        float cardH = 360f;
+        float cardH = 370f;
         float gap = 20f;
         float totalCardsW = cardW * 3 + gap * 2;
         float startX = (screenW - totalCardsW) / 2f;
-        float cardY = 80f;
+        float cardY = 75f;
 
         String[] classIds = {Game.CLASS_HUNTER, Game.CLASS_JUGGERNAUT, Game.CLASS_MYSTIC};
         String[] classTitles = {"Cacciatore dei Mari", "Custode dei Fondali", "Mistico dell'Abisso"};
         String[] classRoles = {"BALISTICA & MOBILITÀ", "BASTIONE & RESPINTO", "ARCANO & FLUSSO"};
-        String[] classAttacks = {"Arpione Perforante", "Maglio Ancora (Mischia)", "Dardo Marea Homing"};
+        String[] classAttacks = {"Arpione Perforante", "Maglio Ancora", "Dardo Marea Homing"};
         String[] classDescs = {
                 "Scaglia arpioni balistici che trapassano i mostri marini in linea retta. Alta cadenza e colpi critici letali.",
-                "Sferra pesanti fendenti d'ancora a mezzaluna in mischia. Respinge i nemici e converte la Difesa in danno extra.",
-                "Emette dardi idrici che inseguono automaticamente i nemici. Ricarica costante di Marea e risucchio a vortice."
+                "Sferra pesanti fendenti d'ancora in mischia a mezzaluna. Respinge i nemici e converte la Difesa in danno extra.",
+                "Emette dardi idrici che inseguono automaticamente i nemici. Ricarica rapida di Marea e risucchio a vortice."
         };
         int[] classColors = {0xFF38BDF8, 0xFFF59E0B, 0xFFA855F7};
 
@@ -2197,36 +2528,68 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             paintFill.setColor(isSel ? 0xFF0F2B48 : 0xFF091829);
             canvas.drawRoundRect(card, 12f, 12f, paintFill);
 
+            // Class Header Banner
             paintFill.setColor(classColors[i]);
-            canvas.drawRoundRect(card.left + 10f, card.top + 12f, card.right - 10f, card.top + 42f, 6f, 6f, paintFill);
+            canvas.drawRoundRect(card.left + 10f, card.top + 10f, card.right - 10f, card.top + 38f, 6f, 6f, paintFill);
             paintText.setTextAlign(Paint.Align.CENTER);
-            paintText.setTextSize(12f);
+            paintText.setTextSize(11.5f);
             paintText.setFakeBoldText(true);
             paintText.setColor(0xFF0F172A);
-            canvas.drawText(classTitles[i].toUpperCase(), card.centerX(), card.top + 31f, paintText);
+            canvas.drawText(classTitles[i].toUpperCase(), card.centerX(), card.top + 28f, paintText);
 
-            paintText.setTextSize(9f);
+            // Dedicated Class Artwork Sprite
+            float portraitY = card.top + 95f;
+            drawFloorShadow(canvas, card.centerX(), portraitY + 28f, 32f, 10f);
+
+            paintFill.setColor(0xFF07192A);
+            canvas.drawCircle(card.centerX(), portraitY, 40f, paintFill);
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(isSel ? COL_GOLD : COL_STICKER);
+            paintStroke.setStrokeWidth(2.5f);
+            canvas.drawCircle(card.centerX(), portraitY, 40f, paintStroke);
+
+            Bitmap classBmp = (i == 0) ? bmpClassHunter : (i == 1 ? bmpClassJuggernaut : bmpClassMystic);
+            if (classBmp == null) classBmp = bmpDiver;
+            if (classBmp != null) {
+                canvas.save();
+                canvas.translate(card.centerX(), portraitY + 30f);
+                float s = 0.30f;
+                canvas.scale(s, s);
+                Paint p = null;
+                if (isSel && tempSuitColorIndex > 0 && tempSuitColorIndex < Game.SUIT_COLORS.length) {
+                    p = new Paint();
+                    p.setColorFilter(new PorterDuffColorFilter(Game.SUIT_COLORS[tempSuitColorIndex], PorterDuff.Mode.SRC_ATOP));
+                }
+                canvas.drawBitmap(classBmp, -classBmp.getWidth() / 2f, -classBmp.getHeight() + 20f, p);
+                canvas.restore();
+            }
+
+            // Role and Attack Badges
+            paintText.setTextSize(8.5f);
             paintText.setColor(classColors[i]);
-            canvas.drawText("RUOLO: " + classRoles[i], card.centerX(), card.top + 62f, paintText);
+            paintText.setFakeBoldText(true);
+            canvas.drawText("RUOLO: " + classRoles[i], card.centerX(), card.top + 154f, paintText);
 
+            paintFill.setStyle(Paint.Style.FILL);
             paintFill.setColor(0xFF1E293B);
-            canvas.drawRoundRect(card.left + 12f, card.top + 74f, card.right - 12f, card.top + 106f, 5f, 5f, paintFill);
-            paintText.setTextSize(9.5f);
+            canvas.drawRoundRect(card.left + 12f, card.top + 164f, card.right - 12f, card.top + 192f, 5f, 5f, paintFill);
+            paintText.setTextSize(9f);
             paintText.setColor(COL_STICKER);
-            canvas.drawText("ATTACCO: " + classAttacks[i], card.centerX(), card.top + 94f, paintText);
+            canvas.drawText("ATTACCO: " + classAttacks[i], card.centerX(), card.top + 182f, paintText);
 
-            paintText.setTextSize(9.5f);
+            // Description text
+            paintText.setTextSize(9f);
             paintText.setFakeBoldText(false);
             paintText.setColor(0xFFCBD5E1);
             String desc = classDescs[i];
             String[] words = desc.split(" ");
             StringBuilder line = new StringBuilder();
-            float textY = card.top + 130f;
+            float textY = card.top + 212f;
             for (String w : words) {
                 if (paintText.measureText(line + w) > cardW - 24f) {
                     canvas.drawText(line.toString(), card.centerX(), textY, paintText);
                     line = new StringBuilder(w).append(" ");
-                    textY += 15f;
+                    textY += 14f;
                 } else {
                     line.append(w).append(" ");
                 }
@@ -2235,17 +2598,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 canvas.drawText(line.toString(), card.centerX(), textY, paintText);
             }
 
-            float pillY = card.bottom - 40f;
+            // Select Pill Button
+            float pillY = card.bottom - 42f;
             paintFill.setColor(isSel ? COL_GOLD : 0xFF1E293B);
-            canvas.drawRoundRect(card.left + 20f, pillY, card.right - 20f, pillY + 28f, 6f, 6f, paintFill);
-            paintText.setTextSize(10.5f);
+            canvas.drawRoundRect(card.left + 20f, pillY, card.right - 20f, pillY + 30f, 6f, 6f, paintFill);
+            paintText.setTextSize(10f);
             paintText.setFakeBoldText(true);
             paintText.setColor(isSel ? 0xFF0F172A : 0xFF64748B);
-            canvas.drawText(isSel ? "✓ SELEZIONATA" : "TOCCA PER SCEGLIERE", card.centerX(), pillY + 18f, paintText);
+            canvas.drawText(isSel ? "✓ SELEZIONATA" : "TOCCA PER SCEGLIERE", card.centerX(), pillY + 19f, paintText);
         }
 
+        // Bottom Controls: Name, Suit Colors, Confirm
         float bY = 460f;
-        btnDiceName.set(40f, bY, 230f, bY + 48f);
+        btnDiceName.set(35f, bY, 230f, bY + 48f);
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xFF0F172A);
         canvas.drawRoundRect(btnDiceName, 8f, 8f, paintFill);
@@ -2257,20 +2622,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintText.setTextAlign(Paint.Align.LEFT);
         paintText.setTextSize(9f);
         paintText.setColor(0xFF94A3B8);
-        canvas.drawText("NOME PALOMBARO:", 50f, bY + 17f, paintText);
+        canvas.drawText("NOME PALOMBARO:", 45f, bY + 17f, paintText);
         paintText.setTextSize(13f);
         paintText.setFakeBoldText(true);
         paintText.setColor(COL_GOLD);
-        canvas.drawText(tempCharName + " 🎲", 50f, bY + 36f, paintText);
+        canvas.drawText(tempCharName + " 🎲", 45f, bY + 36f, paintText);
 
-        float colX = 255f;
+        float colX = 250f;
         paintText.setTextSize(9.5f);
         paintText.setFakeBoldText(true);
         paintText.setColor(0xFF94A3B8);
         canvas.drawText("COLORE SCAFANDRO:", colX, bY + 16f, paintText);
 
         for (int c = 0; c < Game.SUIT_COLORS.length; c++) {
-            float circleX = colX + 18f + c * 40f;
+            float circleX = colX + 18f + c * 38f;
             float circleY = bY + 32f;
             float radius = 13f;
             colorCircleRects[c].set(circleX - radius, circleY - radius, circleX + radius, circleY + radius);
@@ -2309,6 +2674,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void handleCharacterCreationTouch(float vx, float vy) {
+        if (game.hasAnyCharacter() && btnBackFromCharCreate.contains(vx, vy)) {
+            game.gameState = Game.STATE_CHAR_SELECT;
+            AudioHelper.playClick();
+            return;
+        }
+
         for (int i = 0; i < 3; i++) {
             if (classCardRects[i].contains(vx, vy)) {
                 String[] classIds = {Game.CLASS_HUNTER, Game.CLASS_JUGGERNAUT, Game.CLASS_MYSTIC};
@@ -2334,45 +2705,117 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         if (btnConfirmChar.contains(vx, vy)) {
-            game.createCharacter(tempCharName, tempCharClass, tempSuitColorIndex);
+            game.createCharacterInSlot(tempSlotToCreate, tempCharName, tempCharClass, tempSuitColorIndex);
             AudioHelper.playLevelUp();
         }
     }
 
     private void drawHubWorld(Canvas canvas) {
+        // 1. Abyssal deep blue-teal watercolor atmosphere
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setShader(new LinearGradient(0, 0, 0, Game.HUB_H,
-                new int[]{0xFF081C33, 0xFF0E395A, 0xFF051829},
+                new int[]{0xFF02101F, 0xFF082745, 0xFF031628},
                 new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
         canvas.drawRect(0f, 0f, Game.HUB_W, Game.HUB_H, paintFill);
         paintFill.setShader(null);
 
+        // 2. Ambient God Rays & Floating Plankton Motes & Bubbles
+        drawSunRaysAndMotes(canvas, Game.HUB_W, Game.HUB_H);
+
+        // 3. Cardboard Sandy Seabed with Dunes along the base
+        drawSandySeabedWithDunes(canvas, Game.HUB_W, Game.HUB_H);
+
+        // 4. Central Nautilus Ancient Plaza (Cobblestone paved sanctuary)
+        float pcx = 800f;
+        float pcy = 480f;
+
+        // Radiating stone paved pathways towards stations
+        float[][] pathDestinations = {
+                {game.hubBlacksmithX, game.hubBlacksmithY},
+                {game.hubMerchantX, game.hubMerchantY},
+                {game.hubStashX, game.hubStashY},
+                {game.hubSageX, game.hubSageY},
+                {game.hubWaypointX, game.hubWaypointY}
+        };
+        for (float[] dest : pathDestinations) {
+            paintStroke.setStyle(Paint.Style.STROKE);
+            paintStroke.setColor(0x33000000);
+            paintStroke.setStrokeWidth(50f);
+            canvas.drawLine(pcx, pcy, dest[0], dest[1], paintStroke);
+
+            paintStroke.setColor(0x331E293B);
+            paintStroke.setStrokeWidth(44f);
+            canvas.drawLine(pcx, pcy, dest[0], dest[1], paintStroke);
+
+            paintStroke.setColor(0x33CBD5E1);
+            paintStroke.setStrokeWidth(2f);
+            canvas.drawLine(pcx, pcy, dest[0], dest[1], paintStroke);
+        }
+
+        // Circular Plaza Floor (Drop shadow & outer stone rim)
+        drawFloorShadow(canvas, pcx, pcy + 12f, 295f, 115f);
+
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0x44000000);
+        canvas.drawCircle(pcx, pcy + 6f, 280f, paintFill);
+
+        // Outer Plaza Terrace
+        paintFill.setColor(0xFF0F243A);
+        canvas.drawCircle(pcx, pcy, 280f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
-        paintStroke.setColor(0x2238BDF8);
-        paintStroke.setStrokeWidth(1.5f);
-        for (float x = 0f; x < Game.HUB_W; x += 100f) {
-            canvas.drawLine(x, 0f, x, Game.HUB_H, paintStroke);
-        }
-        for (float y = 0f; y < Game.HUB_H; y += 100f) {
-            canvas.drawLine(0f, y, Game.HUB_W, y, paintStroke);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(4f);
+        canvas.drawCircle(pcx, pcy, 280f, paintStroke);
+
+        paintStroke.setColor(0x4438BDF8);
+        paintStroke.setStrokeWidth(2.5f);
+        canvas.drawCircle(pcx, pcy, 260f, paintStroke);
+
+        // Inner Cobblestone Paving Ring
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(0xFF0A1B2D);
+        canvas.drawCircle(pcx, pcy, 185f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(0x55F59E0B);
+        paintStroke.setStrokeWidth(3f);
+        canvas.drawCircle(pcx, pcy, 185f, paintStroke);
+
+        // Carved Nautilus Spiral & Compass Star
+        canvas.save();
+        canvas.translate(pcx, pcy);
+        paintStroke.setColor(0x33FDE047);
+        paintStroke.setStrokeWidth(2.5f);
+        for (int a = 0; a < 8; a++) {
+            float rad = (float) Math.toRadians(a * 45f);
+            canvas.drawLine(0f, 0f, (float) Math.cos(rad) * 180f, (float) Math.sin(rad) * 180f, paintStroke);
         }
 
-        for (float cx = 120f; cx < Game.HUB_W; cx += 260f) {
-            drawFloorShadow(canvas, cx, 80f, 35f, 14f);
-            paintFill.setStyle(Paint.Style.FILL);
-            paintFill.setColor(0xFF1E293B);
-            canvas.drawRoundRect(cx - 20f, 20f, cx + 20f, 80f, 8f, 8f, paintFill);
-            paintFill.setColor(0xFF38BDF8);
-            canvas.drawCircle(cx, 40f, 8f, paintFill);
+        // Concentric nautilus shell rings
+        for (int r = 30; r <= 150; r += 30) {
+            paintStroke.setColor(0x2238BDF8);
+            paintStroke.setStrokeWidth(1.8f);
+            canvas.drawCircle(0f, 0f, r, paintStroke);
         }
+        canvas.restore();
 
-        drawSunRaysAndMotes(canvas);
+        // 5. Theatrical stage corals and ancient weathered pillars framing the sanctuary
+        drawStorybookColumn(canvas, 150f, 200f, 0.55f);
+        drawStorybookColumn(canvas, Game.HUB_W - 150f, 200f, 0.55f);
+        drawStorybookColumn(canvas, 160f, 700f, 0.55f);
+        drawStorybookColumn(canvas, Game.HUB_W - 160f, 700f, 0.55f);
 
+        drawCartoonCoral(canvas, 90f, 340f, 0, 0.34f, 0.5f);
+        drawCartoonCoral(canvas, 120f, 550f, 1, 0.36f, 2.1f);
+        drawCartoonCoral(canvas, Game.HUB_W - 90f, 340f, 1, 0.34f, 1.4f);
+        drawCartoonCoral(canvas, Game.HUB_W - 120f, 550f, 0, 0.36f, 3.2f);
+
+        // 6. Hub Stations with generous vertical clearance
         drawHubStation(canvas, game.hubBlacksmithX, game.hubBlacksmithY, "MASTRO ASTICE (IL FABBRO)", bmpBlacksmith, 0xFFE11D48);
         drawHubStation(canvas, game.hubMerchantX, game.hubMerchantY, "MASTRO PAGURO (ALCHIMIA)", bmpMerchant, 0xFFFBBF24);
         drawHubStation(canvas, game.hubStashX, game.hubStashY, "CASSA DI SPEDIZIONE", bmpStash, 0xFF38BDF8);
         drawHubStation(canvas, game.hubSageX, game.hubSageY, "ANZIANA TARTARUGA (STORIA)", bmpSage, 0xFF4ADE80);
 
+        // Waypoint Portale di Spedizione
         float wpX = game.hubWaypointX;
         float wpY = game.hubWaypointY;
         drawFloorShadow(canvas, wpX, wpY, 55f, 20f);
@@ -2393,7 +2836,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintStroke.setColor(COL_GOLD);
         canvas.drawRect(-18f, -18f, 18f, 18f, paintStroke);
         canvas.restore();
-        drawOverheadBadge(canvas, wpX, wpY - 55f, "PORTALE DI SPEDIZIONE (ATTI)", 0xFF0284C7);
+        drawOverheadBadge(canvas, wpX, wpY - 65f, "PORTALE DI SPEDIZIONE (ATTI)", 0xFF0284C7);
 
         if (game.townPortalActive) {
             float tpX = game.hubTownPortalX;
@@ -2408,7 +2851,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 canvas.drawBitmap(bmpTownPortal, -bmpTownPortal.getWidth() / 2f, -bmpTownPortal.getHeight() / 2f, null);
                 canvas.restore();
             }
-            drawOverheadBadge(canvas, tpX, tpY - 50f, "PORTALE CITTADINO (RITORNO)", 0xFF38BDF8);
+            drawOverheadBadge(canvas, tpX, tpY - 65f, "PORTALE CITTADINO (RITORNO)", 0xFF38BDF8);
         }
 
         drawPaperDiver(canvas);
@@ -2417,8 +2860,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawClickBeacon(canvas, game.beaconX, game.beaconY, game.beaconTimer);
         }
 
-        for (Game.Floater f : game.floaters) {
-            drawComicFloater(canvas, f);
+        for (int i = 0; i < game.floaters.size(); i++) {
+            Game.Floater f = game.floaters.get(i);
+            if (f != null) drawComicFloater(canvas, f);
         }
         drawParticles(canvas);
     }
@@ -2434,7 +2878,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawBitmap(bmp, -bmp.getWidth() / 2f, -bmp.getHeight() + 20f, null);
             canvas.restore();
         }
-        drawOverheadBadge(canvas, x, y - 85f, title, badgeCol);
+        drawOverheadBadge(canvas, x, y - 110f, title, badgeCol);
     }
 
     private void drawOverheadBadge(Canvas canvas, float x, float y, String text, int col) {
@@ -3299,6 +3743,34 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float invL = modalRect.left;
         float invR = modalRect.right;
 
+        // Hero Class & Paperdoll preview on Left Page Header
+        Bitmap heroBmp = getClassBitmap(game.playerClass);
+        if (heroBmp != null) {
+            float px = invL + 50f;
+            float py = 85f;
+            drawFloorShadow(canvas, px, py + 15f, 20f, 6f);
+            canvas.save();
+            canvas.translate(px, py + 16f);
+            float s = 0.16f;
+            canvas.scale(s, s);
+            Paint p = null;
+            if (game.suitColorIndex > 0 && game.suitColorIndex < Game.SUIT_COLORS.length) {
+                p = new Paint();
+                p.setColorFilter(new PorterDuffColorFilter(Game.SUIT_COLORS[game.suitColorIndex], PorterDuff.Mode.SRC_ATOP));
+            }
+            canvas.drawBitmap(heroBmp, -heroBmp.getWidth() / 2f, -heroBmp.getHeight() + 20f, p);
+            canvas.restore();
+        }
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setTextSize(11f);
+        paintText.setFakeBoldText(true);
+        paintText.setColor(0xFF78350F);
+        canvas.drawText(game.characterName + " (" + game.getPlayerClassTitle() + ")", invL + 80f, 85f, paintText);
+        paintText.setTextSize(9.5f);
+        paintText.setColor(COL_GOLD);
+        paintText.setFakeBoldText(false);
+        canvas.drawText("Livello " + game.level + "  •  " + game.shells + " 🐚", invL + 80f, 100f, paintText);
+
         // Left Page: Equipped Gear in Carved Driftwood Slots
         drawEquippedSlot(canvas, slotEquipWeapon, "ARMA", game.equippedWeapon, "weapon".equals(targetedSlot));
         drawEquippedSlot(canvas, slotEquipArmor, "CORAZZA", game.equippedArmor, "armor".equals(targetedSlot));
@@ -3714,17 +4186,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(0xDD0F172A);
-        canvas.drawRoundRect(x - 52f, y - 56f, x + 52f, y - 36f, 6f, 6f, paintFill);
+        canvas.drawRoundRect(x - 56f, y - 95f, x + 56f, y - 73f, 6f, 6f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_GOLD);
         paintStroke.setStrokeWidth(1.5f);
-        canvas.drawRoundRect(x - 52f, y - 56f, x + 52f, y - 36f, 6f, 6f, paintStroke);
+        canvas.drawRoundRect(x - 56f, y - 95f, x + 56f, y - 73f, 6f, 6f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_GOLD);
         paintText.setTextSize(10f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("BOTTEGA [TOCCA]", x, y - 42f, paintText);
+        canvas.drawText("BOTTEGA [TOCCA]", x, y - 79f, paintText);
     }
 
     // =========================================================================
@@ -3739,12 +4211,32 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // Storybook Nautical Chart Parchment (Solida, opaca e die-cut - nessun titolo conflittuale)
         drawStorybookParchment(canvas, modalSkillTreeRect, "", null);
 
-        // Header Class Tabs (Hunter, Juggernaut, Mystic) - coordinate pulite non sovrapposte
-        drawClassTab(canvas, tabHunter, "🏹 CACCIATORE", Game.CLASS_HUNTER.equals(game.playerClass), 0xFF0284C7);
-        drawClassTab(canvas, tabJuggernaut, "🛡 CUSTODE", Game.CLASS_JUGGERNAUT.equals(game.playerClass), 0xFFD97706);
-        drawClassTab(canvas, tabMystic, "🔮 MISTICO", Game.CLASS_MYSTIC.equals(game.playerClass), 0xFF7E22CE);
+        // Class Header Banner for Active Hero
+        int classThemeCol = Game.CLASS_HUNTER.equals(game.playerClass) ? 0xFF0284C7 :
+                (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? 0xFFD97706 : 0xFF7E22CE);
+        String classIcon = Game.CLASS_HUNTER.equals(game.playerClass) ? "🏹 " :
+                (Game.CLASS_JUGGERNAUT.equals(game.playerClass) ? "🛡 " : "🔮 ");
 
-        // Skill points pill at top center (Golden wax seal badge)
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(classThemeCol);
+        canvas.drawRoundRect(classBannerRect, 8f, 8f, paintFill);
+        paintStroke.setStyle(Paint.Style.STROKE);
+        paintStroke.setColor(COL_STICKER);
+        paintStroke.setStrokeWidth(2.5f);
+        canvas.drawRoundRect(classBannerRect, 8f, 8f, paintStroke);
+
+        paintText.setTextAlign(Paint.Align.LEFT);
+        paintText.setColor(COL_STICKER);
+        paintText.setTextSize(12.5f);
+        paintText.setFakeBoldText(true);
+        canvas.drawText(classIcon + game.getPlayerClassTitle().toUpperCase(), classBannerRect.left + 14f, classBannerRect.centerY() - 2f, paintText);
+
+        paintText.setTextSize(9.5f);
+        paintText.setColor(0xFFFEF08A);
+        paintText.setFakeBoldText(false);
+        canvas.drawText(game.characterName + " — Livello " + game.level, classBannerRect.left + 14f, classBannerRect.centerY() + 13f, paintText);
+
+        // Skill points pill at center
         paintFill.setStyle(Paint.Style.FILL);
         paintFill.setColor(game.skillPoints > 0 ? 0xFF16A34A : 0xFF78350F);
         canvas.drawRoundRect(spPillRect, 6f, 6f, paintFill);
@@ -3754,14 +4246,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRoundRect(spPillRect, 6f, 6f, paintStroke);
 
         paintText.setTextAlign(Paint.Align.CENTER);
-        paintText.setTextSize(10.5f);
+        paintText.setTextSize(11f);
         paintText.setFakeBoldText(true);
         paintText.setColor(COL_STICKER);
         canvas.drawText("⭐ PUNTI: " + game.skillPoints, spPillRect.centerX(), spPillRect.centerY() + 4f, paintText);
 
-        // Respec button (Wax seal style)
+        // Respec button (Cost 25 shells)
         paintFill.setStyle(Paint.Style.FILL);
-        paintFill.setColor(0xFFDC2626);
+        paintFill.setColor(0xFF991B1B);
         canvas.drawRoundRect(btnRespec, 6f, 6f, paintFill);
         paintStroke.setStyle(Paint.Style.STROKE);
         paintStroke.setColor(COL_STICKER);
@@ -3769,9 +4261,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawRoundRect(btnRespec, 6f, 6f, paintStroke);
         paintText.setTextAlign(Paint.Align.CENTER);
         paintText.setColor(COL_STICKER);
-        paintText.setTextSize(10.5f);
+        paintText.setTextSize(10f);
         paintText.setFakeBoldText(true);
-        canvas.drawText("↺ RESET (RESPEC)", btnRespec.centerX(), btnRespec.centerY() + 4f, paintText);
+        canvas.drawText("↺ AZZERA (25 🐚)", btnRespec.centerX(), btnRespec.centerY() + 4f, paintText);
 
         // Tasto di Chiusura 'X' (Sigillo in ceralacca rossa prominente)
         drawCloseWaxSeal(canvas, btnCloseSkillTree);
@@ -3877,6 +4369,26 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paintStroke.setColor(active ? 0xFFF59E0B : 0xFFCBD5E1);
         paintStroke.setStrokeWidth(active ? 3.5f : 2f);
         canvas.drawLine(x1, y1, x2, y2, paintStroke);
+
+        // Directional energy chevron at midpoint
+        float midX = (x1 + x2) / 2f;
+        float midY = (y1 + y2) / 2f;
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
+
+        canvas.save();
+        canvas.translate(midX, midY);
+        canvas.rotate(angle);
+        paintFill.setStyle(Paint.Style.FILL);
+        paintFill.setColor(active ? 0xFFFEF08A : 0xFF94A3B8);
+        tempPath.reset();
+        tempPath.moveTo(-6f, -5f);
+        tempPath.lineTo(6f, 0f);
+        tempPath.lineTo(-6f, 5f);
+        tempPath.close();
+        canvas.drawPath(tempPath, paintFill);
+        canvas.restore();
     }
 
     private void drawTreeRootNode(Canvas canvas, float cx, float cy, float r) {
@@ -4468,10 +4980,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        int action = event.getActionMasked();
-        int actionIndex = event.getActionIndex();
+        synchronized (game.gameLock) {
+            try {
+                int action = event.getActionMasked();
+                int actionIndex = event.getActionIndex();
 
-        if (game.gameState == Game.STATE_CHAR_CREATE) {
+                if (game.gameState == Game.STATE_CHAR_SELECT) {
+                    if (action == MotionEvent.ACTION_DOWN) {
+                        float vx = (event.getX() - offsetX) / viewScale;
+                        float vy = (event.getY() - offsetY) / viewScale;
+                        handleCharacterSelectTouch(vx, vy);
+                    }
+                    return true;
+                }
+
+                if (game.gameState == Game.STATE_CHAR_CREATE) {
             if (action == MotionEvent.ACTION_DOWN) {
                 float vx = (event.getX() - offsetX) / viewScale;
                 float vy = (event.getY() - offsetY) / viewScale;
@@ -4607,7 +5130,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         return true;
+        } catch (Exception ignored) {
+            return true;
+        }
     }
+}
 
     private void handlePointerDown(int pointerId, float vx, float vy) {
         if (btnSound.contains(vx, vy)) {
@@ -4622,9 +5149,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return;
         }
 
-        // Tasto EROE nell'HUD (nell'Avamposto Hub) per accedere alla scheda/creazione
+        // Tasto EROI nell'HUD (nell'Avamposto Hub) per accedere alla gestione dei palombari
         if (game.gameState == Game.STATE_HUB && btnNewCharacter.contains(vx, vy)) {
-            game.gameState = Game.STATE_CHAR_CREATE;
+            game.gameState = Game.STATE_CHAR_SELECT;
             AudioHelper.playClick();
             return;
         }
@@ -4721,10 +5248,27 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         // 4. Raccolta Loot a terra con tocco diretto
-        for (Game.Drop d : game.drops) {
+        for (int i = 0; i < game.drops.size(); i++) {
+            Game.Drop d = game.drops.get(i);
+            if (d == null) continue;
             float dd = distSq(wx, wy, d.x, d.y);
             if (dd < 65f * 65f) {
                 game.setPlayerTarget(d.x, d.y);
+                return;
+            }
+        }
+
+        // 4b. Forziere Sommerso dell'Atto
+        for (int i = 0; i < game.actChests.size(); i++) {
+            Game.ActChest c = game.actChests.get(i);
+            if (c == null) continue;
+            float dc = distSq(wx, wy, c.x, c.y);
+            if (dc < 75f * 75f) {
+                if (distSq(game.playerX, game.playerY, c.x, c.y) < 130f * 130f) {
+                    game.openActChest(c);
+                } else {
+                    game.setPlayerTarget(c.x, c.y);
+                }
                 return;
             }
         }
@@ -4749,8 +5293,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         // 6. Attacco mirato a nemico
-        for (Game.Enemy e : game.enemies) {
-            if (e.hp <= 0) continue;
+        for (int i = 0; i < game.enemies.size(); i++) {
+            Game.Enemy e = game.enemies.get(i);
+            if (e == null || e.hp <= 0) continue;
             float de = distSq(wx, wy, e.x, e.y);
             if (de < (e.radius + 20f) * (e.radius + 20f)) {
                 game.performAttack(e.x, e.y);
@@ -4845,22 +5390,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         if (btnRespec.contains(vx, vy)) {
             game.respecSkills();
-            return;
-        }
-
-        if (tabHunter.contains(vx, vy)) {
-            game.selectClass(Game.CLASS_HUNTER);
-            selectedSkillId = "hunt_pierce";
-            return;
-        }
-        if (tabJuggernaut.contains(vx, vy)) {
-            game.selectClass(Game.CLASS_JUGGERNAUT);
-            selectedSkillId = "jug_armor";
-            return;
-        }
-        if (tabMystic.contains(vx, vy)) {
-            game.selectClass(Game.CLASS_MYSTIC);
-            selectedSkillId = "mys_vortex";
             return;
         }
 

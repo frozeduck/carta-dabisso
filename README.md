@@ -2,17 +2,41 @@
 
 ARPG isometrico subacqueo in **Android nativo** (SurfaceView + Canvas a 60 FPS) in **orientamento orizzontale (Landscape)**, progettato con feeling e dinamiche **Diablo-like** e stile artistico **Paper Mario Pop-Up**.
 
-**[Scarica l’APK Android v0.5.0](downloads/carta-dabisso-0.5.0-debug.apk)** · [Server locale di download](http://192.168.1.200:8142)
+**[Scarica l’APK Android v0.6.0](downloads/carta-dabisso-0.6.0-debug.apk)** · [Server locale di download](http://192.168.1.200:8142)
 
 ---
 
-## Caratteristiche Tecniche e Gameplay (v0.5.0)
+## Caratteristiche Tecniche e Gameplay (v0.6.0)
 
+- **Art Dedicata per le 3 Classi di Gioco**:
+  - *Cacciatore dei Mari*: sprite ad alta risoluzione con fucile ad arpione balistico con mirino e pinne da immersione aerodinamiche.
+  - *Custode dei Fondali*: massiccia corazza a campana da palombaro con spallacci imbullonati e colossale ancora in ferro da mischia.
+  - *Mistico dell'Abisso*: tonaca cerimoniale abissale con cappuccio intessuto di rune e bastone di corallo sormontato da perla di marea splendente.
+- **Menu Iniziale Gestione Multipli Personaggi (Archivio Palombari)**:
+  - Fino a 3 slot personaggio indipendenti con salvataggio isolato per livello, classe, scafandro, inventario e progressione.
+  - Scheda anteprima eroe con ritratto animato, statistiche, conchiglie, pulsante "GIOCA", "ELIMINA" e "＋ NUOVO EROE".
+  - Accesso e cambio eroe in ogni momento dall'Hub del Santuario tramite il tasto `👥 EROI`.
+- **Identità di Classe Permanente & Albero Abilità Ridisegnato**:
+  - Classe bloccata permanentemente all'atto della creazione (niente switch mid-game nell'albero).
+  - Banner di classe dedicato in testata con stemma, livello ed eroe.
+  - Condotti idraulici energetici con frecce direzionali tra i Tier (Tier 1 -> Tier 2 -> Tier 3).
+  - Medaglioni runici con numerazione romana e pulsante "Azzera Talenti" (Respec per 25 conchiglie).
+- **Nuova Estetica del Fondale Marino nell'Hub Santuario Nautilus**:
+  - Dune sabbiose dorate con cuciture decorative artigianali Paper Mario.
+  - Piazza centrale circolare in ciottoli antichi con decorazione radiale e mosaico a spirale del Nautilus.
+  - Percorsi lastricati verso tutte le botteghe, colonne antiche e coralli decorativi sulle quinte.
+  - Correzione spaziatura cartigli/badge sopra la testa di Mastro Paguro, Mastro Astice, Cassa e Anziana Tartaruga.
+- **Risoluzione Crash Atto 1 & Architettura Thread-Safe**:
+  - Blocco unificato di sincronizzazione tra il thread di rendering a 60 FPS (`GameLoopThread`) e il thread UI principale Android (`onTouchEvent`).
+  - Iterazione indicizzata priva di `ConcurrentModificationException` per nemici, forzieri sommersi e drop.
+- **Mappe Dinamiche ad Atti & Forzieri Sommersi**:
+  - Dimensioni mappa scalate per ciascun Atto (da 2400x1400 fino a 2800x1600).
+  - 3 settori sequenziali per Atto (Ingresso, Esplorazione con Forziere Sommerso apribile, e Tana del Boss).
 - **Progressione a 4 Atti Diablo**:
-  - *Atto I: La Barriera Silenziosa (300m)* - Missione: *Il Risveglio delle Ombre*, Boss: *Kraken Guardiano*.
-  - *Atto II: La Fossa delle Tenebre (850m)* - Missione: *I Sussurri del Fondo*, Boss: *Sirena Corrotta*.
-  - *Atto III: La Dorsale Vulcanica (1450m)* - Missione: *Il Fuoco Sommerso*, Boss: *Leviatano Primordiale*.
-  - *Atto IV: L'Abisso Infinito (Endless Dive)* - Discesa infinita con scaling dinamico della difficoltà e ricompense leggendarie.
+  - *Atto I: La Barriera Silenziosa (300m)* - Boss: *Granchio Gigante Corazzato*.
+  - *Atto II: La Fossa delle Tenebre (850m)* - Boss: *Murena Zannuta Primordiale*.
+  - *Atto III: La Dorsale Vulcanica (1450m)* - Boss: *Rana Pescatrice Abissale*.
+  - *Atto IV: L'Abisso Infinito (2400m+)* - Boss: *Leviatano Primordiale* & Endless Dive infinito.
 - **Schermata di Creazione Personaggio**:
   - Selezione fra 3 classi distinte con attacchi unici.
   - Personalizzazione cromatica muta subacquea con 5 stili (Oceano, Corallo, Oro Abisso, Smeraldo, Ametista).

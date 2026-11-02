@@ -171,9 +171,9 @@
     </header>
 
     <div class="download-card">
-      <div class="version-tag">Versione Corrente: v0.5.0 Debug</div>
+      <div class="version-tag">Versione Corrente: v0.6.0 Debug</div>
       <a class="btn-download" href="carta-dabisso-latest-debug.apk" download>
-        ⬇ Scarica APK Android (v0.5.0)
+        ⬇ Scarica APK Android (v0.6.0)
       </a>
       <div class="file-info">
         Formato: <code>.apk</code> nativo Android (minSdk 26+ / Android 8.0+) · Zero dipendenze web
@@ -181,26 +181,32 @@
     </div>
 
     <div class="features">
-      <h2>Novità & Caratteristiche v0.5.0</h2>
+      <h2>Novità & Caratteristiche v0.6.0</h2>
       <ul>
-        <li><strong>Progressione a 4 Atti Diablo</strong>: Atto I (La Barriera Silenziosa), Atto II (La Fossa delle Tenebre), Atto III (La Dorsale Vulcanica), Atto IV (L'Abisso Infinito / Endless Dive) con missioni, taglie dei boss e sblocco sequenziale.</li>
-        <li><strong>Schermata Creazione Personaggio</strong>: Selezione classe, personalizzazione muta con tavolozza a 5 colori (Oceano, Corallo, Oro Abisso, Smeraldo, Ametista), generatore nomi con dado e anteprima paperdoll.</li>
-        <li><strong>Avamposto del Nautilus (Santuario Hub)</strong>: Santuario pacifico con stazioni interattive:
+        <li><strong>Art Dedicata per le 3 Classi</strong>:
           <ul>
-            <li><strong>Mastro Astice (Il Fabbro)</strong>: Smantella equipaggiamento per Frammenti Abissali & Conchiglie, Potenzia oggetti fino a +5, Forgia armi & armature Rare o Abissali.</li>
-            <li><strong>Mastro Paguro (Alchimia & Pozioni)</strong>: Bottega, forzieri misteriosi e Altare delle Reliquie.</li>
-            <li><strong>Cassa di Spedizione (Stash a 16 slot)</strong>: Deposito sicuro e permanente per bottino ed equipaggiamenti di scorta.</li>
-            <li><strong>Anziana Tartaruga (Archivio di Storia)</strong>: Cronache degli abissi, diario di missione e stato delle taglie.</li>
-            <li><strong>Portale di Spedizione (Waypoint)</strong>: Mappa interattiva degli Atti per immergersi direttamente nelle profondità sbloccate.</li>
-            <li><strong>Portale Cittadino (Diablo Town Portal)</strong>: Apri un portale ovunque nella spedizione per tornare all'Avamposto ed effettuare il viaggio di ritorno all'esatta posizione nel dungeon!</li>
+            <li><em>Cacciatore dei Mari</em>: sprite dedicato con fucile ad arpione balistico con mirino e pinne da immersione.</li>
+            <li><em>Custode dei Fondali</em>: armatura corazzata a campana da palombaro con spallacci imbullonati e colossale ancora in ferro.</li>
+            <li><em>Mistico dell'Abisso</em>: tonaca cerimoniale abissale con cappuccio runico e bastone di corallo sormontato da perla di marea splendente.</li>
           </ul>
         </li>
-        <li><strong>Classi con Attacchi Primari Distinti</strong>:
-          <ul>
-            <li><em>Cacciatore dei Mari</em>: arpione perforante ad altissima velocità con balistica multishot.</li>
-            <li><em>Custode dei Fondali</em>: fendente melee ad ancora ad arco semicircolare con scaling su difesa e potente contraccolpo a corto raggio.</li>
-            <li><em>Mistico dell'Abisso</em>: proiettili guidati ad inseguimento fluido continuo (homing orbs) con rigenerazione Marea ad ogni lancio.</li>
-          </ul>
+        <li><strong>Menu Iniziale Gestione Multipli Personaggi (Archivio Palombari)</strong>:
+          3 slot eroe indipendenti con salvataggio persistente, scheda anteprima carta con classe, livello, progressione atti, conchiglie d'oro e pulsanti "GIOCA", "ELIMINA" e "＋ NUOVO EROE".
+        </li>
+        <li><strong>Identità di Classe Permanente & Albero Abilità Ridisegnato</strong>:
+          La classe scelta all'inizio è bloccata e permanente (niente switch mid-game). L'albero talenti presenta un banner di classe dedicato, condutture energetiche con indicatori di flusso direzionali tra i Tier, medaglioni runici con numerazione romana e pulsante "Azzera Talenti" (Respec per 25 conchiglie).
+        </li>
+        <li><strong>Estetica Marina Completa per l'Hub Santuario Nautilus</strong>:
+          Fondale sabbioso con dune dorate e cuciture artigianali Paper Mario, maestosa piazza centrale circolare in ciottoli antichi con mosaico a spirale del Nautilus, percorsi lastricati verso tutte le botteghe, colonne antiche e coralli decorativi sulle quinte.
+        </li>
+        <li><strong>Fix Spaziatura Badge Vendor nell'Hub</strong>:
+          I cartigli dei nomi di Mastro Paguro, Mastro Astice, Cassa e Anziana Tartaruga sono posizionati a debita distanza sopra la testa degli sprite, eliminando ogni collisione o sovrapposizione visiva.
+        </li>
+        <li><strong>Risoluzione Crash Atto 1 & Stabilità Thread-Safe</strong>:
+          Sincronizzazione thread-safe tramite monitor unificato tra GameLoopThread e UI Main thread (`onTouchEvent`), con scansione indicizzata su nemici, forzieri e drop per sradicare qualsiasi `ConcurrentModificationException`.
+        </li>
+        <li><strong>Mappe Dinamiche ad Atti & Forzieri Sommersi</strong>:
+          Ambienti esplorabili con dimensioni proporzionate per ciascun Atto (fino a 2800px di larghezza), 3 settori sequenziali (Ingresso, Esplorazione con Forziere Sommerso apribile, e Tana del Boss).
         </li>
       </ul>
     </div>
@@ -209,7 +215,11 @@
       <h2>Archivio Versioni</h2>
       <div class="history-list">
         <div class="history-item">
-          <span>v0.5.0 (Attuale - Progressione Diablo, Creazione Personaggio, Hub Santuario, Fabbro, Stash, Portale & Classi Distinte)</span>
+          <span>v0.6.0 (Attuale - Art 3 Classi, Gestione 3 Eroi, Albero Bloccato, Hub Fondale Marino & Fix Crash)</span>
+          <a href="carta-dabisso-0.6.0-debug.apk">carta-dabisso-0.6.0-debug.apk</a>
+        </div>
+        <div class="history-item">
+          <span>v0.5.0 (Progressione Diablo ad Atti, Hub Santuario, Fabbro, Stash & Portale Cittadino)</span>
           <a href="carta-dabisso-0.5.0-debug.apk">carta-dabisso-0.5.0-debug.apk</a>
         </div>
         <div class="history-item">

@@ -468,6 +468,12 @@ public class Game {
     public final java.util.Map<String, Integer> skillRanks = new java.util.HashMap<>();
     public boolean skillTreeOpen = false;
 
+    public String getPlayerClassTitle() {
+        if (CLASS_JUGGERNAUT.equals(playerClass)) return "Custode dei Fondali";
+        if (CLASS_MYSTIC.equals(playerClass)) return "Mistico dell'Abisso";
+        return "Cacciatore dei Mari";
+    }
+
     // Talenti e Perk al Level Up (retro-compatibilità)
     public final java.util.Set<String> activePerks = new java.util.HashSet<>();
     public final List<Perk> pendingPerkChoices = new ArrayList<>();
@@ -517,6 +523,51 @@ public class Game {
     public float portalRadius = 46f;
     public boolean gameOver = false;
     public boolean victory = false;
+
+    // Forziere dell'Atto (Sunken Treasure Chest nell'ambiente)
+    public static class ActChest {
+        public float x;
+        public float y;
+        public boolean opened = false;
+        public float animTimer = 0f;
+
+        public ActChest(float x, float y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+    public final List<ActChest> actChests = new ArrayList<>();
+    public final Object gameLock = new Object();
+
+    // Sistema Gestione Multipli Personaggi (3 Slot Salvataggio)
+    public static final int MAX_CHAR_SLOTS = 3;
+    public int currentSlot = 0;
+
+    public static class CharSlotInfo {
+        public int slotIndex;
+        public boolean exists = false;
+        public String name = "Esploratore";
+        public String playerClass = CLASS_HUNTER;
+        public int suitColorIndex = 0;
+        public int level = 1;
+        public int xp = 0;
+        public int xpNext = 50;
+        public int skillPoints = 0;
+        public int maxActUnlocked = 1;
+        public int depthRecord = 0;
+        public int shells = 0;
+        public final List<String> unlockedSkills = new ArrayList<>();
+        public Item equippedWeapon;
+        public Item equippedArmor;
+        public Item equippedRelic;
+        public final List<Item> backpack = new ArrayList<>();
+
+        public CharSlotInfo(int slotIndex) {
+            this.slotIndex = slotIndex;
+        }
+    }
+
+    public final List<CharSlotInfo> charSlots = new ArrayList<>();
 
     // Meta-progressione & Record Storici (Banca del Paguro & SharedPreferences)
     public SaveDelegate saveDelegate = new SaveDelegate() {
@@ -596,6 +647,220 @@ public class Game {
         return null;
     }
 
+    public float getMapWidth() {
+        if (gameState == STATE_HUB) return HUB_W;
+        switch (currentAct) {
+            case 1: return 2400f;
+            case 2: return 2600f;
+            case 3: return 2800f;
+            case 4: default: return 2400f;
+        }
+    }
+
+    public float getMapHeight() {
+        if (gameState == STATE_HUB) return HUB_H;
+        switch (currentAct) {
+            case 1: return 1400f;
+            case 2: return 1500f;
+            case 3: return 1600f;
+            case 4: default: return 1400f;
+        }
+    }
+
+    public void loadAllSlots() {
+        charSlots.clear();
+        for (int i = 0; i < MAX_CHAR_SLOTS; i++) {
+            CharSlotInfo info = new CharSlotInfo(i);
+            boolean exists = saveDelegate.getBoolean("slot_" + i + "_exists", false);
+            // Migrazione automatica profilo legacy sul primo slot (slot 0)
+            if (i == 0 && !exists && saveDelegate.getBoolean("char_created", false)) {
+                exists = true;
+                info.name = saveDelegate.getString("char_name", "Esploratore");
+                info.playerClass = saveDelegate.getString("char_class", CLASS_HUNTER);
+                info.suitColorIndex = saveDelegate.getInt("char_suit_color", 0);
+                info.maxActUnlocked = Math.max(1, saveDelegate.getInt("max_act_unlocked", 1));
+                info.level = Math.max(1, saveDelegate.getInt("char_level", 1));
+                info.shells = saveDelegate.getInt("char_shells", 0);
+                saveDelegate.setBoolean("slot_0_exists", true);
+                saveDelegate.setString("slot_0_name", info.name);
+                saveDelegate.setString("slot_0_class", info.playerClass);
+                saveDelegate.setInt("slot_0_suit_color", info.suitColorIndex);
+                saveDelegate.setInt("slot_0_level", info.level);
+                saveDelegate.setInt("slot_0_max_act", info.maxActUnlocked);
+            }
+
+            if (exists) {
+                info.exists = true;
+                info.name = saveDelegate.getString("slot_" + i + "_name", "Esploratore");
+                info.playerClass = saveDelegate.getString("slot_" + i + "_class", CLASS_HUNTER);
+                info.suitColorIndex = saveDelegate.getInt("slot_" + i + "_suit_color", 0);
+                info.level = Math.max(1, saveDelegate.getInt("slot_" + i + "_level", 1));
+                info.xp = saveDelegate.getInt("slot_" + i + "_xp", 0);
+                info.xpNext = Math.max(50, saveDelegate.getInt("slot_" + i + "_xp_next", 50));
+                info.skillPoints = saveDelegate.getInt("slot_" + i + "_skill_points", 0);
+                info.maxActUnlocked = Math.max(1, saveDelegate.getInt("slot_" + i + "_max_act", 1));
+                info.depthRecord = saveDelegate.getInt("slot_" + i + "_depth_record", 0);
+                info.shells = saveDelegate.getInt("slot_" + i + "_shells", 0);
+
+                String skillsStr = saveDelegate.getString("slot_" + i + "_skills", "");
+                if (!skillsStr.isEmpty()) {
+                    for (String s : skillsStr.split(",")) {
+                        if (!s.trim().isEmpty()) info.unlockedSkills.add(s.trim());
+                    }
+                }
+
+                info.equippedWeapon = itemFromString(saveDelegate.getString("slot_" + i + "_weapon", ""));
+                info.equippedArmor = itemFromString(saveDelegate.getString("slot_" + i + "_armor", ""));
+                info.equippedRelic = itemFromString(saveDelegate.getString("slot_" + i + "_relic", ""));
+
+                int bpCount = saveDelegate.getInt("slot_" + i + "_bp_count", 0);
+                for (int b = 0; b < bpCount; b++) {
+                    Item it = itemFromString(saveDelegate.getString("slot_" + i + "_bp_" + b, ""));
+                    if (it != null) info.backpack.add(it);
+                }
+            }
+            charSlots.add(info);
+        }
+    }
+
+    public boolean hasAnyCharacter() {
+        if (charSlots.isEmpty()) loadAllSlots();
+        for (CharSlotInfo slot : charSlots) {
+            if (slot.exists) return true;
+        }
+        return false;
+    }
+
+    public boolean selectCharacter(int slotIndex) {
+        if (charSlots.isEmpty()) loadAllSlots();
+        if (slotIndex < 0 || slotIndex >= charSlots.size()) return false;
+        CharSlotInfo info = charSlots.get(slotIndex);
+        if (!info.exists) return false;
+        this.currentSlot = slotIndex;
+        this.characterName = info.name;
+        this.playerClass = info.playerClass;
+        this.suitColorIndex = info.suitColorIndex;
+        this.level = info.level;
+        this.xp = info.xp;
+        this.xpNext = info.xpNext;
+        this.skillPoints = info.skillPoints;
+        this.maxActUnlocked = info.maxActUnlocked;
+        this.shells = info.shells;
+
+        this.skillRanks.clear();
+        for (String sId : info.unlockedSkills) {
+            this.skillRanks.put(sId, 1);
+        }
+
+        this.equippedWeapon = info.equippedWeapon;
+        this.equippedArmor = info.equippedArmor;
+        this.equippedRelic = info.equippedRelic;
+        this.backpack.clear();
+        this.backpack.addAll(info.backpack);
+
+        if (this.equippedWeapon == null || this.equippedArmor == null || this.equippedRelic == null) {
+            initPlayerStarterGear();
+        }
+
+        saveDelegate.setInt("last_active_slot", slotIndex);
+        enterHub();
+        return true;
+    }
+
+    public void initPlayerStarterGear() {
+        if (CLASS_JUGGERNAUT.equals(playerClass)) {
+            equippedWeapon = new Item("w_anchor_iron", "Ancora d'Acciaio", "weapon", RARITY_COMMON,
+                    20, 2, 0, -5f, 0.04f, "Pesante ancora da ormeggio che spazza via i mostri in mischia.", 0, null);
+        } else if (CLASS_MYSTIC.equals(playerClass)) {
+            equippedWeapon = new Item("w_staff_pearl", "Scettro di Madreperla", "weapon", RARITY_COMMON,
+                    15, 0, 0, 0f, 0.08f, "Scettro che incanala i flussi d'acqua e genera dardi a ricerca.", 0, null);
+        } else {
+            equippedWeapon = new Item("w_harpoon_copper", "Arpione di Rame", "weapon", RARITY_COMMON,
+                    16, 0, 0, 0f, 0.05f, "Asta di ottone bilanciata con arpione scanalato.", 0, null);
+        }
+        equippedArmor = new Item("a_diver_suit", "Scafandro Esploratore", "armor", RARITY_COMMON,
+                0, 6, 40, 0f, 0f, "Tuta impermeabile con rinforzi alle giunture.", 0, "Corallo");
+        equippedRelic = new Item("r_coral_pebble", "Frammento di Madreperla", "relic", RARITY_COMMON,
+                0, 0, 0, 15f, 0.05f, "Un frammento levigato che risuona con la marea.", 0, "Corallo");
+    }
+
+    public void createCharacterInSlot(int slotIndex, String name, String clz, int suitColor) {
+        if (slotIndex < 0 || slotIndex >= MAX_CHAR_SLOTS) slotIndex = 0;
+        this.currentSlot = slotIndex;
+        if (name != null && !name.trim().isEmpty()) {
+            this.characterName = name.trim();
+        } else {
+            this.characterName = "Esploratore";
+        }
+        this.playerClass = (clz != null) ? clz : CLASS_HUNTER;
+        this.suitColorIndex = Math.max(0, Math.min(SUIT_COLORS.length - 1, suitColor));
+        this.level = 1;
+        this.xp = 0;
+        this.xpNext = 50;
+        this.skillPoints = 1;
+        this.maxActUnlocked = 1;
+        this.currentAct = 1;
+        this.shells = 0;
+        this.skillRanks.clear();
+        this.backpack.clear();
+
+        initPlayer();
+        enterHub();
+
+        saveDelegate.setBoolean("slot_" + slotIndex + "_exists", true);
+        saveDelegate.setInt("last_active_slot", slotIndex);
+        saveDelegate.setBoolean("char_created", true);
+        saveActiveCharacter();
+        savePersistentData();
+        loadAllSlots();
+    }
+
+    public boolean deleteCharacter(int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= charSlots.size()) return false;
+        saveDelegate.setBoolean("slot_" + slotIndex + "_exists", false);
+        saveDelegate.setString("slot_" + slotIndex + "_name", "");
+        saveDelegate.setString("slot_" + slotIndex + "_class", "");
+        saveDelegate.setInt("slot_" + slotIndex + "_suit_color", 0);
+        saveDelegate.setInt("slot_" + slotIndex + "_level", 1);
+        saveDelegate.setInt("slot_" + slotIndex + "_max_act", 1);
+        loadAllSlots();
+        return true;
+    }
+
+    public void saveActiveCharacter() {
+        if (saveDelegate == null) return;
+        int s = currentSlot;
+        saveDelegate.setBoolean("slot_" + s + "_exists", true);
+        saveDelegate.setString("slot_" + s + "_name", characterName);
+        saveDelegate.setString("slot_" + s + "_class", playerClass);
+        saveDelegate.setInt("slot_" + s + "_suit_color", suitColorIndex);
+        saveDelegate.setInt("slot_" + s + "_level", level);
+        saveDelegate.setInt("slot_" + s + "_xp", xp);
+        saveDelegate.setInt("slot_" + s + "_xp_next", xpNext);
+        saveDelegate.setInt("slot_" + s + "_skill_points", skillPoints);
+        saveDelegate.setInt("slot_" + s + "_max_act", maxActUnlocked);
+        saveDelegate.setInt("slot_" + s + "_depth_record", depthMeters);
+        saveDelegate.setInt("slot_" + s + "_shells", shells);
+
+        StringBuilder sb = new StringBuilder();
+        for (java.util.Map.Entry<String, Integer> e : skillRanks.entrySet()) {
+            if (e.getValue() > 0) {
+                if (sb.length() > 0) sb.append(",");
+                sb.append(e.getKey());
+            }
+        }
+        saveDelegate.setString("slot_" + s + "_skills", sb.toString());
+
+        saveDelegate.setString("slot_" + s + "_weapon", itemToString(equippedWeapon));
+        saveDelegate.setString("slot_" + s + "_armor", itemToString(equippedArmor));
+        saveDelegate.setString("slot_" + s + "_relic", itemToString(equippedRelic));
+
+        saveDelegate.setInt("slot_" + s + "_bp_count", backpack.size());
+        for (int i = 0; i < backpack.size(); i++) {
+            saveDelegate.setString("slot_" + s + "_bp_" + i, itemToString(backpack.get(i)));
+        }
+    }
+
     public void loadPersistentData() {
         if (saveDelegate == null) return;
         maxDepthRecord = saveDelegate.getInt("record_max_depth", 0);
@@ -607,12 +872,7 @@ public class Game {
         metaTideLevel = saveDelegate.getInt("meta_tide", 0);
         metaPotionLevel = saveDelegate.getInt("meta_potion", 0);
         metaMagnetLevel = saveDelegate.getInt("meta_magnet", 0);
-
-        characterName = saveDelegate.getString("char_name", "Esploratore");
-        playerClass = saveDelegate.getString("char_class", CLASS_HUNTER);
-        suitColorIndex = Math.max(0, Math.min(SUIT_COLORS.length - 1, saveDelegate.getInt("char_suit_color", 0)));
         abyssalShards = saveDelegate.getInt("abyssal_shards", 0);
-        maxActUnlocked = Math.max(1, saveDelegate.getInt("max_act_unlocked", 1));
 
         int stashCount = saveDelegate.getInt("stash_count", 0);
         if (stashCount > 0) {
@@ -626,11 +886,29 @@ public class Game {
             }
         }
 
+        loadAllSlots();
+        int lastSlot = saveDelegate.getInt("last_active_slot", 0);
+        if (lastSlot >= 0 && lastSlot < charSlots.size() && charSlots.get(lastSlot).exists) {
+            selectCharacter(lastSlot);
+        } else if (hasAnyCharacter()) {
+            for (int i = 0; i < charSlots.size(); i++) {
+                if (charSlots.get(i).exists) {
+                    selectCharacter(i);
+                    break;
+                }
+            }
+        } else {
+            currentSlot = 0;
+            initPlayerStarterGear();
+        }
+
         initActs();
     }
 
     public void savePersistentData() {
         if (saveDelegate == null) return;
+        saveActiveCharacter();
+
         saveDelegate.setInt("record_max_depth", maxDepthRecord);
         saveDelegate.setInt("bank_shells", totalShellsBank);
         saveDelegate.setInt("stat_total_dives", totalDivesCount);
@@ -640,12 +918,7 @@ public class Game {
         saveDelegate.setInt("meta_tide", metaTideLevel);
         saveDelegate.setInt("meta_potion", metaPotionLevel);
         saveDelegate.setInt("meta_magnet", metaMagnetLevel);
-
-        saveDelegate.setString("char_name", characterName);
-        saveDelegate.setString("char_class", playerClass);
-        saveDelegate.setInt("char_suit_color", suitColorIndex);
         saveDelegate.setInt("abyssal_shards", abyssalShards);
-        saveDelegate.setInt("max_act_unlocked", maxActUnlocked);
 
         saveDelegate.setInt("stash_count", stash.size());
         for (int i = 0; i < stash.size(); i++) {
@@ -895,9 +1168,10 @@ public class Game {
     }
 
     public void selectClass(String newClass) {
-        if (newClass.equals(playerClass)) return;
+        if (newClass == null || newClass.equals(playerClass)) return;
         respecSkills();
         playerClass = newClass;
+        initPlayerStarterGear();
         if (soundListener != null) soundListener.onClick();
         floaters.add(new Floater(playerX, playerY - 60f, "CLASSE: " + getClassName(newClass), 0xFF38BDF8, true, 1.5f));
     }
@@ -1054,20 +1328,7 @@ public class Game {
     }
 
     public void createCharacter(String name, String clz, int suitColor) {
-        if (name != null && !name.trim().isEmpty()) {
-            this.characterName = name.trim();
-        } else {
-            this.characterName = "Esploratore";
-        }
-        if (clz != null) {
-            this.playerClass = clz;
-        }
-        this.suitColorIndex = Math.max(0, Math.min(SUIT_COLORS.length - 1, suitColor));
-
-        initPlayer();
-        enterHub();
-        saveDelegate.setBoolean("char_created", true);
-        savePersistentData();
+        createCharacterInSlot(currentSlot, name, clz, suitColor);
     }
 
     // Cassa di Spedizione (Stash - 16 slot)
@@ -1209,56 +1470,87 @@ public class Game {
         projectiles.clear();
         floaters.clear();
         particles.clear();
+        actChests.clear();
         portalOpen = false;
 
-        playerX = MAP_W / 2f;
-        playerY = MAP_H - 180f;
+        float mapW = getMapWidth();
+        float mapH = getMapHeight();
+        playerX = mapW / 2f;
+        playerY = mapH - 180f;
         playerTargetX = playerX;
         playerTargetY = playerY;
         playerMoving = false;
         beaconTimer = 0f;
-        merchantX = 640f;
-        merchantY = 660f;
-        merchantPresent = true;
+        merchantPresent = false;
+
+        portalX = mapW / 2f;
+        portalY = 220f;
 
         if (zone == 1) {
             zoneName = "Barriera Corallina";
             depthMeters = 220;
-            // Spawn 6 enemies (Crabs and light Jellies) with balanced, compact radii
-            spawnEnemy("crab", "Granchio di Scoglio", 500f, 400f, 75, 12, 16f, 75f);
-            spawnEnemy("crab", "Granchio Corazzato", 1100f, 420f, 90, 14, 18f, 70f);
-            spawnEnemy("crab", "Granchio Tagliatore", 800f, 480f, 70, 13, 16f, 80f);
-            spawnEnemy("jelly", "Medusa Elettrica", 650f, 320f, 60, 15, 15f, 55f);
-            spawnEnemy("jelly", "Medusa Fluttuante", 950f, 300f, 65, 15, 15f, 55f);
-            spawnEnemy("crab", "Granchio Gigante", 800f, 260f, 130, 18, 20f, 65f);
+            // Forziere dell'Atto 1 nelle antiche rovine
+            actChests.add(new ActChest(mapW / 2f, 750f));
+
+            // Settore 1: Scoglio e Secche (Entrata)
+            spawnEnemy("crab", "Granchio di Scoglio", mapW / 2f - 400f, 1080f, 75, 12, 16f, 75f);
+            spawnEnemy("crab", "Granchio di Scoglio", mapW / 2f + 400f, 1080f, 75, 12, 16f, 75f);
+            spawnEnemy("jelly", "Medusa Elettrica", mapW / 2f, 980f, 65, 14, 15f, 55f);
+
+            // Settore 2: Rovine Coralline
+            spawnEnemy("crab", "Granchio Tagliatore", mapW / 2f - 320f, 720f, 90, 15, 17f, 80f);
+            spawnEnemy("crab", "Granchio Tagliatore", mapW / 2f + 320f, 720f, 90, 15, 17f, 80f);
+            spawnEnemy("jelly", "Medusa Fluttuante", mapW / 2f - 520f, 620f, 70, 15, 15f, 60f);
+            spawnEnemy("jelly", "Medusa Fluttuante", mapW / 2f + 520f, 620f, 70, 15, 15f, 60f);
+
+            // Settore 3: Tana del Guardiano Corazzato
+            spawnEnemy("crab", "Granchio Corazzato", mapW / 2f - 240f, 380f, 120, 16, 18f, 70f);
+            spawnEnemy("crab", "Granchio Corazzato", mapW / 2f + 240f, 380f, 120, 16, 18f, 70f);
+            spawnBoss("Granchio Gigante Corazzato", mapW / 2f, 320f, 550, 24, 38f, 65f);
         } else if (zone == 2) {
             zoneName = "Fossa delle Tenebre";
             depthMeters = 680;
-            // Spawn 7 tougher enemies (Crabs, electric Jellies, Abyssal Eels)
-            spawnEnemy("crab", "Granchio Abissale", 450f, 450f, 160, 22, 17f, 80f);
-            spawnEnemy("crab", "Granchio di Zolfo", 1150f, 450f, 170, 24, 17f, 80f);
-            spawnEnemy("jelly", "Medusa dei Fulmini", 600f, 350f, 120, 25, 15f, 65f);
-            spawnEnemy("jelly", "Medusa dei Fulmini", 1000f, 350f, 120, 25, 15f, 65f);
-            spawnEnemy("eel", "Murena dei Fondali", 800f, 380f, 140, 28, 16f, 120f);
-            spawnEnemy("eel", "Murena Zannuta", 700f, 260f, 145, 28, 16f, 120f);
-            spawnEnemy("crab", "Corazza Nera", 900f, 250f, 220, 28, 20f, 75f);
+            actChests.add(new ActChest(mapW / 2f, 800f));
+
+            // Settore 1: Faglia Superiore
+            spawnEnemy("crab", "Granchio Abissale", mapW / 2f - 450f, 1150f, 160, 22, 17f, 80f);
+            spawnEnemy("crab", "Granchio Abissale", mapW / 2f + 450f, 1150f, 160, 22, 17f, 80f);
+            spawnEnemy("jelly", "Medusa dei Fulmini", mapW / 2f, 1020f, 120, 24, 16f, 65f);
+
+            // Settore 2: Relitti Elettrici
+            spawnEnemy("eel", "Murena dei Fondali", mapW / 2f - 350f, 780f, 140, 28, 16f, 120f);
+            spawnEnemy("eel", "Murena dei Fondali", mapW / 2f + 350f, 780f, 140, 28, 16f, 120f);
+            spawnEnemy("jelly", "Medusa dei Fulmini", mapW / 2f - 620f, 650f, 130, 25, 16f, 65f);
+            spawnEnemy("jelly", "Medusa dei Fulmini", mapW / 2f + 620f, 650f, 130, 25, 16f, 65f);
+
+            // Settore 3: Cratere delle Murene Zannute
+            spawnEnemy("eel", "Murena Zannuta", mapW / 2f - 260f, 400f, 160, 28, 16f, 120f);
+            spawnEnemy("eel", "Murena Zannuta", mapW / 2f + 260f, 400f, 160, 28, 16f, 120f);
+            spawnBoss("Murena Zannuta Primordiale", mapW / 2f, 320f, 750, 32, 42f, 125f);
         } else if (zone == 3) {
             zoneName = "Dorsale Vulcanica";
             depthMeters = 1450;
-            // Spawn 8 dangerous enemies with Anglerfish (Pesce Lanterna)
-            spawnEnemy("crab", "Granchio di Magma", 450f, 420f, 210, 30, 18f, 85f);
-            spawnEnemy("crab", "Granchio Vulcanico", 1150f, 420f, 220, 32, 18f, 85f);
-            spawnEnemy("eel", "Murena di Fuoco", 600f, 340f, 175, 32, 16f, 125f);
-            spawnEnemy("eel", "Murena di Magma", 1000f, 340f, 180, 32, 16f, 125f);
-            spawnEnemy("angler", "Pesce Lanterna Cieco", 550f, 250f, 195, 34, 18f, 95f);
-            spawnEnemy("angler", "Rana Pescatrice Abissale", 800f, 240f, 240, 38, 21f, 105f);
-            spawnEnemy("angler", "Predatore Fosforescente", 1100f, 260f, 200, 35, 18f, 95f);
-            spawnEnemy("jelly", "Medusa Radiante", 750f, 440f, 160, 30, 16f, 70f);
+            actChests.add(new ActChest(mapW / 2f, 850f));
+
+            // Settore 1: Piana di Basalto
+            spawnEnemy("crab", "Granchio di Magma", mapW / 2f - 500f, 1220f, 210, 30, 18f, 85f);
+            spawnEnemy("crab", "Granchio Vulcanico", mapW / 2f + 500f, 1220f, 220, 32, 18f, 85f);
+            spawnEnemy("eel", "Murena di Fuoco", mapW / 2f, 1120f, 175, 32, 16f, 125f);
+
+            // Settore 2: Fumarole Geotermiche
+            spawnEnemy("angler", "Pesce Lanterna Cieco", mapW / 2f - 400f, 820f, 195, 34, 18f, 95f);
+            spawnEnemy("angler", "Predatore Fosforescente", mapW / 2f + 400f, 820f, 200, 35, 18f, 95f);
+            spawnEnemy("jelly", "Medusa Radiante", mapW / 2f, 720f, 160, 30, 16f, 70f);
+
+            // Settore 3: Caldera del Fuoco Sommerso
+            spawnEnemy("crab", "Granchio Vulcanico", mapW / 2f - 300f, 420f, 240, 32, 18f, 85f);
+            spawnEnemy("crab", "Granchio Vulcanico", mapW / 2f + 300f, 420f, 240, 32, 18f, 85f);
+            spawnBoss("Rana Pescatrice Abissale", mapW / 2f, 340f, 1100, 38, 46f, 90f);
         } else if (zone == 4) {
             zoneName = "Santuario del Kraken";
             depthMeters = 2400;
-            // Boss Arena! Leviatano Primordiale
-            spawnBoss("Leviatano Primordiale", MAP_W / 2f, 360f, 950, 40, 52f, 50f);
+            actChests.add(new ActChest(mapW / 2f, 700f));
+            spawnBoss("Leviatano Primordiale", mapW / 2f, 360f, 1800, 44, 55f, 50f);
         } else {
             // Endless Dive (Zone 5+)
             int cycle = zone - 4;
@@ -1266,11 +1558,11 @@ public class Game {
             depthMeters = 2400 + cycle * 650;
             int scaleHp = 1 + (cycle * 2) / 10;
             int scaleDmg = cycle * 3;
-            spawnEnemy("angler", "Fosforo Ancestrale", 500f, 350f, 260 * scaleHp, 36 + scaleDmg, 20f, 105f);
-            spawnEnemy("angler", "Abominio delle Profondità", 900f, 280f, 300 * scaleHp, 40 + scaleDmg, 22f, 110f);
-            spawnEnemy("crab", "Colosso di Basalto", 700f, 450f, 340 * scaleHp, 38 + scaleDmg, 22f, 90f);
-            spawnEnemy("eel", "Leviatano Minore", 1100f, 360f, 260 * scaleHp, 38 + scaleDmg, 18f, 130f);
-            spawnEnemy("jelly", "Marea Psionica", 600f, 240f, 220 * scaleHp, 38 + scaleDmg, 16f, 75f);
+            actChests.add(new ActChest(mapW / 2f, 750f));
+            spawnEnemy("angler", "Fosforo Ancestrale", mapW / 2f - 350f, 950f, 260 * scaleHp, 36 + scaleDmg, 20f, 105f);
+            spawnEnemy("angler", "Abominio delle Profondità", mapW / 2f + 350f, 950f, 300 * scaleHp, 40 + scaleDmg, 22f, 110f);
+            spawnEnemy("crab", "Colosso di Basalto", mapW / 2f, 650f, 340 * scaleHp, 38 + scaleDmg, 22f, 90f);
+            spawnEnemy("eel", "Leviatano Minore", mapW / 2f, 380f, 360 * scaleHp, 42 + scaleDmg, 22f, 130f);
         }
 
         // Refill tide
@@ -1290,76 +1582,90 @@ public class Game {
         enemies.add(boss);
     }
 
-    public void update(float dt) {
-        if (gameOver || victory) return;
+    private void updateActChests(float dt) {
+        for (int i = 0; i < actChests.size(); i++) {
+            ActChest c = actChests.get(i);
+            if (!c.opened) {
+                float cdx = playerX - c.x;
+                float cdy = playerY - c.y;
+                if (cdx * cdx + cdy * cdy < 65f * 65f) {
+                    openActChest(c);
+                }
+            } else {
+                c.animTimer += dt;
+            }
+        }
+    }
 
-        if (gameState == STATE_HUB) {
+    public void openActChest(ActChest c) {
+        if (c == null || c.opened) return;
+        c.opened = true;
+        trauma = Math.min(1.0f, trauma + 0.35f);
+        int rarity = (currentAct >= 3 || rng.nextFloat() < 0.4f) ? RARITY_ABYSSAL : RARITY_RARE;
+        Item chestItem = generateRandomItem(currentAct + 1, true);
+        chestItem.rarity = rarity;
+        drops.add(new Drop(c.x, c.y + 10f, chestItem));
+        drops.add(new Drop(c.x + 25f, c.y, 25 + currentAct * 15));
+        drops.add(new Drop(c.x - 25f, c.y, 25 + currentAct * 15));
+        floaters.add(new Floater(c.x, c.y - 40f, "FORZIERE DELL'ATTO APERTO!", getRarityColor(rarity), true, 1.8f));
+        if (soundListener != null) soundListener.onLoot(rarity);
+        for (int i = 0; i < 20; i++) {
+            particles.add(new Particle(c.x, c.y,
+                    (float)(Math.random() * 160 - 80), (float)(Math.random() * 160 - 80),
+                    5f, getRarityColor(rarity), 0.8f));
+        }
+    }
+
+    public void update(float dt) {
+        synchronized (gameLock) {
+            if (gameOver || victory) return;
+
+            if (gameState == STATE_HUB) {
+                if (hitStop > 0f) {
+                    hitStop -= dt;
+                    return;
+                }
+                if (trauma > 0f) trauma = Math.max(0f, trauma - dt * 1.5f);
+                if (beaconTimer > 0f) beaconTimer = Math.max(0f, beaconTimer - dt * 2.2f);
+                updatePlayerMovement(dt);
+                updateEffects(dt);
+                return;
+            }
+
+            // Hit-stop processing (freezes logic briefly on huge impacts)
             if (hitStop > 0f) {
                 hitStop -= dt;
                 return;
             }
+
             if (trauma > 0f) trauma = Math.max(0f, trauma - dt * 1.5f);
             if (beaconTimer > 0f) beaconTimer = Math.max(0f, beaconTimer - dt * 2.2f);
+            if (attackCooldown > 0f) attackCooldown = Math.max(0f, attackCooldown - dt);
+            if (waveCooldown > 0f) waveCooldown = Math.max(0f, waveCooldown - dt);
+            if (dashCooldown > 0f) dashCooldown = Math.max(0f, dashCooldown - dt);
+            if (potionCooldown > 0f) potionCooldown = Math.max(0f, potionCooldown - dt);
+            if (attackAnim > 0f) attackAnim = Math.max(0f, attackAnim - dt * 4.5f);
+            if (dashAnim > 0f) dashAnim = Math.max(0f, dashAnim - dt * 3.8f);
+            if (playerSquash > 0f) playerSquash = Math.max(0f, playerSquash - dt * 5f);
+            if (speedBoostTimer > 0f) speedBoostTimer = Math.max(0f, speedBoostTimer - dt);
+
+            // Tide passive regen (+3 per sec, +8 if Mystic perk)
+            float regen = hasPerk("perk_tide_regen") ? 8f : 3f;
+            tide = Math.min(getMaxTide(), tide + regen * dt);
+
             updatePlayerMovement(dt);
+            updateActChests(dt);
+            updateProjectiles(dt);
+            updateEnemies(dt);
+            updateDrops(dt);
+            updatePortal();
             updateEffects(dt);
-            return;
         }
-
-        // Hit-stop processing (freezes logic briefly on huge impacts)
-        if (hitStop > 0f) {
-            hitStop -= dt;
-            return;
-        }
-
-        // Trauma decay
-        if (trauma > 0f) {
-            trauma = Math.max(0f, trauma - dt * 1.5f);
-        }
-
-        // Cooldowns
-        if (attackCooldown > 0f) attackCooldown = Math.max(0f, attackCooldown - dt);
-        if (waveCooldown > 0f) waveCooldown = Math.max(0f, waveCooldown - dt);
-        if (dashCooldown > 0f) dashCooldown = Math.max(0f, dashCooldown - dt);
-        if (potionCooldown > 0f) potionCooldown = Math.max(0f, potionCooldown - dt);
-
-        if (attackAnim > 0f) attackAnim = Math.max(0f, attackAnim - dt * 4f);
-        if (dashAnim > 0f) dashAnim = Math.max(0f, dashAnim - dt * 3.5f);
-        if (playerSquash > 0f) playerSquash = Math.max(0f, playerSquash - dt * 5f);
-
-        // Passive Tide regeneration
-        float tideRegen = 10f;
-        if (hasSkill("mys_tideflow")) tideRegen += 12f;
-        if (tide < maxTide) {
-            tide = Math.min(maxTide, tide + dt * tideRegen);
-        }
-
-        // Beacon animation
-        if (beaconTimer > 0f) {
-            beaconTimer = Math.max(0f, beaconTimer - dt * 2.2f);
-        }
-
-        // Player Movement
-        updatePlayerMovement(dt);
-
-        // Update Projectiles
-        updateProjectiles(dt);
-
-        // Update Enemies & AI
-        updateEnemies(dt);
-
-        // Drops pickup check
-        updateDrops(dt);
-
-        // Portal check
-        updatePortal();
-
-        // Update visual floaters & particles
-        updateEffects(dt);
     }
 
     public void setPlayerTarget(float targetX, float targetY) {
-        float mapMaxW = gameState == STATE_HUB ? HUB_W : MAP_W;
-        float mapMaxH = gameState == STATE_HUB ? HUB_H : MAP_H;
+        float mapMaxW = getMapWidth();
+        float mapMaxH = getMapHeight();
         playerTargetX = Math.max(60f, Math.min(mapMaxW - 60f, targetX));
         playerTargetY = Math.max(60f, Math.min(mapMaxH - 60f, targetY));
         playerMoving = true;
@@ -1369,8 +1675,8 @@ public class Game {
     }
 
     private void updatePlayerMovement(float dt) {
-        float mapMaxW = gameState == STATE_HUB ? HUB_W : MAP_W;
-        float mapMaxH = gameState == STATE_HUB ? HUB_H : MAP_H;
+        float mapMaxW = getMapWidth();
+        float mapMaxH = getMapHeight();
 
         if (joystickActive) {
             float lenSq = joystickX * joystickX + joystickY * joystickY;

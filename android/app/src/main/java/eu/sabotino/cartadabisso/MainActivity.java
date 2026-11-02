@@ -29,6 +29,11 @@ public class MainActivity extends Activity implements Game.SaveDelegate {
 
         gameView = new GameView(this);
         gameView.game.setSaveDelegate(this);
+        if (gameView.game.hasAnyCharacter()) {
+            gameView.game.gameState = Game.STATE_CHAR_SELECT;
+        } else {
+            gameView.game.gameState = Game.STATE_CHAR_CREATE;
+        }
         setContentView(gameView);
     }
 
@@ -107,11 +112,33 @@ public class MainActivity extends Activity implements Game.SaveDelegate {
                 gameView.game.merchantShopOpen = false;
                 return;
             }
+            if (gameView.stashModalOpen) {
+                gameView.stashModalOpen = false;
+                return;
+            }
+            if (gameView.blacksmithModalOpen) {
+                gameView.blacksmithModalOpen = false;
+                return;
+            }
+            if (gameView.questModalOpen) {
+                gameView.questModalOpen = false;
+                return;
+            }
+            if (gameView.waypointMapModalOpen) {
+                gameView.waypointMapModalOpen = false;
+                return;
+            }
             if (gameView.inventoryOpen) {
                 gameView.toggleInventory();
                 return;
             }
-            if (!gameView.paused && !gameView.game.gameOver && !gameView.game.victory) {
+            if (gameView.game.gameState == Game.STATE_CHAR_CREATE && gameView.game.hasAnyCharacter()) {
+                gameView.game.gameState = Game.STATE_CHAR_SELECT;
+                return;
+            }
+            if (!gameView.paused && !gameView.game.gameOver && !gameView.game.victory
+                    && gameView.game.gameState != Game.STATE_CHAR_SELECT
+                    && gameView.game.gameState != Game.STATE_CHAR_CREATE) {
                 gameView.togglePause();
                 Toast.makeText(this, "Gioco in pausa", Toast.LENGTH_SHORT).show();
                 return;

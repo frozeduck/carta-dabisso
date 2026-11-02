@@ -398,6 +398,57 @@ public class GameTest {
         assert game.maxActUnlocked >= 1 : "Almeno Atto I deve essere sbloccato";
         System.out.println("Test 26 PASSATO: Progressione Storia ad Atti Diablo OK.");
 
-        System.out.println("TUTTI I 26 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
+        // Test 27: Gestione Multipli Personaggi (3 Slot Salvataggio)
+        game.createCharacterInSlot(0, "CacciatoreSlot0", Game.CLASS_HUNTER, 1);
+        game.createCharacterInSlot(1, "CustodeSlot1", Game.CLASS_JUGGERNAUT, 2);
+        game.loadAllSlots();
+        assert game.charSlots.size() == Game.MAX_CHAR_SLOTS : "Devono esserci esattamente 3 slot personaggio";
+        assert game.charSlots.get(0).exists : "Slot 0 deve risultare occupato";
+        assert game.charSlots.get(1).exists : "Slot 1 deve risultare occupato";
+        assert "CacciatoreSlot0".equals(game.charSlots.get(0).name) : "Nome Slot 0 errato";
+        assert "CustodeSlot1".equals(game.charSlots.get(1).name) : "Nome Slot 1 errato";
+        assert Game.CLASS_HUNTER.equals(game.charSlots.get(0).playerClass) : "Classe Slot 0 errata";
+        assert Game.CLASS_JUGGERNAUT.equals(game.charSlots.get(1).playerClass) : "Classe Slot 1 errata";
+
+        // Cambio personaggio attivo
+        boolean selected0 = game.selectCharacter(0);
+        assert selected0 : "Selezione Slot 0 fallita";
+        assert "CacciatoreSlot0".equals(game.characterName) : "Personaggio attivo deve essere Slot 0";
+        assert Game.CLASS_HUNTER.equals(game.playerClass) : "Classe attiva non allineata a Slot 0";
+
+        boolean selected1 = game.selectCharacter(1);
+        assert selected1 : "Selezione Slot 1 fallita";
+        assert "CustodeSlot1".equals(game.characterName) : "Personaggio attivo deve essere Slot 1";
+        assert Game.CLASS_JUGGERNAUT.equals(game.playerClass) : "Classe attiva non allineata a Slot 1";
+
+        // Cancellazione slot
+        boolean deleted1 = game.deleteCharacter(1);
+        assert deleted1 : "Cancellazione Slot 1 fallita";
+        assert !game.charSlots.get(1).exists : "Slot 1 deve risultare libero dopo eliminazione";
+        System.out.println("Test 27 PASSATO: Gestione Multipli Personaggi (Slot 0..2, Selezione, Eliminazione) OK.");
+
+        // Test 28: Dimensioni Mappa Dinamiche per Atto e Forzieri dell'Atto
+        game.maxActUnlocked = 4;
+        game.startActExpedition(1);
+        assert game.getMapWidth() == 2400f : "Larghezza mappa Atto I errata";
+        assert game.getMapHeight() == 1400f : "Altezza mappa Atto I errata";
+        assert !game.actChests.isEmpty() : "Atto I deve contenere il forziere dell'Atto";
+        Game.ActChest chest = game.actChests.get(0);
+        assert !chest.opened : "Il forziere deve essere inizialmente chiuso";
+        int dropsBeforeChest = game.drops.size();
+        game.openActChest(chest);
+        assert chest.opened : "Il forziere deve risultare aperto";
+        assert game.drops.size() > dropsBeforeChest : "Apertura forziere deve generare bottino e conchiglie";
+
+        game.startActExpedition(2);
+        assert game.getMapWidth() == 2600f : "Larghezza mappa Atto II errata";
+        assert game.getMapHeight() == 1500f : "Altezza mappa Atto II errata";
+
+        game.startActExpedition(3);
+        assert game.getMapWidth() == 2800f : "Larghezza mappa Atto III errata";
+        assert game.getMapHeight() == 1600f : "Altezza mappa Atto III errata";
+        System.out.println("Test 28 PASSATO: Dimensioni Mappa Dinamiche e Forzieri dell'Atto OK.");
+
+        System.out.println("TUTTI I 28 TEST UNITARI SONO STATI SUPERATI CON SUCCESSO!");
     }
 }
