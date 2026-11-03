@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { GameEngine } from '../../game/GameEngine';
 import { PlayerClassType, CLASSES_DATA, SUIT_COLORS } from '../../types/game';
 import { RANDOM_NAMES } from '../../game/skillsData';
-import { Dices, ArrowLeft, Check, Sparkles } from 'lucide-react';
+import { Dices, ArrowLeft, Check, Sparkles, Compass } from 'lucide-react';
 
 interface CharacterCreateModalProps {
   engine: GameEngine;
@@ -36,27 +36,28 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
   const activeClz = CLASSES_DATA[selectedClass];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 select-none">
-      <div className="relative w-full max-w-4xl max-h-[95vh] overflow-y-auto bg-slate-900 border-2 border-sky-400 rounded-2xl shadow-2xl p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 select-none animate-in fade-in duration-200">
+      <div className="parchment-window w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-2xl p-6 text-[#2b1c0c] shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between mb-4 border-b-2 border-[#8c6239]/40 pb-3">
           <button
             onClick={onCancel}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-sky-300 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#694625] hover:text-[#2b1706] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Torna all'Archivio
           </button>
-          <h2 className="font-cinzel text-xl sm:text-2xl font-black text-sky-200">
-            CREAZIONE PALOMBARO · SLOT {slotIndex + 1}
+          <h2 className="font-cinzel text-lg sm:text-xl font-black text-[#381e09] tracking-wide flex items-center gap-2">
+            <span>REGISTRAZIONE PALOMBARO · VANO {slotIndex + 1}</span>
+            <Compass className="w-4 h-4 text-[#854d0e]" />
           </h2>
           <div className="w-16" />
         </div>
 
         {/* Name Input & Nautical Dice */}
-        <div className="mb-6 bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-center gap-3">
-          <span className="text-xs font-cinzel font-bold text-sky-300 whitespace-nowrap">
-            Nome Eroe:
+        <div className="mb-5 parchment-card p-3.5 rounded-xl border border-[#bfa57b] flex flex-col sm:flex-row items-center gap-3">
+          <span className="text-xs font-cinzel font-bold text-[#5c3a1e] whitespace-nowrap">
+            Nome Palombaro:
           </span>
           <div className="relative w-full flex items-center">
             <input
@@ -65,12 +66,12 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
               onChange={(e) => setName(e.target.value)}
               maxLength={24}
               placeholder="Inserisci il nome del palombaro..."
-              className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-sky-100 focus:outline-none focus:border-sky-400 font-cinzel font-semibold"
+              className="w-full px-3 py-2 rounded-lg bg-[#fffdf5] border-2 border-[#a47e4e] text-sm text-[#2b1706] focus:outline-none focus:border-[#7a4e21] font-cinzel font-semibold shadow-inner"
             />
             <button
               onClick={rollRandomName}
               title="Genera Nome Casuale Marinaresco"
-              className="absolute right-1 p-1.5 rounded-md bg-slate-800 hover:bg-sky-600 text-sky-300 hover:text-white transition-all"
+              className="absolute right-1 p-1.5 rounded-md parchment-button-neutral text-[#4a2e12] hover:text-[#2b1706]"
             >
               <Dices className="w-4 h-4" />
             </button>
@@ -78,9 +79,9 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
         </div>
 
         {/* 3 Classes Selection */}
-        <div className="mb-6">
-          <div className="text-xs font-cinzel font-bold text-slate-400 mb-2">
-            1. SELEZIONA LA TUA CLASSE PERMANENTE:
+        <div className="mb-5">
+          <div className="text-xs font-cinzel font-bold text-[#5c3a1e] mb-2 tracking-wide uppercase">
+            1. SELEZIONA LA TUA CLASSE SUBACQUEA:
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(Object.keys(CLASSES_DATA) as PlayerClassType[]).map((cKey) => {
@@ -93,12 +94,12 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
                   onClick={() => setSelectedClass(cKey)}
                   className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
                     isSelected
-                      ? 'border-sky-400 bg-sky-950/40 shadow-[0_0_15px_rgba(56,189,248,0.3)] scale-[1.01]'
-                      : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'
+                      ? 'parchment-slot-active scale-[1.01] shadow-md'
+                      : 'parchment-card hover:border-[#854d0e]'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute top-2 right-2 bg-sky-500 text-slate-950 rounded-full p-0.5">
+                    <div className="absolute top-2 right-2 bg-emerald-700 text-white rounded-full p-0.5 shadow">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
                   )}
@@ -106,22 +107,22 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
                     <img
                       src={clz.portrait}
                       alt={clz.name}
-                      className="w-12 h-12 rounded-lg border border-sky-400/50 object-cover bg-slate-900"
+                      className="w-12 h-12 rounded-lg border-2 border-[#854d0e] object-cover bg-[#ebd9b4] shadow-sm"
                     />
                     <div>
-                      <h4 className="font-cinzel font-bold text-sm text-sky-200">
+                      <h4 className="font-cinzel font-bold text-sm text-[#2b1706]">
                         {clz.name}
                       </h4>
-                      <p className="text-[10px] text-amber-400 font-medium">
+                      <p className="text-[10px] text-[#854d0e] font-semibold">
                         {clz.subtitle}
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-300 mb-3 leading-relaxed">
-                    {clz.description}
+                  <p className="text-xs text-[#523820] mb-3 leading-relaxed font-serif italic">
+                    "{clz.description}"
                   </p>
-                  <div className="text-[10px] text-sky-300/80 bg-slate-900/80 p-2 rounded border border-slate-800">
-                    <span className="font-bold text-slate-400">Attacco: </span>
+                  <div className="text-[10px] text-[#4a2e12] bg-[#eeddbb]/70 p-2 rounded border border-[#cbb28b]">
+                    <span className="font-bold text-[#854d0e]">Stile: </span>
                     {clz.attackStyle}
                   </div>
                 </div>
@@ -131,11 +132,11 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
         </div>
 
         {/* Suit Color Customization */}
-        <div className="mb-6">
-          <div className="text-xs font-cinzel font-bold text-slate-400 mb-2">
+        <div className="mb-5">
+          <div className="text-xs font-cinzel font-bold text-[#5c3a1e] mb-2 tracking-wide uppercase">
             2. PERSONALIZZAZIONE MUTA SUBACQUEA:
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             {SUIT_COLORS.map((col, idx) => {
               const isSelected = suitColorIndex === idx;
               return (
@@ -144,15 +145,15 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
                   onClick={() => setSuitColorIndex(idx)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all ${
                     isSelected
-                      ? 'border-white bg-slate-800 shadow-md scale-105'
-                      : 'border-slate-800 hover:border-slate-600 bg-slate-950/40'
+                      ? 'parchment-slot-active scale-105 shadow-sm'
+                      : 'parchment-card hover:border-[#854d0e]'
                   }`}
                 >
                   <div
-                    className="w-4 h-4 rounded-full border border-white/50"
+                    className="w-4 h-4 rounded-full border border-black/30 shadow-inner"
                     style={{ backgroundColor: col.hex }}
                   />
-                  <span className="text-xs font-semibold text-slate-200">{col.name}</span>
+                  <span className="text-xs font-semibold text-[#3b240f]">{col.name}</span>
                 </button>
               );
             })}
@@ -160,10 +161,10 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
         </div>
 
         {/* Selected Hero Preview Summary & Confirm */}
-        <div className="bg-gradient-to-r from-sky-950/60 to-slate-950 p-4 rounded-xl border border-sky-500/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="parchment-card p-4 rounded-xl border-2 border-[#b59868] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div
-              className="w-12 h-12 rounded-xl border-2 p-0.5 flex items-center justify-center bg-slate-900"
+              className="w-12 h-12 rounded-xl border-2 p-0.5 flex items-center justify-center bg-[#ebd9b4] shadow-inner"
               style={{ borderColor: SUIT_COLORS[suitColorIndex].hex }}
             >
               <img
@@ -173,10 +174,10 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
               />
             </div>
             <div>
-              <div className="font-cinzel font-bold text-sm text-sky-200">
+              <div className="font-cinzel font-bold text-sm text-[#2b1706]">
                 {name || 'Palombaro'}
               </div>
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-[#694625]">
                 {activeClz.name} · Muta {SUIT_COLORS[suitColorIndex].name}
               </div>
             </div>
@@ -184,10 +185,10 @@ export const CharacterCreateModal: React.FC<CharacterCreateModalProps> = ({
 
           <button
             onClick={handleCreate}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 font-cinzel font-bold text-sm text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.5)] transition-all flex items-center justify-center gap-2 active:scale-95"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl parchment-button-green font-cinzel font-bold text-xs flex items-center justify-center gap-2 shadow-md"
           >
-            <Sparkles className="w-4 h-4 text-slate-950 fill-current" />
-            CREA E INIZIA AVVENTURA
+            <Sparkles className="w-4 h-4 text-white" />
+            ISCRIVI A RUOLO & IMMERGITI
           </button>
         </div>
       </div>

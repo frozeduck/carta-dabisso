@@ -12,31 +12,31 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   onReturnToHub,
 }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 select-none">
-      <div className="relative w-full max-w-md bg-slate-900 border-2 border-red-600 rounded-2xl shadow-[0_0_30px_rgba(220,38,38,0.5)] p-6 text-center text-slate-100">
-        <div className="w-16 h-16 rounded-full bg-red-950/80 border-2 border-red-500 mx-auto mb-4 flex items-center justify-center text-red-500">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 select-none animate-in fade-in duration-200">
+      <div className="parchment-window w-full max-w-md rounded-2xl p-6 text-center text-[#2b1c0c] shadow-2xl border-4 border-[#7f1d1d]">
+        <div className="w-16 h-16 rounded-full bg-[#fee2e2] border-2 border-[#b91c1c] mx-auto mb-4 flex items-center justify-center text-[#991b1b] shadow-inner">
           <Skull className="w-9 h-9" />
         </div>
 
-        <h2 className="font-cinzel text-2xl font-black text-red-400 mb-2">
-          LA PRESSIONE TI HA SOPRAFFATTO
+        <h2 className="font-cinzel text-xl sm:text-2xl font-black text-[#991b1b] mb-2 tracking-wide">
+          LA MAREA TI HA SOPRAFFATTO
         </h2>
-        <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-          Lo scafandro è collassato sotto l'attacco dei predatori dell'abisso. Le correnti di risalita d'emergenza ti hanno riportato al Santuario.
+        <p className="text-xs text-[#523820] mb-5 leading-relaxed font-serif italic">
+          Lo scafandro è collassato sotto l'impeto dei mostri abissali. Le correnti di risalita d'emergenza hanno recuperato il tuo equipaggio, riportandoti al Santuario.
         </p>
 
-        <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1 mb-6">
-          <div>Zona: <span className="font-bold text-sky-300">{engine.zoneName}</span></div>
-          <div>Profondità raggiunta: <span className="font-bold text-cyan-400">-{engine.depthMeters}m</span></div>
-          <div>Conchiglie salvaguardate: <span className="font-bold text-amber-400">🐚 {engine.shells}</span></div>
+        <div className="parchment-panel-inset p-3.5 rounded-xl text-xs text-[#4a2e12] space-y-1 mb-6">
+          <div>Regione sottomarina: <strong className="text-[#0369a1]">{engine.zoneName}</strong></div>
+          <div>Profondità raggiunta: <strong className="text-[#0891b2]">-{engine.depthMeters}m</strong></div>
+          <div>Conchiglie recuperate: <strong className="text-[#b45309]">🐚 {engine.shells}</strong></div>
         </div>
 
         <button
           onClick={onReturnToHub}
-          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 font-cinzel font-bold text-sm text-white shadow-lg transition-all flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl parchment-button-gold font-cinzel font-bold text-sm shadow-lg flex items-center justify-center gap-2"
         >
           <RotateCcw className="w-4 h-4" />
-          RIENTRA AL SANTUARIO
+          RIENTRA AL SANTUARIO NAUTILUS
         </button>
       </div>
     </div>

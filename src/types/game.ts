@@ -107,6 +107,50 @@ export interface Perk {
   color: string;
 }
 
+export type ActiveSlotId = 'M1' | 'M2' | 'Q' | 'W' | 'E' | 'R';
+
+export interface ClassActiveSkill {
+  id: string;
+  name: string;
+  desc: string;
+  classType: PlayerClassType;
+  icon: string;
+  cooldown: number; // in seconds
+  tideCost: number;
+  damageMult: number;
+  color: string;
+  isUltimate?: boolean;
+}
+
+export interface StoryObjective {
+  id: string;
+  title: string;
+  desc: string;
+  type: 'collect' | 'activate' | 'kill_miniboss' | 'reach_boss';
+  targetCount: number;
+  currentCount: number;
+  completed: boolean;
+}
+
+export interface InteractiveWorldEntity {
+  id: string;
+  type: 'quest_item' | 'gate' | 'lore_tablet' | 'valve';
+  name: string;
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  active: boolean;
+  requiresObjectiveId?: string;
+  loreText?: string;
+}
+
+export interface DialogueMessage {
+  speaker: string;
+  portrait: string;
+  text: string;
+}
+
 export interface ActInfo {
   number: number;
   title: string;
@@ -116,6 +160,10 @@ export interface ActInfo {
   bossName: string;
   startDepth: number;
   completed: boolean;
+  objectives: StoryObjective[];
+  gateX?: number;
+  gateY?: number;
+  gateOpened?: boolean;
 }
 
 export interface Enemy {
@@ -220,6 +268,7 @@ export interface CharacterSlot {
   backpack: Item[];
   stash: Item[];
   unlockedSkills: string[];
+  skillLoadout?: Record<ActiveSlotId, string>;
 }
 
 export type GameState = 'CHAR_SELECT' | 'CHAR_CREATE' | 'HUB' | 'EXPEDITION';
@@ -228,10 +277,12 @@ export type ActiveModal =
   | null
   | 'INVENTORY'
   | 'TALENTS'
+  | 'SKILL_ASSIGN'
   | 'BLACKSMITH'
   | 'SHOP'
   | 'STASH'
   | 'SAGE'
   | 'WAYPOINT'
+  | 'STORY_DIALOGUE'
   | 'GAMEOVER'
   | 'VICTORY';

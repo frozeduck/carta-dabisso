@@ -46,18 +46,137 @@
   pointer-events: none;
 }
 
+/* ==========================================================================
+   ANTIQUE NAUTICAL PARCHMENT THEME ("Carta d'Abisso")
+   Aged paper, cartographic filigree, warm sepia parchment, dark nautical ink
+   ========================================================================== */
+
+.parchment-window {
+  background: radial-gradient(circle at 50% 25%, #fcf6e6 0%, #f6ecd2 42%, #ebd9b5 78%, #dfc89d 100%);
+  border: 4px double #785226;
+  outline: 1px solid rgba(138, 92, 38, 0.5);
+  box-shadow: 
+    inset 0 0 60px rgba(130, 85, 30, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 22px 50px rgba(0, 0, 0, 0.75),
+    0 4px 12px rgba(60, 35, 12, 0.4);
+  color: #2b1c0c;
+  position: relative;
+}
+
+.parchment-window::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px dashed rgba(120, 82, 38, 0.35);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.parchment-card {
+  background: rgba(255, 252, 242, 0.88);
+  border: 1px solid #c9b084;
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(92, 60, 24, 0.12);
+  color: #2b1d0e;
+}
+
+.parchment-panel-inset {
+  background: rgba(234, 218, 187, 0.75);
+  border: 1.5px solid #ab8f63;
+  box-shadow: inset 0 2px 6px rgba(105, 68, 25, 0.22);
+}
+
+.parchment-slot {
+  background: #f7eed5;
+  border: 2px solid #a48154;
+  box-shadow: inset 0 2px 5px rgba(85, 52, 18, 0.28);
+  transition: all 0.15s ease-in-out;
+}
+
+.parchment-slot:hover {
+  background: #fdf6e2;
+  border-color: #7c4819;
+  box-shadow: 0 0 8px rgba(146, 64, 14, 0.3);
+}
+
+.parchment-slot-active {
+  background: #fff8e7 !important;
+  border: 2.5px solid #b45309 !important;
+  box-shadow: 0 0 12px rgba(180, 83, 9, 0.45), inset 0 1px 3px rgba(255, 255, 255, 0.9) !important;
+}
+
+.parchment-tag {
+  background: #eeddbb;
+  border: 1px solid #b89a6c;
+  color: #4a3014;
+}
+
+.parchment-button-gold {
+  background: linear-gradient(180deg, #b45309 0%, #78350f 100%);
+  border: 1px solid #d97706;
+  color: #fef3c7;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.15s ease;
+}
+
+.parchment-button-gold:hover {
+  background: linear-gradient(180deg, #d97706 0%, #92400e 100%);
+  transform: translateY(-1px);
+}
+
+.parchment-button-green {
+  background: linear-gradient(180deg, #15803d 0%, #166534 100%);
+  border: 1px solid #22c55e;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.15s ease;
+}
+
+.parchment-button-green:hover {
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  transform: translateY(-1px);
+}
+
+.parchment-button-neutral {
+  background: #dfcdab;
+  border: 1px solid #9c7b50;
+  color: #3b240f;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: all 0.15s ease;
+}
+
+.parchment-button-neutral:hover {
+  background: #d4be95;
+  color: #1a0f05;
+}
+
+.parchment-button-danger {
+  background: #eed4ce;
+  border: 1px solid #b91c1c;
+  color: #991b1b;
+}
+
+.parchment-button-danger:hover {
+  background: #fca5a5;
+  color: #7f1d1d;
+}
+
 /* Custom scrollbars for inventory and dialogs */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(120, 82, 38, 0.15);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.4);
+  background: rgba(140, 92, 38, 0.5);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.7);
+  background: rgba(140, 92, 38, 0.8);
 }

@@ -12,8 +12,18 @@ import {
   CLASSES_DATA,
   SUIT_COLORS,
   ActInfo,
+  ActiveSlotId,
+  ClassActiveSkill,
+  InteractiveWorldEntity,
+  DialogueMessage,
 } from '../types/game';
-import { ALL_SKILLS, INITIAL_ACTS, RANDOM_NAMES } from './skillsData';
+import {
+  ALL_SKILLS,
+  INITIAL_ACTS,
+  RANDOM_NAMES,
+  CLASS_ACTIVE_SKILLS,
+  DEFAULT_SKILL_LOADOUTS,
+} from './skillsData';
 import { AudioHelper } from '../audio/AudioHelper';
 
 export class GameEngine {
@@ -73,6 +83,27 @@ export class GameEngine {
   public unlockedSkills: Set<string> = new Set();
   public acts: ActInfo[] = JSON.parse(JSON.stringify(INITIAL_ACTS));
 
+  // Customizable Active Skill Loadout (M1, M2, Q, W, E, R)
+  public skillLoadout: Record<ActiveSlotId, string> = {
+    ...DEFAULT_SKILL_LOADOUTS.hunter,
+  };
+  public slotCooldowns: Record<ActiveSlotId, number> = {
+    M1: 0,
+    M2: 0,
+    Q: 0,
+    W: 0,
+    E: 0,
+    R: 0,
+  };
+  public slotMaxCooldowns: Record<ActiveSlotId, number> = {
+    M1: 0.35,
+    M2: 2.5,
+    Q: 4.5,
+    W: 6.0,
+    E: 5.0,
+    R: 12.0,
+  };
+
   // Player Physics
   public playerX: number = 640;
   public playerY: number = 440;
@@ -83,13 +114,12 @@ export class GameEngine {
   public playerRadius: number = 22;
   public playerSquash: number = 0;
 
-  // Action Timers & Cooldowns
-  public attackCooldown: number = 0;
-  public waveCooldown: number = 0;
-  public dashCooldown: number = 0;
-  public potionCooldown: number = 0;
+  // Active Action Timers
   public attackAnim: number = 0;
   public dashAnim: number = 0;
+  public dashCooldown: number = 0;
+  public shieldTimer: number = 0;
+  public whirlwindTimer: number = 0;
   public beaconTimer: number = 0;
   public beaconX: number = 0;
   public beaconY: number = 0;
@@ -109,6 +139,11 @@ export class GameEngine {
   public portalY: number = 220;
   public portalRadius: number = 48;
 
+  // Story & World Entities (Story progression instead of waves!)
+  public worldEntities: InteractiveWorldEntity[] = [];
+  public currentDialogue: DialogueMessage | null = null;
+  public storyLog: string[] = [];
+
   // Juice
   public trauma: number = 0;
   public hitStop: number = 0;
@@ -126,10 +161,51 @@ export class GameEngine {
   }
 
   // --- Persistence & Slots ---
+  private getStorageItem(key: string): string | null {
+    try {
+      const bridge = typeof window !== 'undefined' ? (window as unknown as { AndroidBridge?: { getString?: (k: string) => string } }).AndroidBridge : undefined;
+      if (bridge && typeof bridge.getString === 'function') {
+        const val = bridge.getString(key);
+        if (val && val.length > 0) return val;
+      }
+    } catch {
+      // ignore bridge error
+    }
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+  }
+
+  private setStorageItem(key: string, value: string) {
+    try {
+      const bridge = typeof window !== 'undefined' ? (window as unknown as { AndroidBridge?: { setString?: (k: string, v: string) => void } }).AndroidBridge : undefined;
+      if (bridge && typeof bridge.setString === 'function') {
+        bridge.setString(key, value);
+      }
+    } catch {
+      // ignore bridge error
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  }
+
+  private removeStorageItem(key: string) {
+    try {
+      const bridge = typeof window !== 'undefined' ? (window as unknown as { AndroidBridge?: { setString?: (k: string, v: string) => void } }).AndroidBridge : undefined;
+      if (bridge && typeof bridge.setString === 'function') {
+        bridge.setString(key, '');
+      }
+    } catch {
+      // ignore bridge error
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(key);
+    }
+  }
+
   public loadSlotsFromStorage() {
     this.slots = [];
     for (let i = 0; i < 3; i++) {
-      const raw = localStorage.getItem(`cda_slot_${i}`);
+      const raw = this.getStorageItem(`cda_slot_${i}`);
       if (raw) {
         try {
           const parsed = JSON.parse(raw);
@@ -142,11 +218,43 @@ export class GameEngine {
       }
     }
 
-    // Default to first existing slot if present
+    const hasAutostart = typeof window !== 'undefined' && window.location.search.includes('autostart=1');
     const firstExisting = this.slots.find((s) => s.exists);
     if (firstExisting) {
       this.currentSlot = firstExisting.index;
       this.loadSlotData(firstExisting);
+      if (hasAutostart) {
+        this.enterHub();
+      }
+    } else {
+      // Auto-initialize a default explorer slot for immediate gameplay and seamless testing
+      const starterSlot: CharacterSlot = {
+        index: 0,
+        exists: true,
+        name: 'Palombaro Nautilus',
+        playerClass: 'hunter',
+        suitColorIndex: 0,
+        level: 1,
+        xp: 0,
+        xpNext: 100,
+        skillPoints: 0,
+        shells: 150,
+        abyssalShards: 5,
+        maxActUnlocked: 1,
+        equippedWeapon: null,
+        equippedArmor: null,
+        equippedRelic: null,
+        backpack: [],
+        stash: [],
+        unlockedSkills: ['hunt_spear', 'hunt_scatter', 'hunt_electro_net', 'hunt_torpedo', 'hunt_trap', 'hunt_barrage'],
+        skillLoadout: { ...DEFAULT_SKILL_LOADOUTS.hunter },
+      };
+      this.slots[0] = starterSlot;
+      this.currentSlot = 0;
+      this.loadSlotData(starterSlot);
+      this.initStarterGear('hunter');
+      this.saveActiveSlot();
+      this.enterHub();
     }
   }
 
@@ -170,6 +278,7 @@ export class GameEngine {
       backpack: [],
       stash: [],
       unlockedSkills: [],
+      skillLoadout: { ...DEFAULT_SKILL_LOADOUTS.hunter },
     };
   }
 
@@ -194,9 +303,10 @@ export class GameEngine {
       backpack: this.backpack,
       stash: this.stash,
       unlockedSkills: Array.from(this.unlockedSkills),
+      skillLoadout: this.skillLoadout,
     };
     this.slots[this.currentSlot] = slotData;
-    localStorage.setItem(`cda_slot_${this.currentSlot}`, JSON.stringify(slotData));
+    this.setStorageItem(`cda_slot_${this.currentSlot}`, JSON.stringify(slotData));
   }
 
   public selectCharacter(slotIndex: number): boolean {
@@ -210,7 +320,7 @@ export class GameEngine {
 
   public deleteCharacter(slotIndex: number): boolean {
     if (slotIndex < 0 || slotIndex >= 3) return false;
-    localStorage.removeItem(`cda_slot_${slotIndex}`);
+    this.removeStorageItem(`cda_slot_${slotIndex}`);
     this.slots[slotIndex] = this.createEmptySlot(slotIndex);
     AudioHelper.playClick();
     return true;
@@ -236,10 +346,9 @@ export class GameEngine {
     this.unlockedSkills.clear();
     this.stash = [];
     this.backpack = [];
+    this.skillLoadout = { ...DEFAULT_SKILL_LOADOUTS[clz] };
 
-    // Starter equipment based on class
     this.initStarterGear(clz);
-
     this.saveActiveSlot();
     this.enterHub();
     AudioHelper.playLevelUp();
@@ -368,14 +477,850 @@ export class GameEngine {
     this.backpack = slot.backpack || [];
     this.stash = slot.stash || [];
     this.unlockedSkills = new Set(slot.unlockedSkills || []);
+    this.skillLoadout = slot.skillLoadout || { ...DEFAULT_SKILL_LOADOUTS[this.playerClass] };
 
-    // Sync acts completion
     for (let i = 0; i < this.acts.length; i++) {
       this.acts[i].completed = i + 1 < this.maxActUnlocked;
     }
   }
 
-  // --- Stats Calculation ---
+  // --- Skill Assignment & Execution ---
+  public assignSkillToSlot(slot: ActiveSlotId, skillId: string) {
+    this.skillLoadout[slot] = skillId;
+    AudioHelper.playClick();
+    this.saveActiveSlot();
+  }
+
+  public getSkillDefinition(skillId: string): ClassActiveSkill | undefined {
+    return CLASS_ACTIVE_SKILLS[this.playerClass]?.find((s) => s.id === skillId);
+  }
+
+  public triggerSlot(slot: ActiveSlotId, targetWorldX: number = -1, targetWorldY: number = -1): boolean {
+    if (this.gameState === 'HUB' || this.gameOver || this.victory) return false;
+    const skillId = this.skillLoadout[slot];
+    if (!skillId) return false;
+
+    const skillDef = this.getSkillDefinition(skillId);
+    if (!skillDef) return false;
+
+    // Check cooldown & tide cost
+    if (this.slotCooldowns[slot] > 0) return false;
+    if (this.tide < skillDef.tideCost) {
+      this.addFloater(this.playerX, this.playerY - 30, 'MAREA INSUFFICIENTE!', '#38bdf8', false);
+      return false;
+    }
+
+    // Set cooldown
+    this.slotCooldowns[slot] = skillDef.cooldown;
+    this.slotMaxCooldowns[slot] = skillDef.cooldown;
+    this.tide -= skillDef.tideCost;
+
+    // Auto-aim target direction
+    if (targetWorldX < 0 && targetWorldY < 0) {
+      let closest: Enemy | null = null;
+      let minDistSq = 600 * 600;
+      for (const e of this.enemies) {
+        if (e.hp <= 0) continue;
+        const dx = e.x - this.playerX;
+        const dy = e.y - this.playerY;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < minDistSq) {
+          minDistSq = d2;
+          closest = e;
+        }
+      }
+      if (closest) {
+        targetWorldX = closest.x;
+        targetWorldY = closest.y;
+      } else {
+        targetWorldX = this.playerX + Math.cos(this.playerFacingAngle) * 160;
+        targetWorldY = this.playerY + Math.sin(this.playerFacingAngle) * 160;
+      }
+    }
+
+    const dx = targetWorldX - this.playerX;
+    const dy = targetWorldY - this.playerY;
+    if (dx !== 0 || dy !== 0) {
+      this.playerFacingAngle = Math.atan2(dy, dx);
+    }
+    const angle = this.playerFacingAngle;
+    const baseDamage = this.getAttackDamage();
+    const isCrit = Math.random() < this.getCritChance();
+    const critMult = this.hasSkill('hunt_crit') ? 2.4 : 1.8;
+    const dmg = Math.round(baseDamage * skillDef.damageMult * (isCrit ? critMult : 1.0));
+
+    this.attackAnim = 1.0;
+    this.playerSquash = 0.4;
+
+    // Execute skill logic by ID
+    this.executeSkillLogic(skillId, angle, dmg, isCrit, targetWorldX, targetWorldY);
+    return true;
+  }
+
+  private executeSkillLogic(
+    skillId: string,
+    angle: number,
+    dmg: number,
+    _isCrit: boolean,
+    targetX: number,
+    targetY: number
+  ) {
+    // --- HUNTER SKILLS ---
+    if (skillId === 'hunt_spear') {
+      const speed = this.hasSkill('hunt_rapid') ? 640 : 520;
+      const pierce = this.hasSkill('hunt_pierce') ? 3 : 1;
+      this.projectiles.push({
+        id: `p_spear_${Date.now()}_${Math.random()}`,
+        x: this.playerX,
+        y: this.playerY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 8,
+        damage: dmg,
+        playerOwned: true,
+        life: 0.5,
+        maxLife: 0.5,
+        color: '#38bdf8',
+        pierceCount: pierce,
+        hitEnemyIds: [],
+      });
+      AudioHelper.playHit();
+    } else if (skillId === 'hunt_scatter') {
+      const speed = 560;
+      for (const off of [-0.25, 0, 0.25]) {
+        const a = angle + off;
+        this.projectiles.push({
+          id: `p_scat_${Date.now()}_${Math.random()}`,
+          x: this.playerX,
+          y: this.playerY,
+          vx: Math.cos(a) * speed,
+          vy: Math.sin(a) * speed,
+          radius: 8,
+          damage: Math.round(dmg * 0.8),
+          playerOwned: true,
+          life: 0.5,
+          maxLife: 0.5,
+          color: '#60a5fa',
+          pierceCount: 1,
+          hitEnemyIds: [],
+        });
+      }
+      AudioHelper.playHit();
+    } else if (skillId === 'hunt_electro_net') {
+      // Net projectile that detonates at target
+      for (const e of this.enemies) {
+        const dist = Math.hypot(e.x - targetX, e.y - targetY);
+        if (dist < 130) {
+          this.damageEnemy(e, dmg, e.x, e.y);
+          e.speed = Math.max(20, e.speed * 0.4); // bind/slow
+        }
+      }
+      for (let i = 0; i < 16; i++) {
+        this.particles.push({
+          id: `p_net_${Math.random()}`,
+          x: targetX,
+          y: targetY,
+          vx: Math.random() * 120 - 60,
+          vy: Math.random() * 120 - 60,
+          radius: 5,
+          color: '#fcd34d',
+          life: 0.6,
+          maxLife: 0.6,
+        });
+      }
+      AudioHelper.playWave();
+    } else if (skillId === 'hunt_torpedo') {
+      const speed = 400;
+      this.projectiles.push({
+        id: `p_torp_${Date.now()}`,
+        x: this.playerX,
+        y: this.playerY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 14,
+        damage: dmg,
+        playerOwned: true,
+        life: 0.9,
+        maxLife: 0.9,
+        color: '#fb923c',
+        hitEnemyIds: [],
+      });
+      AudioHelper.playHeavyHit();
+    } else if (skillId === 'hunt_trap') {
+      // Deploy coral mines near player
+      for (let i = -1; i <= 1; i++) {
+        const offA = angle + i * 0.6;
+        const tx = this.playerX + Math.cos(offA) * 70;
+        const ty = this.playerY + Math.sin(offA) * 70;
+        this.particles.push({
+          id: `p_mine_${Math.random()}`,
+          x: tx,
+          y: ty,
+          vx: 0,
+          vy: 0,
+          radius: 12,
+          color: '#f87171',
+          life: 4.0,
+          maxLife: 4.0,
+        });
+        // Check immediate proximity
+        for (const e of this.enemies) {
+          if (Math.hypot(e.x - tx, e.y - ty) < 80) {
+            this.damageEnemy(e, dmg, tx, ty);
+          }
+        }
+      }
+      AudioHelper.playWave();
+    } else if (skillId === 'hunt_barrage') {
+      // Barrage Ultimate: 8 rapid spear wave
+      for (let i = 0; i < 8; i++) {
+        const a = angle + (Math.random() * 0.4 - 0.2);
+        const speed = 680 + Math.random() * 120;
+        this.projectiles.push({
+          id: `p_bar_${Date.now()}_${i}`,
+          x: this.playerX + Math.random() * 20 - 10,
+          y: this.playerY + Math.random() * 20 - 10,
+          vx: Math.cos(a) * speed,
+          vy: Math.sin(a) * speed,
+          radius: 9,
+          damage: Math.round(dmg * 0.9),
+          playerOwned: true,
+          life: 0.7,
+          maxLife: 0.7,
+          color: '#38bdf8',
+          pierceCount: 2,
+          hitEnemyIds: [],
+        });
+      }
+      this.trauma = Math.min(1.0, this.trauma + 0.4);
+      AudioHelper.playHeavyHit();
+
+      // --- JUGGERNAUT SKILLS ---
+    } else if (skillId === 'jug_cleave') {
+      let hitCount = 0;
+      for (const e of this.enemies) {
+        if (e.hp <= 0) continue;
+        const edx = e.x - this.playerX;
+        const edy = e.y - this.playerY;
+        const dist = Math.hypot(edx, edy);
+        if (dist <= 145 + e.radius) {
+          const eAngle = Math.atan2(edy, edx);
+          const diff = Math.abs(this.normalizeAngle(eAngle - angle));
+          if (diff <= 1.4 || dist < 45) {
+            this.damageEnemy(e, dmg, e.x, e.y);
+            if (dist > 1) {
+              e.x += (edx / dist) * 70;
+              e.y += (edy / dist) * 70;
+            }
+            hitCount++;
+          }
+        }
+      }
+      for (let i = -4; i <= 4; i++) {
+        const a = angle + i * 0.25;
+        this.particles.push({
+          id: `p_cleave_${Math.random()}`,
+          x: this.playerX + Math.cos(a) * 60,
+          y: this.playerY + Math.sin(a) * 60,
+          vx: Math.cos(a) * 170,
+          vy: Math.sin(a) * 170,
+          radius: 6,
+          color: '#f59e0b',
+          life: 0.25,
+          maxLife: 0.25,
+        });
+      }
+      if (hitCount > 0) AudioHelper.playHeavyHit();
+      else AudioHelper.playHit();
+    } else if (skillId === 'jug_slam') {
+      // Ground seismic shockwave
+      this.trauma = Math.min(1.0, this.trauma + 0.5);
+      for (const e of this.enemies) {
+        const dist = Math.hypot(e.x - this.playerX, e.y - this.playerY);
+        if (dist < 180) {
+          this.damageEnemy(e, dmg, e.x, e.y);
+          e.speed = Math.max(10, e.speed * 0.3); // Stun
+        }
+      }
+      for (let i = 0; i < 20; i++) {
+        const a = (Math.PI * 2 / 20) * i;
+        this.particles.push({
+          id: `p_slam_${Math.random()}`,
+          x: this.playerX,
+          y: this.playerY,
+          vx: Math.cos(a) * 220,
+          vy: Math.sin(a) * 220,
+          radius: 7,
+          color: '#d97706',
+          life: 0.45,
+          maxLife: 0.45,
+        });
+      }
+      AudioHelper.playHeavyHit();
+    } else if (skillId === 'jug_shield') {
+      this.shieldTimer = 4.0;
+      this.addFloater(this.playerX, this.playerY - 45, 'CARAPACE CORAZZATO ATTIVO!', '#34d399', true);
+      AudioHelper.playWave();
+    } else if (skillId === 'jug_chain') {
+      // Chain pull distant enemies
+      let pulled = 0;
+      for (const e of this.enemies) {
+        const dist = Math.hypot(e.x - this.playerX, e.y - this.playerY);
+        if (dist > 50 && dist < 360) {
+          const dx = this.playerX - e.x;
+          const dy = this.playerY - e.y;
+          e.x += (dx / dist) * 160;
+          e.y += (dy / dist) * 160;
+          this.damageEnemy(e, Math.round(dmg * 0.7), e.x, e.y);
+          pulled++;
+        }
+      }
+      AudioHelper.playHeavyHit();
+    } else if (skillId === 'jug_whirlwind') {
+      this.whirlwindTimer = 2.0;
+      for (const e of this.enemies) {
+        if (Math.hypot(e.x - this.playerX, e.y - this.playerY) < 160) {
+          this.damageEnemy(e, dmg, e.x, e.y);
+        }
+      }
+      AudioHelper.playHeavyHit();
+    } else if (skillId === 'jug_earthquake') {
+      // Line seismic fissure
+      this.trauma = Math.min(1.0, this.trauma + 0.65);
+      for (let step = 40; step <= 320; step += 40) {
+        const fx = this.playerX + Math.cos(angle) * step;
+        const fy = this.playerY + Math.sin(angle) * step;
+        for (const e of this.enemies) {
+          if (Math.hypot(e.x - fx, e.y - fy) < 70) {
+            this.damageEnemy(e, dmg, fx, fy);
+          }
+        }
+        this.particles.push({
+          id: `p_eq_${Math.random()}`,
+          x: fx,
+          y: fy,
+          vx: 0,
+          vy: -40,
+          radius: 12,
+          color: '#ef4444',
+          life: 0.6,
+          maxLife: 0.6,
+        });
+      }
+      AudioHelper.playHeavyHit();
+
+      // --- MYSTIC SKILLS ---
+    } else if (skillId === 'mys_homing') {
+      const speed = 460;
+      this.projectiles.push({
+        id: `p_hom_${Date.now()}_${Math.random()}`,
+        x: this.playerX,
+        y: this.playerY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 10,
+        damage: dmg,
+        playerOwned: true,
+        life: 0.9,
+        maxLife: 0.9,
+        color: '#c084fc',
+        homing: true,
+        hitEnemyIds: [],
+      });
+      this.tide = Math.min(this.getMaxTide(), this.tide + 4);
+      AudioHelper.playWave();
+    } else if (skillId === 'mys_vortex') {
+      for (const e of this.enemies) {
+        const dist = Math.hypot(e.x - targetX, e.y - targetY);
+        if (dist < 260) {
+          const dx = targetX - e.x;
+          const dy = targetY - e.y;
+          e.x += (dx / dist) * 75;
+          e.y += (dy / dist) * 75;
+          this.damageEnemy(e, dmg, targetX, targetY);
+        }
+      }
+      for (let i = 0; i < 24; i++) {
+        const a = Math.random() * Math.PI * 2;
+        this.particles.push({
+          id: `p_vort_${Math.random()}`,
+          x: targetX,
+          y: targetY,
+          vx: Math.cos(a) * 140,
+          vy: Math.sin(a) * 140,
+          radius: 6,
+          color: '#818cf8',
+          life: 0.7,
+          maxLife: 0.7,
+        });
+      }
+      AudioHelper.playWave();
+    } else if (skillId === 'mys_chain_lightning') {
+      let struck = 0;
+      for (const e of this.enemies) {
+        if (struck >= 5) break;
+        if (Math.hypot(e.x - this.playerX, e.y - this.playerY) < 320) {
+          this.damageEnemy(e, dmg, e.x, e.y);
+          struck++;
+        }
+      }
+      AudioHelper.playHit();
+    } else if (skillId === 'mys_pearl_burst') {
+      const count = 6;
+      for (let i = 0; i < count; i++) {
+        const a = (Math.PI * 2 / count) * i;
+        this.projectiles.push({
+          id: `p_pearl_${Date.now()}_${i}`,
+          x: this.playerX,
+          y: this.playerY,
+          vx: Math.cos(a) * 340,
+          vy: Math.sin(a) * 340,
+          radius: 11,
+          damage: dmg,
+          playerOwned: true,
+          life: 0.6,
+          maxLife: 0.6,
+          color: '#38bdf8',
+          hitEnemyIds: [],
+        });
+      }
+      AudioHelper.playWave();
+    } else if (skillId === 'mys_bubble_shield') {
+      this.hp = Math.min(this.getMaxHp(), this.hp + 25);
+      this.addFloater(this.playerX, this.playerY - 45, '+25 PV BOLLE DI CURA', '#67e8f9', true);
+      AudioHelper.playPotion();
+    } else if (skillId === 'mys_kraken_wrath') {
+      // Ultimate: spectral tentacles
+      this.trauma = Math.min(1.0, this.trauma + 0.65);
+      for (const e of this.enemies) {
+        this.damageEnemy(e, dmg, e.x, e.y);
+      }
+      for (let i = 0; i < 30; i++) {
+        this.particles.push({
+          id: `p_kraken_${Math.random()}`,
+          x: this.playerX + (Math.random() * 300 - 150),
+          y: this.playerY + (Math.random() * 300 - 150),
+          vx: 0,
+          vy: -60,
+          radius: 8 + Math.random() * 8,
+          color: '#a855f7',
+          life: 0.8,
+          maxLife: 0.8,
+        });
+      }
+      AudioHelper.playHeavyHit();
+    }
+  }
+
+  // --- Controls Shortcuts ---
+  public performAttack(targetWorldX: number = -1, targetWorldY: number = -1): boolean {
+    return this.triggerSlot('M1', targetWorldX, targetWorldY);
+  }
+
+  public performM2(targetWorldX: number = -1, targetWorldY: number = -1): boolean {
+    return this.triggerSlot('M2', targetWorldX, targetWorldY);
+  }
+
+  public performQ(targetWorldX: number = -1, targetWorldY: number = -1): boolean {
+    return this.triggerSlot('Q', targetWorldX, targetWorldY);
+  }
+
+  public performW(targetWorldX: number = -1, targetWorldY: number = -1): boolean {
+    return this.triggerSlot('W', targetWorldX, targetWorldY);
+  }
+
+  public performE(targetWorldX: number = -1, targetWorldY: number = -1): boolean {
+    return this.triggerSlot('E', targetWorldX, targetWorldY);
+  }
+
+  public performR(targetWorldX: number = -1, targetWorldY: number = -1): boolean {
+    return this.triggerSlot('R', targetWorldX, targetWorldY);
+  }
+
+  public performDash(): boolean {
+    if (this.dashCooldown > 0 || this.gameOver || this.victory) return false;
+    let cd = 2.5;
+    if (this.hasSkill('hunt_surge')) cd = 1.85;
+    this.dashCooldown = cd;
+    this.dashAnim = 1.0;
+
+    const dx = Math.cos(this.playerFacingAngle);
+    const dy = Math.sin(this.playerFacingAngle);
+    this.playerTargetX = this.playerX + dx * 180;
+    this.playerTargetY = this.playerY + dy * 180;
+    this.playerMoving = true;
+
+    if (this.hasSkill('mys_lightning')) {
+      for (const e of this.enemies) {
+        if (Math.hypot(e.x - this.playerX, e.y - this.playerY) < 135) {
+          this.damageEnemy(e, Math.round(this.getAttackDamage() * 0.85), e.x, e.y);
+        }
+      }
+    }
+
+    if (this.hasSkill('hunt_dash_cut')) {
+      for (const e of this.enemies) {
+        if (Math.hypot(e.x - this.playerX, e.y - this.playerY) < 110) {
+          this.damageEnemy(e, Math.round(this.getAttackDamage() * 0.75), e.x, e.y);
+        }
+      }
+    }
+
+    AudioHelper.playDash();
+    return true;
+  }
+
+  public usePotion(): boolean {
+    if (this.potions <= 0 || this.hp >= this.getMaxHp() || this.gameOver || this.victory) return false;
+    this.potions--;
+    let heal = Math.round(this.getMaxHp() * 0.5);
+    if (this.hasSkill('mys_alchemy')) heal = Math.round(this.getMaxHp() * 0.75);
+
+    this.hp = Math.min(this.getMaxHp(), this.hp + heal);
+    this.addFloater(this.playerX, this.playerY - 45, `+${heal} PV`, '#4ade80', true);
+    AudioHelper.playPotion();
+    return true;
+  }
+
+  // --- Story Progression, Acts & World Entities ---
+  public getActiveAct(): ActInfo {
+    return this.acts[this.currentAct - 1] || this.acts[0];
+  }
+
+  public startActExpedition(actNum: number) {
+    if (actNum < 1) actNum = 1;
+    if (actNum > this.maxActUnlocked) actNum = this.maxActUnlocked;
+    this.currentAct = actNum;
+    this.loadZone(actNum);
+    AudioHelper.playWave();
+  }
+
+  public loadZone(z: number) {
+    this.zone = z;
+    this.gameState = 'EXPEDITION';
+    this.currentAct = Math.min(4, Math.max(1, z));
+    this.enemies = [];
+    this.drops = [];
+    this.projectiles = [];
+    this.floaters = [];
+    this.particles = [];
+    this.actChests = [];
+    this.worldEntities = [];
+    this.portalOpen = false;
+    this.gameOver = false;
+    this.victory = false;
+
+    const mapW = this.getMapWidth();
+    const mapH = this.getMapHeight();
+
+    this.playerX = mapW / 2;
+    this.playerY = mapH - 180;
+    this.playerTargetX = this.playerX;
+    this.playerTargetY = this.playerY;
+    this.playerMoving = false;
+    this.beaconTimer = 0;
+
+    this.portalX = mapW / 2;
+    this.portalY = 220;
+
+    const act = this.getActiveAct();
+    act.gateOpened = false;
+    act.objectives.forEach((obj) => {
+      obj.currentCount = 0;
+      obj.completed = false;
+    });
+
+    if (this.zone === 1) {
+      this.zoneName = 'Barriera Corallina';
+      this.depthMeters = 220;
+
+      // Story Entities for Act 1: 2 Ancient Coral Crystals + 1 Ancient Stone Gate
+      this.worldEntities.push({
+        id: 'crys_1',
+        type: 'quest_item',
+        name: 'Cristallo Solare delle Barriere (1/2)',
+        x: mapW / 2 - 420,
+        y: 860,
+        radius: 26,
+        color: '#f59e0b',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'crys_2',
+        type: 'quest_item',
+        name: 'Cristallo Solare delle Barriere (2/2)',
+        x: mapW / 2 + 420,
+        y: 860,
+        radius: 26,
+        color: '#f59e0b',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'gate_1',
+        type: 'gate',
+        name: 'Portale delle Antiche Rovine',
+        x: mapW / 2,
+        y: 540,
+        radius: 48,
+        color: '#38bdf8',
+        active: false,
+      });
+
+      // Story Chest
+      this.actChests.push({ id: 'chest_1', x: mapW / 2, y: 750, opened: false, animTimer: 0 });
+
+      // Story Enemies stationed in sectors
+      // Sector 1: Coral Entrance
+      this.spawnEnemy('crab', 'Granchio di Scoglio', mapW / 2 - 350, 1100, 80, 12, 22, 75);
+      this.spawnEnemy('crab', 'Granchio di Scoglio', mapW / 2 + 350, 1100, 80, 12, 22, 75);
+      this.spawnEnemy('jelly', 'Medusa Elettrica', mapW / 2, 980, 70, 14, 20, 55);
+
+      // Sector 2: Coral Relic Chamber
+      this.spawnEnemy('crab', 'Granchio Tagliatore', mapW / 2 - 380, 800, 95, 15, 23, 80);
+      this.spawnEnemy('crab', 'Granchio Tagliatore', mapW / 2 + 380, 800, 95, 15, 23, 80);
+      this.spawnEnemy('jelly', 'Medusa Fluttuante', mapW / 2, 720, 75, 15, 20, 60);
+
+      // Sector 3: Guardian's Lair (Behind the Gate!)
+      this.spawnEnemy('crab', 'Granchio Corazzato', mapW / 2 - 200, 360, 130, 16, 24, 70);
+      this.spawnEnemy('crab', 'Granchio Corazzato', mapW / 2 + 200, 360, 130, 16, 24, 70);
+      this.spawnBoss('Granchio Gigante Corazzato', mapW / 2, 320, 550, 24, 45, 65);
+
+      this.currentDialogue = {
+        speaker: 'Anziana Tartaruga',
+        portrait: '/sprites/anziano_tartaruga.png',
+        text: 'Benvenuto alle Antiche Rovine Coralline! Il portale per la tana del Guardiano è sigillato. Esplora le ali est e ovest per recuperare i due Cristalli Solari!',
+      };
+    } else if (this.zone === 2) {
+      this.zoneName = 'Fossa delle Tenebre';
+      this.depthMeters = 680;
+
+      // Story Entities for Act 2: 2 Transmitters to disarm + Submersible Core
+      this.worldEntities.push({
+        id: 'trans_1',
+        type: 'valve',
+        name: 'Trasmettitore a Scarica (1/2)',
+        x: mapW / 2 - 450,
+        y: 850,
+        radius: 26,
+        color: '#fcd34d',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'trans_2',
+        type: 'valve',
+        name: 'Trasmettitore a Scarica (2/2)',
+        x: mapW / 2 + 450,
+        y: 850,
+        radius: 26,
+        color: '#fcd34d',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'core_1',
+        type: 'quest_item',
+        name: 'Scatola Nera del Baticafo',
+        x: mapW / 2,
+        y: 720,
+        radius: 26,
+        color: '#38bdf8',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'gate_2',
+        type: 'gate',
+        name: 'Grata d\'Acciaio della Fossa',
+        x: mapW / 2,
+        y: 520,
+        radius: 48,
+        color: '#f59e0b',
+        active: false,
+      });
+
+      this.actChests.push({ id: 'chest_2', x: mapW / 2, y: 800, opened: false, animTimer: 0 });
+
+      // Enemies
+      this.spawnEnemy('crab', 'Granchio Abissale', mapW / 2 - 400, 1150, 160, 22, 24, 80);
+      this.spawnEnemy('crab', 'Granchio Abissale', mapW / 2 + 400, 1150, 160, 22, 24, 80);
+      this.spawnEnemy('jelly', 'Medusa dei Fulmini', mapW / 2, 980, 120, 24, 22, 65);
+      this.spawnEnemy('eel', 'Murena dei Fondali', mapW / 2 - 350, 780, 150, 28, 22, 115);
+      this.spawnEnemy('eel', 'Murena dei Fondali', mapW / 2 + 350, 780, 150, 28, 22, 115);
+      this.spawnBoss('Murena Zannuta Primordiale', mapW / 2, 320, 750, 32, 50, 125);
+
+      this.currentDialogue = {
+        speaker: 'Anziana Tartaruga',
+        portrait: '/sprites/anziano_tartaruga.png',
+        text: 'La fossa elettrica è pervasa da correnti d\'alta tensione! Disarma entrambi i trasmettitori e recupera il nucleo dati per sbloccare la discesa.',
+      };
+    } else if (this.zone === 3) {
+      this.zoneName = 'Dorsale Vulcanica';
+      this.depthMeters = 1450;
+
+      // Story Entities for Act 3: 2 Geothermal Coolant Valves
+      this.worldEntities.push({
+        id: 'valve_1',
+        type: 'valve',
+        name: 'Valvola di Raffreddamento Idraulico (1/2)',
+        x: mapW / 2 - 450,
+        y: 850,
+        radius: 26,
+        color: '#06b6d4',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'valve_2',
+        type: 'valve',
+        name: 'Valvola di Raffreddamento Idraulico (2/2)',
+        x: mapW / 2 + 450,
+        y: 850,
+        radius: 26,
+        color: '#06b6d4',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'gate_3',
+        type: 'gate',
+        name: 'Barriera di Magma Raffreddata',
+        x: mapW / 2,
+        y: 520,
+        radius: 48,
+        color: '#ef4444',
+        active: false,
+      });
+
+      this.actChests.push({ id: 'chest_3', x: mapW / 2, y: 850, opened: false, animTimer: 0 });
+
+      this.spawnEnemy('crab', 'Granchio Vulcanico', mapW / 2 - 450, 1200, 220, 32, 26, 85);
+      this.spawnEnemy('crab', 'Granchio Vulcanico', mapW / 2 + 450, 1200, 220, 32, 26, 85);
+      this.spawnEnemy('eel', 'Murena di Fuoco', mapW / 2, 1100, 180, 32, 24, 125);
+      this.spawnEnemy('angler', 'Pesce Lanterna Cieco', mapW / 2 - 380, 820, 200, 34, 25, 95);
+      this.spawnEnemy('angler', 'Predatore Fosforescente', mapW / 2 + 380, 820, 210, 35, 25, 95);
+      this.spawnBoss('Rana Pescatrice Abissale', mapW / 2, 340, 1100, 38, 55, 90);
+
+      this.currentDialogue = {
+        speaker: 'Mastro Astice',
+        portrait: '/sprites/fabbro_astice.png',
+        text: 'Attento alla pressione e al calore geotermico! Chiudi le valvole per raffreddare i flussi di lava ed entrare nel cratere della Rana Pescatrice!',
+      };
+    } else if (this.zone === 4) {
+      this.zoneName = 'Santuario del Kraken';
+      this.depthMeters = 2400;
+
+      // Story Entities for Act 4: 3 Void Monoliths
+      this.worldEntities.push({
+        id: 'mono_1',
+        type: 'quest_item',
+        name: 'Monolito del Vuoto Primordiale (1/3)',
+        x: mapW / 2 - 400,
+        y: 800,
+        radius: 28,
+        color: '#c084fc',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'mono_2',
+        type: 'quest_item',
+        name: 'Monolito del Vuoto Primordiale (2/3)',
+        x: mapW / 2 + 400,
+        y: 800,
+        radius: 28,
+        color: '#c084fc',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'mono_3',
+        type: 'quest_item',
+        name: 'Monolito del Vuoto Primordiale (3/3)',
+        x: mapW / 2,
+        y: 600,
+        radius: 28,
+        color: '#c084fc',
+        active: true,
+      });
+      this.worldEntities.push({
+        id: 'gate_4',
+        type: 'gate',
+        name: 'Sigillo dell\'Abisso Infinito',
+        x: mapW / 2,
+        y: 500,
+        radius: 52,
+        color: '#a855f7',
+        active: false,
+      });
+
+      this.actChests.push({ id: 'chest_4', x: mapW / 2, y: 700, opened: false, animTimer: 0 });
+      this.spawnBoss('Leviatano Primordiale', mapW / 2, 360, 1800, 44, 65, 50);
+
+      this.currentDialogue = {
+        speaker: 'Anziana Tartaruga',
+        portrait: '/sprites/anziano_tartaruga.png',
+        text: 'Siamo giunti alla faglia primordiale. Infrangi i 3 Monoliti del Vuoto per dissolvere il sigillo millenario e affrontare il Leviatano!',
+      };
+    } else {
+      // Endless Dive
+      const cycle = this.zone - 4;
+      this.zoneName = `Abisso Senza Fine (${cycle})`;
+      this.depthMeters = 2400 + cycle * 650;
+      const scaleHp = 1 + (cycle * 2) / 10;
+      const scaleDmg = cycle * 3;
+      this.actChests.push({ id: `chest_${this.zone}`, x: mapW / 2, y: 750, opened: false, animTimer: 0 });
+      this.spawnEnemy('angler', 'Fosforo Ancestrale', mapW / 2 - 350, 950, Math.round(260 * scaleHp), 36 + scaleDmg, 28, 105);
+      this.spawnEnemy('angler', 'Abominio delle Profondità', mapW / 2 + 350, 950, Math.round(300 * scaleHp), 40 + scaleDmg, 30, 110);
+      this.spawnEnemy('crab', 'Colosso di Basalto', mapW / 2, 650, Math.round(340 * scaleHp), 38 + scaleDmg, 30, 90);
+      this.spawnEnemy('eel', 'Leviatano Minore', mapW / 2, 380, Math.round(360 * scaleHp), 42 + scaleDmg, 28, 130);
+    }
+
+    this.tide = this.getMaxTide();
+    this.hp = this.getMaxHp();
+  }
+
+  public interactWithEntity(entity: InteractiveWorldEntity): boolean {
+    if (!entity.active) return false;
+    const act = this.getActiveAct();
+
+    if (entity.type === 'quest_item' || entity.type === 'valve') {
+      entity.active = false;
+      AudioHelper.playLevelUp();
+      this.addFloater(entity.x, entity.y - 35, `${entity.name.toUpperCase()} ATTIVATO!`, entity.color, true);
+
+      // Check objective progress
+      act.objectives.forEach((obj) => {
+        if (!obj.completed) {
+          obj.currentCount = Math.min(obj.targetCount, obj.currentCount + 1);
+          if (obj.currentCount >= obj.targetCount) {
+            obj.completed = true;
+            this.addFloater(this.playerX, this.playerY - 60, `OBIETTIVO COMPLETATO: ${obj.title}!`, '#4ade80', true);
+          }
+        }
+      });
+
+      // Check if gate can be opened
+      const uncompletedNonGate = act.objectives.filter(
+        (o) => o.type !== 'reach_boss' && o.id.indexOf('gate') === -1 && !o.completed
+      );
+      if (uncompletedNonGate.length === 0) {
+        const gate = this.worldEntities.find((e) => e.type === 'gate');
+        if (gate) {
+          gate.active = true;
+          this.addFloater(gate.x, gate.y - 45, 'IL PORTONE PUÒ ESSERE APERTO!', '#38bdf8', true);
+        }
+      }
+      return true;
+    } else if (entity.type === 'gate') {
+      // Open gate to boss lair
+      entity.active = false;
+      act.gateOpened = true;
+      const gateObj = act.objectives.find((o) => o.id.indexOf('gate') !== -1);
+      if (gateObj) gateObj.completed = true;
+
+      this.trauma = Math.min(1.0, this.trauma + 0.5);
+      this.addFloater(entity.x, entity.y - 45, 'PORTALE DELLE ROVINE SPALANCATO!', '#38bdf8', true);
+      AudioHelper.playHeavyHit();
+      return true;
+    }
+    return false;
+  }
+
+  // --- Stats, Items & Economy ---
   public getMaxHp(): number {
     const base = CLASSES_DATA[this.playerClass].baseHp;
     const armorBonus = this.equippedArmor ? this.equippedArmor.healthBonus : 0;
@@ -446,7 +1391,7 @@ export class GameEngine {
     this.unlockedSkills.add(skillId);
     AudioHelper.playLevelUp();
     this.saveActiveSlot();
-    this.addFloater(this.playerX, this.playerY - 45, 'ABILITÀ SBLOCCATA!', '#38bdf8', true);
+    this.addFloater(this.playerX, this.playerY - 45, 'TALENTO SBLOCCATO!', '#38bdf8', true);
     return true;
   }
 
@@ -462,7 +1407,7 @@ export class GameEngine {
     return true;
   }
 
-  // --- Hub & Zone Navigation ---
+  // --- Hub Navigation & Town Portal ---
   public getMapWidth(): number {
     if (this.gameState === 'HUB') return GameEngine.HUB_W;
     switch (this.currentAct) {
@@ -501,9 +1446,11 @@ export class GameEngine {
     this.floaters = [];
     this.particles = [];
     this.actChests = [];
+    this.worldEntities = [];
     this.portalOpen = false;
     this.gameOver = false;
     this.victory = false;
+    this.currentDialogue = null;
 
     this.playerX = 640;
     this.playerY = 440;
@@ -514,186 +1461,14 @@ export class GameEngine {
 
     this.hp = this.getMaxHp();
     this.tide = this.getMaxTide();
-    this.attackCooldown = 0;
-    this.waveCooldown = 0;
     this.dashCooldown = 0;
+    Object.keys(this.slotCooldowns).forEach((k) => {
+      this.slotCooldowns[k as ActiveSlotId] = 0;
+    });
+
     AudioHelper.startAmbient();
   }
 
-  public startActExpedition(actNum: number) {
-    if (actNum < 1) actNum = 1;
-    if (actNum > this.maxActUnlocked) actNum = this.maxActUnlocked;
-    this.currentAct = actNum;
-    this.loadZone(actNum);
-    AudioHelper.playWave();
-  }
-
-  public loadZone(z: number) {
-    this.zone = z;
-    this.gameState = 'EXPEDITION';
-    this.currentAct = Math.min(4, Math.max(1, z));
-    this.enemies = [];
-    this.drops = [];
-    this.projectiles = [];
-    this.floaters = [];
-    this.particles = [];
-    this.actChests = [];
-    this.portalOpen = false;
-    this.gameOver = false;
-    this.victory = false;
-
-    const mapW = this.getMapWidth();
-    const mapH = this.getMapHeight();
-
-    this.playerX = mapW / 2;
-    this.playerY = mapH - 180;
-    this.playerTargetX = this.playerX;
-    this.playerTargetY = this.playerY;
-    this.playerMoving = false;
-    this.beaconTimer = 0;
-
-    this.portalX = mapW / 2;
-    this.portalY = 220;
-
-    if (this.zone === 1) {
-      this.zoneName = 'Barriera Corallina';
-      this.depthMeters = 220;
-      this.actChests.push({ id: 'chest_1', x: mapW / 2, y: 750, opened: false, animTimer: 0 });
-
-      // Sector 1
-      this.spawnEnemy('crab', 'Granchio di Scoglio', mapW / 2 - 400, 1080, 80, 12, 22, 75);
-      this.spawnEnemy('crab', 'Granchio di Scoglio', mapW / 2 + 400, 1080, 80, 12, 22, 75);
-      this.spawnEnemy('jelly', 'Medusa Elettrica', mapW / 2, 980, 70, 14, 20, 55);
-
-      // Sector 2
-      this.spawnEnemy('crab', 'Granchio Tagliatore', mapW / 2 - 320, 720, 95, 15, 23, 80);
-      this.spawnEnemy('crab', 'Granchio Tagliatore', mapW / 2 + 320, 720, 95, 15, 23, 80);
-      this.spawnEnemy('jelly', 'Medusa Fluttuante', mapW / 2 - 520, 620, 75, 15, 20, 60);
-      this.spawnEnemy('jelly', 'Medusa Fluttuante', mapW / 2 + 520, 620, 75, 15, 20, 60);
-
-      // Sector 3 (Boss)
-      this.spawnEnemy('crab', 'Granchio Corazzato', mapW / 2 - 240, 380, 130, 16, 24, 70);
-      this.spawnEnemy('crab', 'Granchio Corazzato', mapW / 2 + 240, 380, 130, 16, 24, 70);
-      this.spawnBoss('Granchio Gigante Corazzato', mapW / 2, 320, 550, 24, 45, 65);
-    } else if (this.zone === 2) {
-      this.zoneName = 'Fossa delle Tenebre';
-      this.depthMeters = 680;
-      this.actChests.push({ id: 'chest_2', x: mapW / 2, y: 800, opened: false, animTimer: 0 });
-
-      // Sector 1
-      this.spawnEnemy('crab', 'Granchio Abissale', mapW / 2 - 450, 1150, 160, 22, 24, 80);
-      this.spawnEnemy('crab', 'Granchio Abissale', mapW / 2 + 450, 1150, 160, 22, 24, 80);
-      this.spawnEnemy('jelly', 'Medusa dei Fulmini', mapW / 2, 1020, 120, 24, 22, 65);
-
-      // Sector 2
-      this.spawnEnemy('eel', 'Murena dei Fondali', mapW / 2 - 350, 780, 150, 28, 22, 115);
-      this.spawnEnemy('eel', 'Murena dei Fondali', mapW / 2 + 350, 780, 150, 28, 22, 115);
-      this.spawnEnemy('jelly', 'Medusa dei Fulmini', mapW / 2 - 620, 650, 130, 25, 22, 65);
-      this.spawnEnemy('jelly', 'Medusa dei Fulmini', mapW / 2 + 620, 650, 130, 25, 22, 65);
-
-      // Sector 3 (Boss)
-      this.spawnEnemy('eel', 'Murena Zannuta', mapW / 2 - 260, 400, 170, 28, 22, 120);
-      this.spawnEnemy('eel', 'Murena Zannuta', mapW / 2 + 260, 400, 170, 28, 22, 120);
-      this.spawnBoss('Murena Zannuta Primordiale', mapW / 2, 320, 750, 32, 50, 125);
-    } else if (this.zone === 3) {
-      this.zoneName = 'Dorsale Vulcanica';
-      this.depthMeters = 1450;
-      this.actChests.push({ id: 'chest_3', x: mapW / 2, y: 850, opened: false, animTimer: 0 });
-
-      // Sector 1
-      this.spawnEnemy('crab', 'Granchio Vulcanico', mapW / 2 - 500, 1220, 220, 32, 26, 85);
-      this.spawnEnemy('crab', 'Granchio Vulcanico', mapW / 2 + 500, 1220, 220, 32, 26, 85);
-      this.spawnEnemy('eel', 'Murena di Fuoco', mapW / 2, 1120, 180, 32, 24, 125);
-
-      // Sector 2
-      this.spawnEnemy('angler', 'Pesce Lanterna Cieco', mapW / 2 - 400, 820, 200, 34, 25, 95);
-      this.spawnEnemy('angler', 'Predatore Fosforescente', mapW / 2 + 400, 820, 210, 35, 25, 95);
-      this.spawnEnemy('jelly', 'Medusa Radiante', mapW / 2, 720, 170, 30, 22, 70);
-
-      // Sector 3 (Boss)
-      this.spawnEnemy('crab', 'Granchio Vulcanico', mapW / 2 - 300, 420, 240, 32, 26, 85);
-      this.spawnEnemy('crab', 'Granchio Vulcanico', mapW / 2 + 300, 420, 240, 32, 26, 85);
-      this.spawnBoss('Rana Pescatrice Abissale', mapW / 2, 340, 1100, 38, 55, 90);
-    } else if (this.zone === 4) {
-      this.zoneName = 'Santuario del Kraken';
-      this.depthMeters = 2400;
-      this.actChests.push({ id: 'chest_4', x: mapW / 2, y: 700, opened: false, animTimer: 0 });
-      this.spawnBoss('Leviatano Primordiale', mapW / 2, 360, 1800, 44, 65, 50);
-    } else {
-      // Endless Dive (Zone 5+)
-      const cycle = this.zone - 4;
-      this.zoneName = `Abisso Senza Fine (${cycle})`;
-      this.depthMeters = 2400 + cycle * 650;
-      const scaleHp = 1 + (cycle * 2) / 10;
-      const scaleDmg = cycle * 3;
-      this.actChests.push({ id: `chest_${this.zone}`, x: mapW / 2, y: 750, opened: false, animTimer: 0 });
-
-      this.spawnEnemy('angler', 'Fosforo Ancestrale', mapW / 2 - 350, 950, Math.round(260 * scaleHp), 36 + scaleDmg, 28, 105);
-      this.spawnEnemy('angler', 'Abominio delle Profondità', mapW / 2 + 350, 950, Math.round(300 * scaleHp), 40 + scaleDmg, 30, 110);
-      this.spawnEnemy('crab', 'Colosso di Basalto', mapW / 2, 650, Math.round(340 * scaleHp), 38 + scaleDmg, 30, 90);
-      this.spawnEnemy('eel', 'Leviatano Minore', mapW / 2, 380, Math.round(360 * scaleHp), 42 + scaleDmg, 28, 130);
-    }
-
-    this.tide = this.getMaxTide();
-    this.hp = this.getMaxHp();
-  }
-
-  private spawnEnemy(
-    type: 'crab' | 'jelly' | 'eel' | 'angler',
-    name: string,
-    x: number,
-    y: number,
-    hp: number,
-    dmg: number,
-    radius: number,
-    speed: number
-  ) {
-    this.enemies.push({
-      id: `e_${Date.now()}_${Math.random()}`,
-      type,
-      name,
-      x,
-      y,
-      hp,
-      maxHp: hp,
-      dmg,
-      radius,
-      speed,
-      vx: 0,
-      vy: 0,
-      hitSquash: 0,
-      attackTimer: Math.random() * 2,
-      isBoss: false,
-    });
-  }
-
-  private spawnBoss(name: string, x: number, y: number, hp: number, dmg: number, radius: number, speed: number) {
-    this.enemies.push({
-      id: `boss_${Date.now()}`,
-      type: 'boss',
-      name,
-      x,
-      y,
-      hp,
-      maxHp: hp,
-      dmg,
-      radius,
-      speed,
-      vx: 0,
-      vy: 0,
-      hitSquash: 0,
-      attackTimer: 2.0,
-      isBoss: true,
-      bossPhase: 1,
-      windupX: x,
-      windupY: y,
-      windupRadius: 0,
-      windupTimer: 0,
-      windupMaxTimer: 1.2,
-    });
-  }
-
-  // --- Town Portal ---
   public openTownPortal(): boolean {
     if (this.gameState !== 'EXPEDITION' || this.gameOver || this.victory) return false;
     this.townPortalActive = true;
@@ -721,7 +1496,6 @@ export class GameEngine {
     return true;
   }
 
-  // --- Controls & Actions ---
   public setPlayerTarget(x: number, y: number) {
     const mapW = this.getMapWidth();
     const mapH = this.getMapHeight();
@@ -733,321 +1507,21 @@ export class GameEngine {
     this.beaconTimer = 0.6;
   }
 
-  public performAttack(targetWorldX: number = -1, targetWorldY: number = -1): boolean {
-    if (this.gameState === 'HUB' || this.attackCooldown > 0 || this.gameOver || this.victory) return false;
-
-    let effectiveRate = 0.42;
-    if (this.hasSkill('hunt_rapid')) effectiveRate = 0.28;
-    this.attackCooldown = effectiveRate;
-    this.attackAnim = 1.0;
-    this.playerSquash = 0.4;
-
-    // Auto aim if no target coordinate
-    if (targetWorldX < 0 && targetWorldY < 0) {
-      let closest: Enemy | null = null;
-      let minDistSq = 600 * 600;
-      for (const e of this.enemies) {
-        if (e.hp <= 0) continue;
-        const dx = e.x - this.playerX;
-        const dy = e.y - this.playerY;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < minDistSq) {
-          minDistSq = d2;
-          closest = e;
-        }
-      }
-      if (closest) {
-        targetWorldX = closest.x;
-        targetWorldY = closest.y;
-      } else {
-        targetWorldX = this.playerX + Math.cos(this.playerFacingAngle) * 150;
-        targetWorldY = this.playerY + Math.sin(this.playerFacingAngle) * 150;
-      }
-    }
-
-    const dx = targetWorldX - this.playerX;
-    const dy = targetWorldY - this.playerY;
-    if (dx !== 0 || dy !== 0) {
-      this.playerFacingAngle = Math.atan2(dy, dx);
-    }
-    const angle = this.playerFacingAngle;
-    let dmg = this.getAttackDamage();
-    const isCrit = Math.random() < this.getCritChance();
-    const critMult = this.hasSkill('hunt_crit') ? 2.4 : 1.8;
-    if (isCrit) dmg = Math.round(dmg * critMult);
-
-    if (this.playerClass === 'juggernaut') {
-      // Melee Anchor Cleave
-      let cleaveDmg = Math.round(dmg * 1.35 + this.getDefense() * 0.5);
-      if (this.hasSkill('jug_slam')) cleaveDmg = Math.round(cleaveDmg * 1.3);
-
-      let hitCount = 0;
-      for (const e of this.enemies) {
-        if (e.hp <= 0) continue;
-        const edx = e.x - this.playerX;
-        const edy = e.y - this.playerY;
-        const dist = Math.sqrt(edx * edx + edy * edy);
-        if (dist <= 140 + e.radius) {
-          const eAngle = Math.atan2(edy, edx);
-          const diff = Math.abs(this.normalizeAngle(eAngle - this.playerFacingAngle));
-          if (diff <= 1.35 || dist < 45) {
-            this.damageEnemy(e, cleaveDmg, e.x, e.y);
-            if (dist > 1) {
-              e.x += (edx / dist) * 65;
-              e.y += (edy / dist) * 65;
-            }
-            hitCount++;
-          }
-        }
-      }
-
-      for (let i = -4; i <= 4; i++) {
-        const a = this.playerFacingAngle + i * 0.25;
-        const px = this.playerX + Math.cos(a) * 60;
-        const py = this.playerY + Math.sin(a) * 60;
-        this.particles.push({
-          id: `p_${Math.random()}`,
-          x: px,
-          y: py,
-          vx: Math.cos(a) * 160,
-          vy: Math.sin(a) * 160,
-          radius: 6,
-          color: '#f59e0b',
-          life: 0.25,
-          maxLife: 0.25,
-        });
-      }
-      this.trauma = Math.min(1.0, this.trauma + 0.25);
-      if (hitCount > 0) AudioHelper.playHeavyHit();
-      else AudioHelper.playHit();
-      return true;
-    } else if (this.playerClass === 'mystic') {
-      // Homing Tidal Bolt
-      const speed = 460;
-      const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed;
-      let pColor = '#38bdf8';
-      if (this.equippedWeapon && this.equippedWeapon.rarity === 3) pColor = '#c084fc';
-
-      this.projectiles.push({
-        id: `proj_${Date.now()}_${Math.random()}`,
-        x: this.playerX,
-        y: this.playerY,
-        vx,
-        vy,
-        radius: 10,
-        damage: dmg,
-        playerOwned: true,
-        life: 0.9,
-        maxLife: 0.9,
-        color: pColor,
-        homing: true,
-        hitEnemyIds: [],
-      });
-
-      this.tide = Math.min(this.getMaxTide(), this.tide + 3);
-      AudioHelper.playWave();
-      return true;
-    }
-
-    // Hunter: Piercing Harpoon
-    const speed = this.hasSkill('hunt_rapid') ? 640 : 520;
-    const vx = Math.cos(angle) * speed;
-    const vy = Math.sin(angle) * speed;
-    let pColor = '#38bdf8';
-    if (this.equippedWeapon?.rarity === 2) pColor = '#fbbf24';
-    if (this.equippedWeapon?.rarity === 3) pColor = '#c084fc';
-
-    const pCount = this.hasSkill('hunt_pierce') ? 3 : 1;
-
-    this.projectiles.push({
-      id: `proj_${Date.now()}_${Math.random()}`,
-      x: this.playerX,
-      y: this.playerY,
-      vx,
-      vy,
-      radius: 8,
-      damage: dmg,
-      playerOwned: true,
-      life: 0.5,
-      maxLife: 0.5,
-      color: pColor,
-      pierceCount: pCount,
-      hitEnemyIds: [],
-    });
-
-    if (this.hasSkill('hunt_multishot')) {
-      for (const offset of [-0.24, 0.24]) {
-        const a = angle + offset;
-        this.projectiles.push({
-          id: `proj_${Date.now()}_${Math.random()}`,
-          x: this.playerX,
-          y: this.playerY,
-          vx: Math.cos(a) * speed,
-          vy: Math.sin(a) * speed,
-          radius: 8,
-          damage: Math.round(dmg * 0.8),
-          playerOwned: true,
-          life: 0.5,
-          maxLife: 0.5,
-          color: pColor,
-          pierceCount: pCount,
-          hitEnemyIds: [],
-        });
-      }
-    }
-
-    AudioHelper.playHit();
-    return true;
-  }
-
-  public performWave(): boolean {
-    if (this.waveCooldown > 0 || this.tide < 30 || this.gameOver || this.victory) return false;
-    this.tide -= 30;
-    this.waveCooldown = 6.0;
-    this.trauma = Math.min(1.0, this.trauma + 0.45);
-
-    if (this.hasSkill('mys_vortex')) {
-      // Pull enemies toward player
-      for (const e of this.enemies) {
-        const dx = this.playerX - e.x;
-        const dy = this.playerY - e.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 10 && dist < 380) {
-          e.x += (dx / dist) * 55;
-          e.y += (dy / dist) * 55;
-        }
-      }
-    }
-
-    const waveCount = this.hasSkill('jug_shockwave') ? 20 : 14;
-    const waveSpeed = this.hasSkill('jug_shockwave') ? 460 : 380;
-    const dmg = Math.round(this.getAttackDamage() * (this.hasSkill('mys_vortex') ? 1.95 : 1.6));
-
-    for (let i = 0; i < waveCount; i++) {
-      const angle = (2.0 * Math.PI / waveCount) * i;
-      this.projectiles.push({
-        id: `p_wave_${Date.now()}_${i}`,
-        x: this.playerX,
-        y: this.playerY,
-        vx: Math.cos(angle) * waveSpeed,
-        vy: Math.sin(angle) * waveSpeed,
-        radius: 11,
-        damage: dmg,
-        playerOwned: true,
-        life: 0.65,
-        maxLife: 0.65,
-        color: '#0284c7',
-        hitEnemyIds: [],
-      });
-    }
-
-    if (this.hasSkill('mys_cataclysm')) {
-      for (let i = 0; i < 12; i++) {
-        const angle = (Math.PI * 2 / 12) * i;
-        this.projectiles.push({
-          id: `p_cata_${Date.now()}_${i}`,
-          x: this.playerX,
-          y: this.playerY,
-          vx: Math.cos(angle) * 310,
-          vy: Math.sin(angle) * 310,
-          radius: 14,
-          damage: Math.round(dmg * 1.3),
-          playerOwned: true,
-          life: 0.8,
-          maxLife: 0.8,
-          color: '#c084fc',
-          hitEnemyIds: [],
-        });
-      }
-    }
-
-    for (let i = 0; i < 24; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const spd = 60 + Math.random() * 220;
-      this.particles.push({
-        id: `pw_${Math.random()}`,
-        x: this.playerX,
-        y: this.playerY,
-        vx: Math.cos(angle) * spd,
-        vy: Math.sin(angle) * spd,
-        radius: 6,
-        color: '#38bdf8',
-        life: 0.6,
-        maxLife: 0.6,
-      });
-    }
-
-    AudioHelper.playWave();
-    return true;
-  }
-
-  public performDash(): boolean {
-    if (this.dashCooldown > 0 || this.gameOver || this.victory) return false;
-    let cd = 2.5;
-    if (this.hasSkill('hunt_surge')) cd = 1.85;
-    this.dashCooldown = cd;
-    this.dashAnim = 1.0;
-
-    const dx = Math.cos(this.playerFacingAngle);
-    const dy = Math.sin(this.playerFacingAngle);
-    this.playerTargetX = this.playerX + dx * 180;
-    this.playerTargetY = this.playerY + dy * 180;
-    this.playerMoving = true;
-
-    if (this.hasSkill('mys_lightning')) {
-      for (const e of this.enemies) {
-        const edx = e.x - this.playerX;
-        const edy = e.y - this.playerY;
-        if (edx * edx + edy * edy < 135 * 135) {
-          this.damageEnemy(e, Math.round(this.getAttackDamage() * 0.85), e.x, e.y);
-        }
-      }
-      for (let i = 0; i < 20; i++) {
-        this.particles.push({
-          id: `pe_${Math.random()}`,
-          x: this.playerX,
-          y: this.playerY,
-          vx: Math.random() * 160 - 80,
-          vy: Math.random() * 160 - 80,
-          radius: 5,
-          color: '#fcd34d',
-          life: 0.5,
-          maxLife: 0.5,
-        });
-      }
-    }
-
-    if (this.hasSkill('hunt_dash_cut')) {
-      for (const e of this.enemies) {
-        const edx = e.x - this.playerX;
-        const edy = e.y - this.playerY;
-        if (edx * edx + edy * edy < 110 * 110) {
-          this.damageEnemy(e, Math.round(this.getAttackDamage() * 0.75), e.x, e.y);
-        }
-      }
-    }
-
-    AudioHelper.playDash();
-    return true;
-  }
-
-  public usePotion(): boolean {
-    if (this.potions <= 0 || this.hp >= this.getMaxHp() || this.gameOver || this.victory) return false;
-    this.potions--;
-    let heal = Math.round(this.getMaxHp() * 0.5);
-    if (this.hasSkill('mys_alchemy')) heal = Math.round(this.getMaxHp() * 0.75);
-
-    this.hp = Math.min(this.getMaxHp(), this.hp + heal);
-    this.addFloater(this.playerX, this.playerY - 45, `+${heal} PV`, '#4ade80', true);
-    AudioHelper.playPotion();
-    return true;
-  }
-
   public damagePlayer(rawDamage: number, _fromX: number, _fromY: number) {
     if (this.gameOver || this.victory || this.dashAnim > 0.4) return;
     const def = this.getDefense();
     let taken = Math.max(1, rawDamage - Math.floor(def / 2));
+
+    if (this.shieldTimer > 0) {
+      taken = Math.max(1, Math.round(taken * 0.4));
+      // Reflect damage
+      for (const e of this.enemies) {
+        if (Math.hypot(e.x - this.playerX, e.y - this.playerY) < 220) {
+          e.hp -= Math.max(1, Math.round(taken * 0.5));
+          this.addFloater(e.x, e.y - 25, `SPINE ${Math.round(taken * 0.5)}`, '#fb923c', false);
+        }
+      }
+    }
 
     if (this.hasSkill('jug_unbreakable') && this.hp < this.getMaxHp() * 0.35) {
       taken = Math.max(1, Math.round(taken * 0.5));
@@ -1056,18 +1530,6 @@ export class GameEngine {
     this.hp -= taken;
     this.trauma = Math.min(1.0, this.trauma + 0.45);
     this.playerSquash = 0.8;
-
-    if (this.hasSkill('jug_reflect')) {
-      const reflected = Math.max(1, Math.round(taken * 0.4));
-      for (const e of this.enemies) {
-        const dx = e.x - this.playerX;
-        const dy = e.y - this.playerY;
-        if (dx * dx + dy * dy < 260 * 260) {
-          e.hp -= reflected;
-          this.addFloater(e.x, e.y - 30, `SPINE ${reflected}`, '#fb923c', false);
-        }
-      }
-    }
 
     this.addFloater(this.playerX, this.playerY - 35, `-${taken}`, '#ef4444', false);
     AudioHelper.playHeavyHit();
@@ -1108,20 +1570,6 @@ export class GameEngine {
       AudioHelper.playHit();
     }
 
-    for (let i = 0; i < 8; i++) {
-      this.particles.push({
-        id: `pb_${Math.random()}`,
-        x: hitX,
-        y: hitY,
-        vx: Math.random() * 80 - 40,
-        vy: Math.random() * 80 - 40,
-        radius: 4,
-        color: '#f43f5e',
-        life: 0.4,
-        maxLife: 0.4,
-      });
-    }
-
     if (e.hp <= 0) {
       this.killEnemy(e);
     }
@@ -1135,10 +1583,13 @@ export class GameEngine {
     else if (e.type === 'boss') gainedXp = 160;
     this.addXp(gainedXp);
 
-    if (this.hasSkill('mys_siphon')) {
-      const heal = 12;
-      this.hp = Math.min(this.getMaxHp(), this.hp + heal);
-      this.addFloater(this.playerX, this.playerY - 30, `+${heal} PV`, '#a78bfa', true);
+    if (e.isBoss) {
+      const act = this.getActiveAct();
+      const bossObj = act.objectives.find((o) => o.type === 'reach_boss');
+      if (bossObj) bossObj.completed = true;
+      this.portalOpen = true;
+      this.addFloater(this.portalX, this.portalY - 45, 'PORTALE DI RITORNO APERTO!', '#38bdf8', true);
+      AudioHelper.playLevelUp();
     }
 
     const count = e.type === 'boss' ? 40 : 16;
@@ -1156,8 +1607,7 @@ export class GameEngine {
       });
     }
 
-    // Always drop gold shells
-    const shellAmount = e.type === 'boss' ? 30 + Math.floor(Math.random() * 20) : 4 + Math.floor(Math.random() * 6);
+    const shellAmount = e.type === 'boss' ? 35 + Math.floor(Math.random() * 20) : 4 + Math.floor(Math.random() * 6);
     this.drops.push({
       id: `d_sh_${Date.now()}_${Math.random()}`,
       x: e.x + (Math.random() * 24 - 12),
@@ -1166,7 +1616,6 @@ export class GameEngine {
       timer: 0,
     });
 
-    // Roll item loot drop
     const dropChance = e.type === 'boss' ? 1.0 : e.type === 'angler' ? 0.65 : 0.4;
     if (Math.random() <= dropChance) {
       const droppedItem = this.generateRandomItem(this.zone, e.type === 'boss');
@@ -1233,11 +1682,11 @@ export class GameEngine {
 
   public generateRandomItem(zoneLevel: number, isBoss: boolean): Item {
     const roll = Math.floor(Math.random() * 100);
-    let rarity = 0; // Common
+    let rarity = 0;
     if (isBoss) {
-      if (roll < 35) rarity = 3; // Abyssal
-      else if (roll < 80) rarity = 2; // Rare
-      else rarity = 1; // Magic
+      if (roll < 35) rarity = 3;
+      else if (roll < 80) rarity = 2;
+      else rarity = 1;
     } else {
       if (zoneLevel === 1) {
         if (roll < 6) rarity = 2;
@@ -1524,7 +1973,62 @@ export class GameEngine {
     return true;
   }
 
-  // --- Main Game Update Loop (60 FPS) ---
+  private spawnEnemy(
+    type: 'crab' | 'jelly' | 'eel' | 'angler',
+    name: string,
+    x: number,
+    y: number,
+    hp: number,
+    dmg: number,
+    radius: number,
+    speed: number
+  ) {
+    this.enemies.push({
+      id: `e_${Date.now()}_${Math.random()}`,
+      type,
+      name,
+      x,
+      y,
+      hp,
+      maxHp: hp,
+      dmg,
+      radius,
+      speed,
+      vx: 0,
+      vy: 0,
+      hitSquash: 0,
+      attackTimer: Math.random() * 2,
+      isBoss: false,
+    });
+  }
+
+  private spawnBoss(name: string, x: number, y: number, hp: number, dmg: number, radius: number, speed: number) {
+    this.enemies.push({
+      id: `boss_${Date.now()}`,
+      type: 'boss',
+      name,
+      x,
+      y,
+      hp,
+      maxHp: hp,
+      dmg,
+      radius,
+      speed,
+      vx: 0,
+      vy: 0,
+      hitSquash: 0,
+      attackTimer: 2.0,
+      isBoss: true,
+      bossPhase: 1,
+      windupX: x,
+      windupY: y,
+      windupRadius: 0,
+      windupTimer: 0,
+      windupMaxTimer: 1.2,
+    });
+  }
+
+  // --- Main Update Loop ---
   public update(dt: number) {
     if (this.hitStop > 0) {
       this.hitStop -= dt;
@@ -1539,13 +2043,19 @@ export class GameEngine {
       this.beaconTimer -= dt;
     }
 
-    // Cooldown decays
-    if (this.attackCooldown > 0) this.attackCooldown -= dt;
-    if (this.waveCooldown > 0) this.waveCooldown -= dt;
     if (this.dashCooldown > 0) this.dashCooldown -= dt;
-    if (this.attackAnim > 0) this.attackAnim = Math.max(0, this.attackAnim - dt * 4);
     if (this.dashAnim > 0) this.dashAnim = Math.max(0, this.dashAnim - dt * 3);
+    if (this.attackAnim > 0) this.attackAnim = Math.max(0, this.attackAnim - dt * 4);
     if (this.playerSquash > 0) this.playerSquash = Math.max(0, this.playerSquash - dt * 3);
+    if (this.shieldTimer > 0) this.shieldTimer = Math.max(0, this.shieldTimer - dt);
+    if (this.whirlwindTimer > 0) this.whirlwindTimer = Math.max(0, this.whirlwindTimer - dt);
+
+    // Slot cooldown ticks
+    (Object.keys(this.slotCooldowns) as ActiveSlotId[]).forEach((slot) => {
+      if (this.slotCooldowns[slot] > 0) {
+        this.slotCooldowns[slot] = Math.max(0, this.slotCooldowns[slot] - dt);
+      }
+    });
 
     // Passive Tide Regeneration
     const tideRegen = this.hasSkill('mys_tideflow') ? 12 : 5;
@@ -1568,7 +2078,6 @@ export class GameEngine {
         this.playerY += (dy / dist) * speed * dt;
       }
 
-      // Bubble trail
       if (Math.random() < 0.25) {
         this.particles.push({
           id: `p_trail_${Math.random()}`,
@@ -1584,8 +2093,29 @@ export class GameEngine {
       }
     }
 
-    // Update Entities
+    // Interactive World Entities Proximity Check
     if (this.gameState === 'EXPEDITION') {
+      for (const ent of this.worldEntities) {
+        if (ent.active && ent.type !== 'gate') {
+          if (Math.hypot(ent.x - this.playerX, ent.y - this.playerY) < ent.radius + this.playerRadius + 15) {
+            this.interactWithEntity(ent);
+          }
+        }
+      }
+
+      // Check Gate Barrier Collision
+      const act = this.getActiveAct();
+      if (!act.gateOpened) {
+        const gate = this.worldEntities.find((e) => e.type === 'gate');
+        if (gate && Math.hypot(gate.x - this.playerX, gate.y - this.playerY) < gate.radius + this.playerRadius) {
+          // Push player back if gate is closed
+          const gAngle = Math.atan2(this.playerY - gate.y, this.playerX - gate.x);
+          this.playerX = gate.x + Math.cos(gAngle) * (gate.radius + this.playerRadius + 5);
+          this.playerY = gate.y + Math.sin(gAngle) * (gate.radius + this.playerRadius + 5);
+          this.playerMoving = false;
+        }
+      }
+
       this.updateProjectiles(dt);
       this.updateEnemies(dt);
       this.updateDrops(dt);
@@ -1603,7 +2133,6 @@ export class GameEngine {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
 
-      // Homing for Mystic projectiles
       if (p.homing && p.playerOwned) {
         let closest: Enemy | null = null;
         let minDistSq = 450 * 450;
@@ -1688,23 +2217,16 @@ export class GameEngine {
       const dy = this.playerY - e.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Facing
       if (dx !== 0 || dy !== 0) {
         e.facing = Math.atan2(dy, dx);
       }
 
-      // AI movement
       if (e.isBoss) {
-        // Boss Behavior: Windup heavy slams & bullet rings
         e.attackTimer -= dt;
         if (e.windupTimer && e.windupTimer > 0) {
           e.windupTimer -= dt;
           if (e.windupTimer <= 0) {
-            // Slam impact
-            const slamDist = Math.sqrt(
-              (this.playerX - (e.windupX || e.x)) ** 2 +
-              (this.playerY - (e.windupY || e.y)) ** 2
-            );
+            const slamDist = Math.hypot(this.playerX - (e.windupX || e.x), this.playerY - (e.windupY || e.y));
             if (slamDist <= (e.windupRadius || 110)) {
               this.damagePlayer(e.dmg * 1.5, e.windupX || e.x, e.windupY || e.y);
             }
@@ -1712,14 +2234,13 @@ export class GameEngine {
             AudioHelper.playHeavyHit();
           }
         } else if (e.attackTimer <= 0) {
-          e.attackTimer = 3.0;
+          e.attackTimer = 3.2;
           e.windupTimer = 1.2;
           e.windupMaxTimer = 1.2;
           e.windupX = this.playerX;
           e.windupY = this.playerY;
           e.windupRadius = 110;
 
-          // Also launch projectiles
           const ringCount = 8;
           for (let r = 0; r < ringCount; r++) {
             const a = (Math.PI * 2 / ringCount) * r;
@@ -1739,19 +2260,16 @@ export class GameEngine {
           }
         }
 
-        // Slow drift toward player
         if (dist > 120) {
           e.x += (dx / dist) * e.speed * dt;
           e.y += (dy / dist) * e.speed * dt;
         }
       } else {
-        // Regular enemy movement
         if (dist < 450 && dist > e.radius + this.playerRadius) {
           e.x += (dx / dist) * e.speed * dt;
           e.y += (dy / dist) * e.speed * dt;
         }
 
-        // Attack when in range
         if (dist <= e.radius + this.playerRadius + 5) {
           e.attackTimer -= dt;
           if (e.attackTimer <= 0) {
@@ -1771,7 +2289,6 @@ export class GameEngine {
       const dy = this.playerY - d.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Vacuum magnetic pickup when close
       if (dist < 85) {
         d.x += (dx / dist) * 220 * dt;
         d.y += (dy / dist) * 220 * dt;
@@ -1818,17 +2335,10 @@ export class GameEngine {
   }
 
   private updatePortal() {
-    if (this.enemies.length === 0 && !this.portalOpen) {
-      this.portalOpen = true;
-      this.addFloater(this.portalX, this.portalY - 40, 'PORTALE DEGLI ABISSI APERTO', '#38bdf8', true);
-      AudioHelper.playLevelUp();
-    }
-
     if (this.portalOpen) {
       const dx = this.playerX - this.portalX;
       const dy = this.playerY - this.portalY;
       if (dx * dx + dy * dy < this.portalRadius * this.portalRadius) {
-        // Advanced act unlocked
         if (this.zone === 1 && this.maxActUnlocked < 2) {
           this.maxActUnlocked = 2;
           this.acts[0].completed = true;
@@ -1856,7 +2366,6 @@ export class GameEngine {
         if (this.zone === 4) {
           this.victory = true;
         } else {
-          // Progress to next zone or enter hub
           this.enterHub();
         }
       }
@@ -1908,13 +2417,13 @@ export class GameEngine {
   public getRarityColor(rarity: number): string {
     switch (rarity) {
       case 1:
-        return '#38bdf8'; // Magic Cobalt
+        return '#38bdf8';
       case 2:
-        return '#fbbf24'; // Rare Gold
+        return '#fbbf24';
       case 3:
-        return '#c084fc'; // Abyssal Purple
+        return '#c084fc';
       default:
-        return '#f8fafc'; // Common Slate
+        return '#f8fafc';
     }
   }
 

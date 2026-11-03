@@ -5,11 +5,14 @@ class SoundEngine {
   private ambientNoiseSource: AudioBufferSourceNode | null = null;
 
   private initContext() {
+    if (typeof window === 'undefined') return;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AudioCtx();
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+      }
     }
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
   }

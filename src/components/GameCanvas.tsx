@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../game/GameEngine';
-import { Enemy, Drop, Particle, Floater, ActChest, Projectile } from '../types/game';
+import { Enemy, Drop, Particle, Floater, ActChest, Projectile, InteractiveWorldEntity } from '../types/game';
 
 interface GameCanvasProps {
   engine: GameEngine;
@@ -88,6 +88,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Draw Sunken Chests
       drawActChests(ctx, engine.actChests, time / 1000);
 
+      // Draw Interactive Story World Entities (Crystals, Gates, Valves)
+      drawWorldEntities(ctx, engine.worldEntities, time / 1000);
+
       // Draw Portal (Dungeon exit or Town Portal)
       if (engine.gameState === 'EXPEDITION' && engine.portalOpen) {
         drawPortal(ctx, engine.portalX, engine.portalY, '#38bdf8', 'PORTALE DEGLI ABISSI', time / 1000);
@@ -168,6 +171,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const worldX = screenX + camX;
     const worldY = screenY + camY;
 
+    // Mouse 2 (Right Click) in Expedition -> Triggers M2 assigned ability!
+    if (e.button === 2) {
+      e.preventDefault();
+      if (engine.gameState === 'EXPEDITION') {
+        engine.performM2(worldX, worldY);
+        return;
+      }
+    }
+
     // Check interaction with Hub Stations
     if (engine.gameState === 'HUB') {
       const distToBlacksmith = Math.hypot(worldX - GameEngine.HUB_BLACKSMITH_X, worldY - GameEngine.HUB_BLACKSMITH_Y);
@@ -204,15 +216,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
 
-    // Check if clicked an enemy to target and attack directly
+    // Check interaction with Story World Entities (Crystals, Valves, Gates)
     if (engine.gameState === 'EXPEDITION') {
-      for (const en of engine.enemies) {
-        const d = Math.hypot(worldX - en.x, worldY - en.y);
-        if (d <= en.radius + 15) {
-          engine.performAttack(en.x, en.y);
+      for (const ent of engine.worldEntities) {
+        if (ent.active && Math.hypot(worldX - ent.x, worldY - ent.y) <= ent.radius + 20) {
+          engine.interactWithEntity(ent);
           return;
         }
       }
+
+      // Check if clicked an enemy to target and attack directly
+      for (const en of engine.enemies) {
+        const d = Math.hypot(worldX - en.x, worldY - en.y);
+        if (d <= en.radius + 20) {
+          engine.performAttack(en.x, en.y);
+          engine.setPlayerTarget(worldX, worldY);
+          return;
+        }
+      }
+
+      // Left Click (Mouse 1) triggers primary attack towards cursor in expedition
+      engine.performAttack(worldX, worldY);
     }
 
     // Move player
@@ -294,7 +318,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     ctx.stroke();
 
-    // 4. Cobblestone Paths to Hub Stations
+    // 4. Subtle paving under stations (no central connecting beams)
     const stations = [
       { x: GameEngine.HUB_BLACKSMITH_X, y: GameEngine.HUB_BLACKSMITH_Y },
       { x: GameEngine.HUB_MERCHANT_X, y: GameEngine.HUB_MERCHANT_Y },
@@ -302,14 +326,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       { x: GameEngine.HUB_SAGE_X, y: GameEngine.HUB_SAGE_Y },
       { x: GameEngine.HUB_WAYPOINT_X, y: GameEngine.HUB_WAYPOINT_Y },
     ];
-
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-    ctx.lineWidth = 18;
     stations.forEach((st) => {
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(st.x, st.y);
-      ctx.stroke();
+      drawFloorShadow(ctx, st.x, st.y + 10, 42, 16);
     });
 
     // 5. Ambient Corals, Columns and Seaweed
@@ -737,19 +755,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.fill();
     }
 
-    // Orbiting Relic Wisp
-    if (eng.equippedRelic) {
-      const relicAngle = time * 4;
-      const rx = Math.cos(relicAngle) * 32;
-      const ry = Math.sin(relicAngle) * 16 - 10;
-      ctx.fillStyle = eng.getRarityColor(eng.equippedRelic.rarity);
+    // Active Shield (Juggernaut / Mystic Barrier)
+    if (eng.shieldTimer > 0) {
+      ctx.save();
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#34d399';
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(rx, ry, 4.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowColor = '#fff';
-      ctx.shadowBlur = 6;
+      ctx.arc(0, -6, 36, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(52, 211, 153, 0.15)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Active Whirlwind (Juggernaut Anchor Spin)
+    if (eng.whirlwindTimer > 0) {
+      ctx.save();
+      ctx.rotate(time * 18);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, -6, 44, 0, Math.PI * 1.5);
+      ctx.stroke();
+      ctx.restore();
     }
 
     ctx.restore();
@@ -845,10 +875,157 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.restore();
   };
 
+  const drawWorldEntities = (
+    ctx: CanvasRenderingContext2D,
+    entities: InteractiveWorldEntity[],
+    time: number
+  ) => {
+    entities.forEach((ent) => {
+      drawFloorShadow(ctx, ent.x, ent.y + ent.radius * 0.7, ent.radius * 1.2, ent.radius * 0.45);
+
+      if (ent.type === 'quest_item') {
+        // Floating Ancient Runic Crystal / Core / Monolith
+        ctx.save();
+        ctx.translate(ent.x, ent.y);
+        const hoverY = Math.sin(time * 3 + ent.x) * 6;
+
+        // Base altar pedestal
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(-18, 10, 36, 14);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-18, 10, 36, 14);
+
+        if (ent.active) {
+          // Hovering diamond gem
+          ctx.translate(0, hoverY);
+          ctx.fillStyle = ent.color;
+          ctx.beginPath();
+          ctx.moveTo(0, -18);
+          ctx.lineTo(14, 0);
+          ctx.lineTo(0, 18);
+          ctx.lineTo(-14, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = ent.color;
+          ctx.shadowBlur = 10;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+
+          // Sparkling particle
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(Math.sin(time * 5) * 16, Math.cos(time * 5) * 16, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Deactivated / Collected socket
+          ctx.fillStyle = '#64748b';
+          ctx.beginPath();
+          ctx.arc(0, 8, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Label
+        ctx.font = 'bold 10px Cinzel, serif';
+        ctx.fillStyle = ent.active ? ent.color : '#64748b';
+        ctx.textAlign = 'center';
+        ctx.fillText(ent.active ? ent.name : 'ATTIVATO', ent.x, ent.y - 28);
+      } else if (ent.type === 'valve') {
+        // Mechanical / Geothermal Valve
+        ctx.save();
+        ctx.translate(ent.x, ent.y);
+
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(0, 0, ent.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = ent.active ? ent.color : '#64748b';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Valve Wheel
+        ctx.save();
+        if (ent.active) ctx.rotate(time * 2);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-ent.radius + 6, 0);
+        ctx.lineTo(ent.radius - 6, 0);
+        ctx.moveTo(0, -ent.radius + 6);
+        ctx.lineTo(0, ent.radius - 6);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.restore();
+
+        ctx.font = 'bold 10px Cinzel, serif';
+        ctx.fillStyle = ent.active ? ent.color : '#64748b';
+        ctx.textAlign = 'center';
+        ctx.fillText(ent.active ? ent.name : 'DISATTIVATO', ent.x, ent.y - 30);
+      } else if (ent.type === 'gate') {
+        // Massive Ancient Gate Barrier
+        const act = engine.getActiveAct();
+        const isOpen = act.gateOpened;
+
+        // Left & Right Pillars
+        drawAncientColumn(ctx, ent.x - 70, ent.y);
+        drawAncientColumn(ctx, ent.x + 70, ent.y);
+
+        if (!isOpen) {
+          // Runic Energy Barrier
+          ctx.save();
+          ctx.strokeStyle = ent.color;
+          ctx.lineWidth = 4;
+          ctx.shadowColor = ent.color;
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.moveTo(ent.x - 55, ent.y - 40);
+          ctx.lineTo(ent.x + 55, ent.y - 40);
+          ctx.lineTo(ent.x + 55, ent.y + 40);
+          ctx.lineTo(ent.x - 55, ent.y + 40);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+          ctx.fill();
+          ctx.stroke();
+
+          // Crackling lightning lines across gate
+          for (let l = 0; l < 3; l++) {
+            ctx.beginPath();
+            ctx.moveTo(ent.x - 55, ent.y - 20 + l * 20);
+            ctx.lineTo(ent.x + Math.sin(time * 10 + l) * 20, ent.y - 20 + l * 20);
+            ctx.lineTo(ent.x + 55, ent.y - 20 + l * 20);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          ctx.font = 'bold 11px Cinzel, serif';
+          ctx.fillStyle = ent.color;
+          ctx.textAlign = 'center';
+          ctx.fillText(ent.active ? 'PORTONE PRONTO: TOCCA PER APRIRE!' : 'PORTONE DELLE ROVINE (SIGILLATO)', ent.x, ent.y - 55);
+        } else {
+          // Open Gate with glowing green passageway
+          ctx.fillStyle = 'rgba(74, 222, 128, 0.2)';
+          ctx.fillRect(ent.x - 55, ent.y - 40, 110, 80);
+          ctx.font = 'bold 11px Cinzel, serif';
+          ctx.fillStyle = '#4ade80';
+          ctx.textAlign = 'center';
+          ctx.fillText('PORTONE APERTO · ENTRA NELLA TANA', ent.x, ent.y - 55);
+        }
+      }
+    });
+  };
+
   return (
     <canvas
       ref={canvasRef}
       onPointerDown={handlePointerDown}
+      onContextMenu={(e) => e.preventDefault()}
       className="absolute inset-0 w-full h-full cursor-crosshair touch-none"
     />
   );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useReducer } from 'react';
 import { GameEngine } from './game/GameEngine';
-import { ActiveModal } from './types/game';
+import { ActiveModal, ActiveSlotId } from './types/game';
 import { GameCanvas } from './components/GameCanvas';
 import { DiabloHud } from './components/DiabloHud';
 import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
@@ -14,6 +14,9 @@ import { SageModal } from './components/modals/SageModal';
 import { WaypointModal } from './components/modals/WaypointModal';
 import { GameOverModal } from './components/modals/GameOverModal';
 import { VictoryModal } from './components/modals/VictoryModal';
+import { SkillAssignModal } from './components/modals/SkillAssignModal';
+import { MobileActionButtons } from './components/MobileActionButtons';
+import { StoryDialogueBanner } from './components/StoryDialogueBanner';
 import { AudioHelper } from './audio/AudioHelper';
 
 export const App: React.FC = () => {
@@ -37,7 +40,16 @@ export const App: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Keyboard Shortcuts (Diablo Hotkeys: 1/Space=Attack, 2/Q=Wave, 3/E=Dash, 4/R=Potion, T=TownPortal, I=Inventory, K=Talents)
+  // Keyboard Shortcuts for Desktop:
+  // Mouse 1 = Attack (Primary)
+  // Mouse 2 = M2 (Rapid secondary ability)
+  // Q, W, E, R = Assigned active skills
+  // Space = Dash
+  // 1 or F = Potion
+  // S = Custom Skill Assign Modal
+  // T = Town Portal
+  // I or B = Inventory
+  // K = Talents
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in text input
@@ -49,19 +61,28 @@ export const App: React.FC = () => {
       }
 
       if (engine.gameState === 'EXPEDITION') {
-        if (e.code === 'Space' || e.key === '1') {
+        // Abilities Q, W, E, R
+        if (e.key === 'q' || e.key === 'Q') {
           e.preventDefault();
-          engine.performAttack();
+          engine.performQ();
           forceUpdate();
-        } else if (e.key === 'q' || e.key === 'Q' || e.key === '2') {
+        } else if (e.key === 'w' || e.key === 'W') {
           e.preventDefault();
-          engine.performWave();
+          engine.performW();
           forceUpdate();
-        } else if (e.key === 'e' || e.key === 'E' || e.key === '3') {
+        } else if (e.key === 'e' || e.key === 'E') {
+          e.preventDefault();
+          engine.performE();
+          forceUpdate();
+        } else if (e.key === 'r' || e.key === 'R') {
+          e.preventDefault();
+          engine.performR();
+          forceUpdate();
+        } else if (e.code === 'Space') {
           e.preventDefault();
           engine.performDash();
           forceUpdate();
-        } else if (e.key === 'r' || e.key === 'R' || e.key === '4') {
+        } else if (e.key === '1' || e.key === 'f' || e.key === 'F') {
           e.preventDefault();
           engine.usePotion();
           forceUpdate();
@@ -72,7 +93,11 @@ export const App: React.FC = () => {
         }
       }
 
-      if (e.key === 'i' || e.key === 'I' || e.key === 'b' || e.key === 'B') {
+      // Hotkeys accessible anywhere
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        setActiveModal((prev) => (prev === 'SKILL_ASSIGN' ? null : 'SKILL_ASSIGN'));
+      } else if (e.key === 'i' || e.key === 'I' || e.key === 'b' || e.key === 'B') {
         e.preventDefault();
         setActiveModal((prev) => (prev === 'INVENTORY' ? null : 'INVENTORY'));
       } else if (e.key === 'k' || e.key === 'K') {
@@ -91,8 +116,8 @@ export const App: React.FC = () => {
     forceUpdate();
   };
 
-  const handleWave = () => {
-    engine.performWave();
+  const handleTriggerSlot = (slot: ActiveSlotId) => {
+    engine.triggerSlot(slot);
     forceUpdate();
   };
 
@@ -146,6 +171,36 @@ export const App: React.FC = () => {
     forceUpdate();
   };
 
+  const isTouchOrAndroid =
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      Boolean((window as unknown as { AndroidBridge?: unknown }).AndroidBridge));
+
+  useEffect(() => {
+    const win = window as unknown as { __handleAndroidBack?: () => boolean };
+    win.__handleAndroidBack = () => {
+      if (activeModal) {
+        setActiveModal(null);
+        return true;
+      }
+      if (engine.currentDialogue) {
+        engine.currentDialogue = null;
+        forceUpdate();
+        return true;
+      }
+      if (engine.gameState === 'EXPEDITION') {
+        engine.openTownPortal();
+        forceUpdate();
+        return true;
+      }
+      return false;
+    };
+    return () => {
+      delete win.__handleAndroidBack;
+    };
+  }, [activeModal, engine]);
+
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
       {/* 60 FPS HTML5 Canvas */}
@@ -154,8 +209,32 @@ export const App: React.FC = () => {
         onOpenStation={(station) => setActiveModal(station)}
       />
 
-      {/* Diablo HUD (Life & Tide Orbs, Belt, Top Status Bar) */}
-      {engine.gameState !== 'CHAR_SELECT' && engine.gameState !== 'CHAR_CREATE' && (
+      {/* Story Narrative Dialogue Banner (Story Progression) */}
+      {engine.currentDialogue && (
+        <StoryDialogueBanner
+          dialogue={engine.currentDialogue}
+          onDismiss={() => {
+            engine.currentDialogue = null;
+            forceUpdate();
+          }}
+        />
+      )}
+
+      {/* Mobile Touch Action Buttons (Customizable on phone/touch & Android APK) */}
+      {engine.gameState === 'EXPEDITION' && !activeModal && !engine.gameOver && !engine.victory && (
+        <div className={isTouchOrAndroid ? 'block' : 'md:hidden'}>
+          <MobileActionButtons
+            engine={engine}
+            onOpenSkillAssign={() => setActiveModal('SKILL_ASSIGN')}
+            onTriggerSlot={handleTriggerSlot}
+            onDash={handleDash}
+            onPotion={handlePotion}
+          />
+        </div>
+      )}
+
+      {/* Diablo HUD (Life & Tide Orbs, Belt, Top Status Bar, Quest Tracker) */}
+      {engine.gameState !== 'CHAR_SELECT' && engine.gameState !== 'CHAR_CREATE' && !engine.gameOver && !engine.victory && (
         <DiabloHud
           engine={engine}
           activeModal={activeModal}
@@ -163,10 +242,12 @@ export const App: React.FC = () => {
           soundEnabled={soundEnabled}
           setSoundEnabled={setSoundEnabled}
           onAttack={handleAttack}
-          onWave={handleWave}
           onDash={handleDash}
           onPotion={handlePotion}
           onTownPortal={handleTownPortal}
+          onTriggerSlot={handleTriggerSlot}
+          onOpenSkillAssign={() => setActiveModal('SKILL_ASSIGN')}
+          isTouchMode={isTouchOrAndroid}
         />
       )}
 
@@ -189,6 +270,14 @@ export const App: React.FC = () => {
             engine.gameState = 'CHAR_SELECT';
             forceUpdate();
           }}
+        />
+      )}
+
+      {activeModal === 'SKILL_ASSIGN' && (
+        <SkillAssignModal
+          engine={engine}
+          onClose={() => setActiveModal(null)}
+          onRefresh={forceUpdate}
         />
       )}
 
